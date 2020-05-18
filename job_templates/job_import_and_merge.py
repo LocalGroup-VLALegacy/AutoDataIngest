@@ -21,11 +21,17 @@ def cedar_submission_script(target_name="M31", config="C",
 
 cd /home/ekoch/scratch/VLAXL_reduction/{target_name}_{config.upper()}_{trackname}
 
-tar -xf {trackname}.tar
+# If untarred directory does not exist, untar
+
+[[ -d {trackname} ]] || tar -xf {trackname}.tar
+
+# Copy the rcdir here and append the pipeline path
+cp -r ~/.casa .
+echo "sys.path.append(os.path.abspath('ReductionPipeline/lband_pipeline/'))" >> .casa/init.py
 
 echo 'Start casa'
 
-xvfb-run -a ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/ms_split.py {trackname} all
+xvfb-run -a ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} all
 
 echo "casa split finished."
 
