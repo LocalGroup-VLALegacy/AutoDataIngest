@@ -7,7 +7,20 @@ Must be run in python3
 def cedar_slurm_setup(job_time="72:00:00", mem="16000M",
                       job_name="M31_C_20A-346.sb38098105.eb38158028.58985.68987263889",
                       job_type="import_and_split",
-                      sendto="ekoch@ualberta.ca"):
+                      sendto="ekoch@ualberta.ca",
+                      dependency=None):
+
+    '''
+    Dependency example: --dependency=afterok:11254323
+    This requires the job to wait until the job number successfully finished.
+    (e.g., the split job should start before the pipeline runs)
+    See https://hpc.nih.gov/docs/job_dependencies.html.
+    '''
+
+    if dependency is not None:
+        dependency_str = f"#SBATCH --dependency:{dependency}"
+    else:
+        dependency_str = ""
 
     slurm_setup = \
         f'''#!/bin/bash
@@ -18,7 +31,7 @@ def cedar_slurm_setup(job_time="72:00:00", mem="16000M",
 #SBATCH --mail-user={sendto}
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-
+{dependency_str}
         '''
 
     return slurm_setup
