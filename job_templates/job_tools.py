@@ -35,12 +35,19 @@ module load qt/4.8.7
 
 source /home/ekoch/.bashrc
 
+# This is what I had in preload.bash
+export NIXDIR=/cvmfs/soft.computecanada.ca/nix/var/nix/profiles/16.09/lib/
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/usr/
+
+export CASALD_LIBRARY_PATH=$LD_LIBRARY_PATH
+
 # These don't get linked properly in casaplotms.
 # Force to be in known position.
-ln -s $NIXDIR/libXi.so.6 $HOME/usr/
-ln -s $NIXDIR/libXrandr.so.2 $HOME/usr/
-ln -s $NIXDIR/libXcursor.so.1 $HOME/usr/
-ln -s $NIXDIR/libXinerama.so.1 $HOME/usr/
+#ln -s $NIXDIR/libXi.so.6 $HOME/usr/
+#ln -s $NIXDIR/libXrandr.so.2 $HOME/usr/
+#ln -s $NIXDIR/libXcursor.so.1 $HOME/usr/
+#ln -s $NIXDIR/libXinerama.so.1 $HOME/usr/
 
         '''
 
