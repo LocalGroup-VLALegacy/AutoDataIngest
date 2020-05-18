@@ -11,7 +11,7 @@ from job_tools import cedar_slurm_setup, cedar_job_setup
 def cedar_submission_script_default(target_name="M31",
                                     config="C",
                                     trackname="20A-346.sb38098105.eb38158028.58985.68987263889",
-                                    slurm_kwargs={"dependency": "afterok:11254323"},
+                                    slurm_kwargs={},
                                     setup_kwargs={},
                                     conditional_on_jobnum=None):
     '''
@@ -32,7 +32,7 @@ def cedar_submission_script_default(target_name="M31",
     job_str = \
         f'''{slurm_str}\n{setup_str}
 
-export TRACK_FOLDER={target_name}_{config.upper()}_{trackname}
+export TRACK_FOLDER="{target_name}_{config.upper()}_{trackname}"
 
 cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
@@ -42,11 +42,11 @@ echo "sys.path.append(os.path.abspath('ReductionPipeline/lband_pipeline/'))" >> 
 
 # Move into the continuum pipeline
 
-cd {trackname}_continuum
+cd $TRACK_FOLDER"_continuum"
 
 echo 'Start casa'
 
-xvfb-run -a ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}_continuum.ms')"
+xvfb-run -a ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}.continuum.ms')"
 
 echo "casa split finished."
 
