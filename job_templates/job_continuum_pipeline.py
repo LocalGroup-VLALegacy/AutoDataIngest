@@ -44,11 +44,11 @@ echo "sys.path.append(os.path.abspath('ReductionPipeline/lband_pipeline/'))" >> 
 
 cd $TRACK_FOLDER"_continuum"
 
-echo 'Start casa'
+echo 'Start casa default continuum pipeline'
 
 xvfb-run -a ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}.continuum.ms')"
 
-echo "casa split finished."
+echo "casa default continuum pipeline finished."
 
         '''
 
