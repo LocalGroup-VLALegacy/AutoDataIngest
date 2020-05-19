@@ -18,7 +18,7 @@ def cedar_slurm_setup(job_time="72:00:00", mem="16000M",
     '''
 
     if dependency is not None:
-        dependency_str = f"#SBATCH --dependency:{dependency}"
+        dependency_str = f"#SBATCH --dependency={dependency}"
     else:
         dependency_str = ""
 
