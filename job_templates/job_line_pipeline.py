@@ -21,7 +21,7 @@ def cedar_submission_script_default(target_name="M31",
     '''
 
     slurm_kwargs['job_name'] = f"{target_name}_{config}_{trackname}"
-    slurm_kwargs['job_type'] = "continuum_pipeline_default"
+    slurm_kwargs['job_type'] = "line_pipeline_default"
 
     if conditional_on_jobnum is not None:
         slurm_kwargs['dependency'] = f"afterok:{conditional_on_jobnum}"
