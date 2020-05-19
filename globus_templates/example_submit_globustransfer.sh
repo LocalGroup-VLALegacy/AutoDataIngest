@@ -72,6 +72,9 @@ cd ../
 # Wait on the big data transfer to finish
 globus task wait $task_id
 
+# Trigger removing the data from NRAO storage
+globus rm $nm_nodeid:${nm_base_path}/${track_name}.tar
+
 # Now ssh into cedar (using key) and submit the jobs
 
 
