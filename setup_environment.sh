@@ -17,6 +17,9 @@ pip install --upgrade --user globus-cli
 echo "export PATH=$PATH:/home/ekoch/.local/bin" >> ~/.bashrc
 source ~/.bashrc
 
+# Update globus (if needed)
+globus update
+
 # CANFAR vofs
 pip install --upgrade --user vofs
 
