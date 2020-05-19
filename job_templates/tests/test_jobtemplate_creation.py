@@ -20,3 +20,10 @@ def test_default_continuum_pipeline_template():
     print(job_continuum_pipeline.cedar_submission_script_default(),
           file=open("test_job_continuum_default.sh", 'a'))
 
+
+def test_speclines_pipeline_template():
+
+    from job_templates import job_line_pipeline
+
+    print(job_line_pipeline.cedar_submission_script_default(),
+          file=open("test_job_specline_default.sh", 'a'))
