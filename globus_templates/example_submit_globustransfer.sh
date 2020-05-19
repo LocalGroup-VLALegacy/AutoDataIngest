@@ -73,3 +73,8 @@ cd ../
 globus task wait $task_id
 
 # Now ssh into cedar (using key) and submit the jobs
+
+
+# Then (1) create drive directory and track status sheet
+# (2) Push the jobs numbers to the sheet (updates from email notifications)
+# (3) Push the download status to the master track sheet.
