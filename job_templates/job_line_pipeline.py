@@ -38,7 +38,7 @@ cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
 # Copy the rcdir here and append the pipeline path
 cp -r ~/.casa .
-echo "sys.path.append(os.path.abspath('ReductionPipeline/lband_pipeline/'))" >> .casa/init.py
+echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> ../.casa/init.py
 
 # Move into the continuum pipeline
 
@@ -46,7 +46,7 @@ cd $TRACK_FOLDER"_speclines"
 
 echo 'Start casa default speclines pipeline'
 
-xvfb-run -a ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
+xvfb-run -a ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
 
 echo "casa default speclines pipeline finished."
 

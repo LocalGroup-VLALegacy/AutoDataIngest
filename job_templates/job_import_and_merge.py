@@ -31,7 +31,7 @@ cd /home/ekoch/scratch/VLAXL_reduction/{target_name}_{config.upper()}_{trackname
 
 # Copy the rcdir here and append the pipeline path
 cp -r ~/.casa .
-echo "sys.path.append(os.path.abspath('ReductionPipeline/lband_pipeline/'))" >> .casa/init.py
+echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/init.py
 
 echo 'Start casa'
 
