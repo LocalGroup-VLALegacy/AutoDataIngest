@@ -2,7 +2,7 @@
 
 sudo apt update
 sudo apt upgrade
-sudo apt install nano
+sudo apt install nano less
 
 # Download and install miniconda
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -28,3 +28,14 @@ conda install -y astropy astroquery
 
 # Eventually we'll need plotly, too
 conda install -y plotly
+
+# Install firefox and xvfb
+sudo apt install firefox xvfb
+# Install geckodriver
+# https://askubuntu.com/questions/870530/how-to-install-geckodriver-in-ubuntu
+wget https://github.com/mozilla/geckodriver/releases/download/v0.26.0/geckodriver-v0.26.0-linux64.tar.gz
+tar zxf geckodriver-v0.26.0-linux64.tar.gz
+# executable now in home directory
+
+# And selenium
+conda install -y selenium
