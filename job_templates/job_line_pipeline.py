@@ -53,3 +53,36 @@ echo "casa default speclines pipeline finished."
         '''
 
     return job_str
+
+
+if __name__ == "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Options for creating slurm job files.')
+
+    parser.add_argument('trackname', type=str,
+                        help='VLA SDM/MS Name')
+
+    parser.add_argument('--target_name', type=str, default='M31',
+                        help='Target name (e.g., M31)')
+
+    parser.add_argument('--config', type=str, default='C',
+                        help='VLA configuration')
+
+    parser.add_argument('--conditional_on_jobnum', type=str, default='none',
+                        help='Job number this job is conditional on finishing.')
+
+    args = parser.parse_args()
+
+    conditional_on_jobnum = None if args.conditional_on_jobnum == 'none' else args.conditional_on_jobnum
+
+    out_file = f"{args.target_name}_{args.config}_{args.trackname}_line_pipeline.sh"
+
+    print(cedar_submission_script_default(target_name=args.target_name,
+                                          config=args.config,
+                                          trackname=args.trackname,
+                                          slurm_kwargs={},  # Keep defaults
+                                          setup_kwargs={},
+                                          conditional_on_jobnum=conditional_on_jobnum),
+          file=open(out_file, 'a'))

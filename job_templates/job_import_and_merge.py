@@ -42,3 +42,30 @@ echo "casa split finished."
         '''
 
     return job_str
+
+
+if __name__ == "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Options for creating slurm job files.')
+
+    parser.add_argument('trackname', type=str,
+                        help='VLA SDM/MS Name')
+
+    parser.add_argument('--target_name', type=str, default='M31',
+                        help='Target name (e.g., M31)')
+
+    parser.add_argument('--config', type=str, default='C',
+                        help='VLA configuration')
+
+    args = parser.parse_args()
+
+    out_file = f"{args.target_name}_{args.config}_{args.trackname}_split.sh"
+
+    print(cedar_submission_script(target_name=args.target_name,
+                                  config=args.config,
+                                  trackname=args.trackname,
+                                  slurm_kwargs={},  # Keep defaults
+                                  setup_kwargs={}),
+          file=open(out_file, 'a'))
