@@ -23,7 +23,9 @@ def cedar_submission_script(target_name="M31", config="C",
     job_str = \
         f'''{slurm_str}\n{setup_str}
 
-cd /home/ekoch/scratch/VLAXL_reduction/{target_name}_{config.upper()}_{trackname}
+export TRACK_FOLDER="{target_name}_{config.upper()}_{trackname}"
+
+cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
 # If untarred directory does not exist, untar
 
