@@ -93,7 +93,7 @@ cd $TRACK_FOLDER"_continuum"
 
 echo 'Start casa default continuum pipeline'
 
-xvfb-run -a ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
 
 echo "casa default continuum pipeline finished."
 
