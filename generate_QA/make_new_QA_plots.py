@@ -114,9 +114,9 @@ for track_tar in track_products:
         dest_uvresidplots = qa_output / uvresidplots_path.name
         uvresidplots_path.replace(dest_uvresidplots)
 
-        print("Making tar file w/ QA plots included.")
+    print("Making tar file w/ QA plots included.")
 
-        finaltar_file = finalproducts_folder / f"{track_tar.name.rstrip('.tar')}_withQA.tar"
-        with tarfile.open(finaltar_file, 'w') as tf_final:
+    finaltar_file = finalproducts_folder / f"{track_tar.name.rstrip('.tar')}_withQA.tar"
+    with tarfile.open(finaltar_file, 'w') as tf_final:
 
-            tf_final.add(qa_output)
+        tf_final.add(qa_output)
