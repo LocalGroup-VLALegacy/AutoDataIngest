@@ -15,7 +15,7 @@ finalproducts_folder.mkdir(exist_ok=True)
 # Raise errors or print warning to terminal
 strict_check = False
 
-track_products = products_folder.glob("**/*.tar")
+track_products = products_folder.glob("*.tar")
 
 for track_tar in track_products:
 
