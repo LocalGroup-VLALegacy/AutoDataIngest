@@ -5,27 +5,38 @@
 # (since we'll interact with the google sheet via
 # python).
 
+# Gather track info from google sheet.
+
 # Interactive
 globus login
 
 export cedar_nodeid="c99fd40c-5545-11e7-beb6-22000b9a448b"
 export nm_nodeid="62708910-8e89-11e8-9641-0a6d4e044368"
+export msuhpc_nodeid="a640bafc-6d04-11e5-ba46-22000b92c6ec"
 
 # Check activation on endpoints
 # Need to enable a delegate proxy renewal with X.509
 # files so this is automated.
 #
 globus endpoint activate $cedar_nodeid --force
-globus endpoint activate $nm_nodeid --force --my-proxy
+globus endpoint activate $nm_nodeid --force --my-proxy  # put in username + password interactively.
+# globus endpoint activate $msuhpc_nodeid --force
 
 export cedar_base_path="scratch/VLAXL_reduction"
-export nm_base_path="/lustre/aoc/observers/nm-7669/data"
+
+# export nm_base_path="/lustre/aoc/observers/nm-7669/data"
+export nm_base_path="/lustre/aoc/projects/20A-346/data_staged/"
+
+export msuhpc_base_path="/mnt/research/ChomiukLab/LocalGroupX/M31_20A-346"
+
 
 # Will be given this:
-export track_name="20A-346.sb38097770.eb38161238.58986.707791782406"
+# export track_name="20A-346.sb38097770.eb38161238.58986.707791782406"
+export track_name="20A-346.sb38492195.eb38516348.59050.30097761574"
 
 export target="M31"
-export config="C"
+# export config="C"
+export config="B"
 
 # Mkdir on cedar:
 export track_folder_name="${target}_${config}_${track_name}"
@@ -51,7 +62,7 @@ git clone https://github.com/e-koch/ReductionPipeline.git
 # Need to create a globus endpoint here.
 
 # Lastly, generate the job scripts and transfer
-cd AutoDataIngest
+cd ~/AutoDataIngest
 # This should ALWAYS work. We don't want to touch
 # this repo manually for any reason.
 git pull
