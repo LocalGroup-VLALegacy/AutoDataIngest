@@ -5,8 +5,8 @@ The full staging/transfer/reduction pipeline process.
 
 import sys
 
-from email_notifications import check_for_archive_notification
-from gsheet_tracker import find_new_tracks
+from email_notifications.receive_gmail_notifications import check_for_archive_notification
+from gsheet_tracker.gsheet_functions import find_new_tracks
 from archive_request_LG import archive_copy_SDM
 
 
@@ -19,7 +19,9 @@ if len(new_track_ebids) == 0:
 
 # Stage the archive downloads.
 
-for ebid in new_track_ebids[:-1]:
+for ebid in new_track_ebids[-2:]:
+
+    print(f"Staging archive request for new EBID {ebid}")
 
     archive_copy_SDM(ebid)
 
