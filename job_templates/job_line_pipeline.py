@@ -48,8 +48,28 @@ echo 'Start casa default speclines pipeline'
 
 ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
 
+# Copy the casa log file into the products folder
+cp casa*.log products/
+
 # Clean up small unneeded files
 rm *.last
+
+# Tar the products folder for export off cedar
+tar -cvf $TRACK_FOLDER"_speclines_products.tar" products
+
+# Copy to long term storage
+# Account for previous runs and label numerically
+outfolder=/home/ekoch/projects/rpp-pbarmby/ekoch/VLAXL_products/
+name=$TRACK_FOLDER"_speclines_products"
+if [[ -e $outfolder/$name.tar || -L $outfolder/$name.tar ]] ; then
+    i=0
+    while [[ -e $outfolder/$name-$i.tar || -L $outfolder/$name-$i.tar ]] ; do
+        let i++
+    done
+    name=$name-$i
+fi
+
+cp $TRACK_FOLDER"_speclines_products.tar" $outfolder/$name.tar
 
 echo "casa default speclines pipeline finished."
 

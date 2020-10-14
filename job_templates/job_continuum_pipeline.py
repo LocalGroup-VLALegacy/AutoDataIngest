@@ -46,7 +46,30 @@ cd $TRACK_FOLDER"_continuum"
 
 echo 'Start casa default continuum pipeline'
 
-xvfb-run -a ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}.continuum.ms')"
+~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}.continuum.ms')"
+
+# Copy the casa log file into the products folder
+cp casa*.log products/
+
+# Clean up small unneeded files
+rm *.last
+
+# Tar the products folder for export off cedar
+tar -cvf $TRACK_FOLDER"_continuum_products.tar" products
+
+# Copy to long term storage
+# Account for previous runs and label numerically
+outfolder=/home/ekoch/projects/rpp-pbarmby/ekoch/VLAXL_products/
+name=$TRACK_FOLDER"_continuum_products"
+if [[ -e $outfolder/$name.tar || -L $outfolder/$name.tar ]] ; then
+    i=0
+    while [[ -e $outfolder/$name-$i.tar || -L $outfolder/$name-$i.tar ]] ; do
+        let i++
+    done
+    name=$name-$i
+fi
+
+cp $TRACK_FOLDER"_continuum_products.tar" $outfolder/$name.tar
 
 echo "casa default continuum pipeline finished."
 
@@ -94,6 +117,23 @@ cd $TRACK_FOLDER"_continuum"
 echo 'Start casa default continuum pipeline'
 
 ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+
+# Tar the products folder for export off cedar
+tar -cvf $TRACK_FOLDER"_continuum_products.tar" products
+
+# Copy to long term storage
+# Account for previous runs and label numerically
+outfolder=/home/ekoch/projects/rpp-pbarmby/ekoch/VLAXL_products/
+name=$TRACK_FOLDER"_continuum_products"
+if [[ -e $outfolder/$name.tar || -L $outfolder/$name.tar ]] ; then
+    i=0
+    while [[ -e $outfolder/$name-$i.tar || -L $outfolder/$name-$i.tar ]] ; do
+        let i++
+    done
+    name=$name-$i
+fi
+
+cp $TRACK_FOLDER"_continuum_products.tar" $outfolder/$name.tar
 
 echo "casa default continuum pipeline finished."
 
