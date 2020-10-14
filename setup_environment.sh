@@ -41,8 +41,17 @@ tar zxf geckodriver-v0.26.0-linux64.tar.gz
 conda install -y selenium
 
 # Other python packages
+# For accessing and updating google sheets:
 pip install gspread
+# Handy cell formatting in google sheets:
+pip install gspread-formatting
+
+# Read and access email contents. Used for notifications to update stage
+# of track reduction, etc
 pip install ezgmail
 # If the latter fails, run:
 # pip uninstall -y enum34
 # Unsure why enum34 is getting installed for py >3.7...
+
+# Like cron, but in python and easier to use:
+pip install schedule
