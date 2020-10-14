@@ -39,3 +39,10 @@ tar zxf geckodriver-v0.26.0-linux64.tar.gz
 
 # And selenium
 conda install -y selenium
+
+# Other python packages
+pip install gspread
+pip install ezgmail
+# If the latter fails, run:
+# pip uninstall -y enum34
+# Unsure why enum34 is getting installed for py >3.7...
