@@ -24,7 +24,14 @@ globus update
 pip install --upgrade --user vofs
 
 # We also want some astropy packages
-conda install -y astropy astroquery
+conda install -y astropy
+
+# There's a bug fix we need from astroquery that is only in the
+# dev version as of 10/14/20
+git clone https://github.com/astropy/astroquery.git
+cd astroquery
+pip install -e .
+cd ../
 
 # Eventually we'll need plotly, too
 conda install -y plotly
@@ -55,3 +62,10 @@ pip install ezgmail
 
 # Like cron, but in python and easier to use:
 pip install schedule
+
+
+# Install globus here. This require some manual steps to setup the endpoint.
+# But it need to be running at all times:
+cd globusconnectpersonal-3.1.2
+./globusconnectpersonal -start &
+cd ../
