@@ -5,7 +5,7 @@ Create a slurm submission script to convert to an MS and split the SPWs.
 To be run in python3
 '''
 
-from job_tools import cedar_slurm_setup, cedar_job_setup
+from .job_tools import cedar_slurm_setup, cedar_job_setup
 
 
 def cedar_submission_script(target_name="M31", config="C",
