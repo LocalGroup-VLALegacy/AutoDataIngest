@@ -41,7 +41,7 @@ for ebid in new_track_ebids[-2:]:
     staged_ebids.append(ebid)
 
 # Check for the archive email to come in. Once it has, start the globus transfer
-transfer_taskids = []
+tracks_processing = {}
 
 for ebid in staged_ebids:
 
@@ -96,7 +96,7 @@ for ebid in staged_ebids:
 
     # transfer_pipeline(track_name)
 
-    transfer_taskids.append(transfer_taskid)
+    tracks_processing[ebid] = [track_name, transfer_taskid]
 
 
     update_track_status(ebid, message=f"Data transferred to {CLUSTERNAME}",
@@ -107,7 +107,10 @@ for ebid in staged_ebids:
 
 
 # Wait for any active transfer to finish.
-for transfer_taskid in transfer_taskids:
+for ebid in tracks_processing:
+
+    track_name = tracks_processing[ebid][0]
+    transfer_taskid = tracks_processing[ebid][1]
 
     # Hold at this stage
     globus_wait_for_completion(transfer_taskid)
@@ -115,4 +118,16 @@ for transfer_taskid in transfer_taskids:
     # Remove the data staged at NRAO to avoid exceeding our storage quota
     cleanup_source(track_name, node='nrao-aoc')
 
+
 # Submit pipeline jobs:
+for ebid in tracks_processing:
+
+    track_name = tracks_processing[ebid][0]
+
+
+# Check on pipeline job status and transfer pipeline products to gdrive:
+# Trigger completion based on finding email w/ job status
+# TODO: Will need to add in checks for job failures, still
+
+# Create QA suite for review
+# Where to do this? Here or another instance?
