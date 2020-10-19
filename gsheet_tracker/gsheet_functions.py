@@ -137,3 +137,20 @@ def update_cell(ebid, value, name_col=3,
     cell = worksheet.find(str(ebid))
 
     worksheet.update_cell(cell.row, name_col, value)
+
+
+def return_cell(ebid, column=9,
+                sheetname='20A - OpLog Summary'):
+    '''
+    Update cell given an execution block ID and column for the output.
+
+
+    '''
+    full_sheet = read_tracksheet()
+    worksheet = full_sheet.worksheet(sheetname)
+
+    ebid_cell = worksheet.find(str(ebid))
+
+    cell = worksheet.cell(ebid_cell.row, column)
+
+    return cell.value
