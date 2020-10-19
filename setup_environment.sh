@@ -1,8 +1,12 @@
 #!/bin/bash
 
 sudo apt update
-sudo apt upgrade
-sudo apt install nano less
+sudo apt upgrade -y
+sudo apt install nano less -y
+
+# Setup folder structure
+# We'll keep the job files stashed here and on gdrive since they're only txt files.
+mkdir reduction_job_scripts
 
 # Download and install miniconda
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -62,6 +66,9 @@ pip install ezgmail
 
 # Like cron, but in python and easier to use:
 pip install schedule
+
+# fabric handles ssh connections in python
+pip install fabric
 
 
 # Install globus here. This require some manual steps to setup the endpoint.
