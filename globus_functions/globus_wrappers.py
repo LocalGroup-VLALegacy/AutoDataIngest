@@ -58,7 +58,7 @@ def do_manual_login(nodename):
     out = subprocess.run(act_cmd, capture_output=True)
 
     # If logged in, don't bother with another login.
-    if 'is activated' in out.stdout:
+    if 'is activated' in out.stdout.decode('utf-8'):
         return True
 
     username = input("Username:")
@@ -166,7 +166,9 @@ def cleanup_source(track_name, node='nrao-aoc'):
     This is needed to not overwhelm our project storage limit on AOC.
     """
 
-    input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode]['data_path']}/{track_name}.tar"
+    do_manual_login(node)
+
+    input_cmd = f"{ENDPOINT_INFO[node]['endpoint_id']}:{ENDPOINT_INFO[node]['data_path']}/{track_name}.tar"
 
     out = subprocess.run(['globus', 'rm', input_cmd], capture_output=True)
 
