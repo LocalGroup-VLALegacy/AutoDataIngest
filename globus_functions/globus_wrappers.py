@@ -1,0 +1,175 @@
+
+'''
+It seems easiest to just wrap the command line tools.
+'''
+
+import os
+import subprocess
+import time
+
+USERNAME = "ekoch"
+
+
+# Add new locations here so we can refer to each location by 1 name:
+ENDPOINT_INFO = {'cc-cedar': {'endpoint_id': "c99fd40c-5545-11e7-beb6-22000b9a448b",
+                           'data_path': "scratch/VLAXL_reduction/"},
+                 'nrao-aoc': {'endpoint_id': "62708910-8e89-11e8-9641-0a6d4e044368",
+                              'data_path': '/lustre/aoc/projects/20A-346/data_staged/'},
+                 'msu-hpcc': {'endpoint_id': "a640bafc-6d04-11e5-ba46-22000b92c6ec",
+                             'data_path': "/mnt/research/ChomiukLab/LocalGroupX/M31_20A-346/"},
+                 'ingester': {'endpoint_id': "ad5427e4-1027-11eb-81b1-0e2f230cc907",
+                              'data_path': "/home/ekoch/"}}
+
+
+def do_authenticate_globus():
+    """
+    Check that we can login.
+    """
+
+    out = subprocess.run(['globus', 'login'], capture_output=True)
+
+    if not len(out.stderr) == 0:
+
+        raise ValueError("Login failed with {out.stderr}")
+
+
+    # Check who is logged in:
+
+    user = subprocess.run(['globus', 'whoami'], capture_output=True).stdout
+    user = user.decode('utf-8')
+
+    if user.split('@')[0] != USERNAME:
+        raise ValueError("Unexpected login user? {user}")
+
+
+def do_manual_login(nodename):
+    '''
+    Some transfer nodes aren't automated yet (we need some keys and
+    stuff setup). For now just do some parts manually.
+
+    '''
+
+    from getpass import unix_getpass
+
+    id_number = ENDPOINT_INFO[nodename]['endpoint_id']
+
+    # Check if logged in.
+    act_cmd = ['globus', 'endpoint', 'is-activated', id_number]
+    out = subprocess.run(act_cmd, capture_output=True)
+
+    # If logged in, don't bother with another login.
+    if 'is activated' in out.stdout:
+        return True
+
+    username = input("Username:")
+    password = unix_getpass()
+
+    cmd = ['globus', 'endpoint', 'activate', '--myproxy', id_number,
+           '--myproxy-username', username, '--myproxy-password', password]
+
+    out = subprocess.run(cmd, capture_output=True)
+
+    return True
+
+
+def globus_wait_for_completion(task_id):
+
+    do_authenticate_globus()
+
+    # Will not return until the task is completed.
+    out = subprocess.run(['globus', 'task', 'wait', f"{task_id}"])
+
+    return True
+
+
+def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
+                  endnode='cc-cedar',
+                  wait_for_completion=False):
+    """
+    Start a globus transfer from `startnode` to `endnode`.
+    """
+
+    do_authenticate_globus()
+
+    # May have to change this ordering for both nodes in general.
+    do_manual_login(startnode)
+
+    # Make a new folder on `endnode` for the data to go to:
+    mkdir_command = ["globus", "mkdir",
+                     f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{track_folder_name}"]
+
+    out = subprocess.run(mkdir_command, capture_output=True)
+
+    # Want to return the task_id in the command line output.
+    input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode]['data_path']}/{track_name}.tar"
+    output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{track_folder_name}/{track_name}.tar"
+
+    # task_command = f"$(globus transfer {input_cmd} {output_cmd} --jmes path 'task_id' --format=UNIX)"
+    task_command = ['globus', 'transfer', input_cmd, output_cmd]
+
+    task_transfer = subprocess.run(task_command, capture_output=True)
+
+    # Extract the task ID from the stdout
+    task_transfer_stdout = task_transfer.stdout.decode('utf-8').replace("\n", " ")
+
+    if not 'accepted' in task_transfer_stdout:
+        print(task_transfer_stdout)
+        print(task_transfer.stderr.decode('utf-8'))
+
+        raise ValueError("Transfer was not accepted Check the above messages.")
+
+    task_id = task_transfer_stdout.split('Task ID:')[-1].replace(" ", '')
+
+
+    # Wait for 30 seconds to allow the transfer to get started.
+    time.sleep(30)
+
+    if wait_for_completion:
+        globus_wait_for_completion(task_id)
+
+    return task_id
+
+
+def transfer_pipeline(track_name, track_folder_name, endnode='cc-cedar'):
+    """
+    Grab a fresh pipeline repo version and transfer
+    """
+
+    foldername = f'{track_name}_reduction_pipeline'
+
+    if not os.path.exists(foldername):
+        os.mkdir(foldername)
+
+    os.chdir(foldername)
+    out = subprocess.run(['git', 'clone',
+                          'https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'],
+                         capture_output=True)
+
+    out = subprocess.run(['tar', '-cf', 'ReductionPipeline.tar', 'ReductionPipeline'])
+
+    os.chdir('..')
+
+    # Transfer to the endnode
+    input_cmd = f"{ENDPOINT_INFO['ingester']['endpoint_id']}:{ENDPOINT_INFO['ingester']['data_path']}/{foldername}/ReductionPipeline.tar"
+    output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{track_folder_name}/ReductionPipeline.tar"
+
+    task_command = ["globus", "transfer", input_cmd, output_cmd]
+
+    out = subprocess.run(task_command, capture_output=True)
+
+    return True
+
+
+def cleanup_source(track_name, node='nrao-aoc'):
+    """
+    Run after a transfer finishes to remove the track from the initial location.
+    This is needed to not overwhelm our project storage limit on AOC.
+    """
+
+    input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode]['data_path']}/{track_name}.tar"
+
+    out = subprocess.run(['globus', 'rm', input_cmd], capture_output=True)
+
+    time.sleep(30)
+
+    return True
