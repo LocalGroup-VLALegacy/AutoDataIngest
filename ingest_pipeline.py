@@ -112,5 +112,7 @@ for transfer_taskid in transfer_taskids:
     # Hold at this stage
     globus_wait_for_completion(transfer_taskid)
 
+    # Remove the data staged at NRAO to avoid exceeding our storage quota
+    cleanup_source(track_name, node='nrao-aoc')
 
 # Submit pipeline jobs:
