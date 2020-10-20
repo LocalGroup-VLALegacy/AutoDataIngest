@@ -9,18 +9,27 @@ from pathlib import Path
 # fabric handles ssh to cluster running jobs
 import fabric
 
-from email_notifications.receive_gmail_notifications import check_for_archive_notification
-from gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
+# TODO: cleanup imports. Separated now as development is on-going.
+from autodataingest.email_notifications.receive_gmail_notifications import check_for_archive_notification
+from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
                                              update_cell, return_cell)
-from archive_request_LG import archive_copy_SDM
-from globus_function.globus_wrapper import (transfer_file, transfer_pipeline,
+from autodataingest.archive_request_LG import archive_copy_SDM
+from autodataingest.globus_functions.globus_wrappers import (transfer_file, transfer_pipeline,
                                             cleanup_source, globus_wait_for_completion)
-from get_track_info import match_ebid_to_source
+from autodataingest.get_track_info import match_ebid_to_source
 
-import job_templates.job_import_and_merge as jobs_import
+import autodataingest.job_templates.job_import_and_merge as jobs_import
+import autodataingest.job_templates.job_continuum_pipeline as jobs_continuum
+import autodataingest.job_templates.job_line_pipeline as jobs_line
+
 
 # Cluster where the data will be transferred to and reduced.
 CLUSTERNAME = 'cc-cedar'
+CLUSTERACCOUNT = 'rrg-eros-ab'
+
+CLUSTER_SPLIT_JOBTIME = '8:00:00'
+CLUSTER_CONTINUUM_JOBTIME = '30:00:00'
+CLUSTER_LINE_JOBTIME = '30:00:00'
 
 # Check for new tracks
 
@@ -120,6 +129,9 @@ for ebid in tracks_processing:
     # Hold at this stage
     globus_wait_for_completion(transfer_taskid)
 
+    update_cell(ebid, "TRUE", name_col=18,
+                sheetname='20A - OpLog Summary')
+
     # Remove the data staged at NRAO to avoid exceeding our storage quota
     cleanup_source(track_name, node='nrao-aoc')
 
@@ -149,15 +161,16 @@ for ebid in tracks_processing:
                                               config=track_folder_name.split('_')[1],
                                               trackname=track_folder_name.split('_')[2],
                                               slurm_kwargs={},
-                                              setup_kwargs={},
-          file=open(job_filename, 'a')))
+                                              setup_kwargs={}),
+          file=open(track_scripts_dir / job_filename, 'a'))
 
     # Requires keys to be setup
     connect = fabric.Connection('cedar.computecanada.ca')
 
     # Grab the repo; this is where we can also specify a version number, too
     git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
-    result = connect.run(f'cd scratch/VLAXL_reduction/{track_folder_name}/ && {git_clone_command}',
+
+    result = connect.run(f'cd scratch/VLAXL_reduction/{track_folder_name}/ && rm -r ReductionPipeline && {git_clone_command}',
                          hide=True)
 
     if result.failed:
@@ -167,8 +180,31 @@ for ebid in tracks_processing:
 
 
     # Move the job script to the cluster:
-    
+    result = connect.put(track_scripts_dir / job_filename,
+                         remote=f'scratch/VLAXL_reduction/{track_folder_name}/')
 
+    # Submit the script:
+
+    chdir_cmd = f"cd scratch/VLAXL_reduction/{track_folder_name}/"
+    submit_cmd = f"sbatch --account={CLUSTERACCOUNT} --time={CLUSTER_SPLIT_JOBTIME} {job_filename}"
+
+    result = connect.run(f"{chdir_cmd} && {submit_cmd}", hide=True)
+
+    if result.failed:
+        raise ValueError(f"Failed to submit split job! See stderr: {result.stderr}")
+
+    # Record the job ID so we can check for completion.
+    importsplit_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+    # Push the job ID to the EB ID dictionary to track completion
+    tracks_processing[ebid].append(CLUSTERNAME)
+    tracks_processing[ebid].append(importsplit_jobid)
+
+    update_cell(ebid, f"{CLUSTERNAME}:{importsplit_jobid}", name_col=20,
+                sheetname='20A - OpLog Summary')
+
+
+    connect.close()
 
 # With the job number for that track, submit the reduction pipeline
 # jobs
@@ -177,12 +213,95 @@ for ebid in tracks_processing:
 
     # Continuum pipeline job
 
+    track_name = tracks_processing[ebid][0]
+    track_folder_name = tracks_processing[ebid][1]
+    importsplit_jobid = tracks_processing[ebid][4]
+
+    track_scripts_dir = scripts_dir / track_folder_name
+
+    if not track_scripts_dir.exists():
+        track_scripts_dir.mkdir()
+
+    # Ingest and line/continuum split job
+    # TODO: generalize submission to other clusters
+
+    job_filename = f"{track_folder_name}_job_continuum.sh"
+
+    print(jobs_continuum.cedar_submission_script(target_name=track_folder_name.split('_')[0],
+                                                 config=track_folder_name.split('_')[1],
+                                                 trackname=track_folder_name.split('_')[2],
+                                                 slurm_kwargs={},
+                                                 setup_kwargs={},
+                                                 conditional_on_jobnum=importsplit_jobid),
+          file=open(track_scripts_dir / job_filename, 'a'))
+
+    connect = fabric.Connection('cedar.computecanada.ca')
+
+    # Move the job script to the cluster:
+    result = connect.put(track_scripts_dir / job_filename,
+                         remote=f'scratch/VLAXL_reduction/{track_folder_name}/')
+
+    # Submit the script:
+
+    chdir_cmd = f"cd scratch/VLAXL_reduction/{track_folder_name}/"
+    submit_cmd = f"sbatch --account={CLUSTERACCOUNT} --time={CLUSTER_CONTINUUM_JOBTIME} {job_filename}"
+
+    result = connect.run(f"{chdir_cmd} && {submit_cmd}", hide=True)
+
+    if result.failed:
+        raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {result.stderr}")
+
+    # Record the job ID so we can check for completion.
+    continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+    update_cell(ebid, f"{CLUSTERNAME}:{continuum_jobid}", name_col=22,
+                sheetname='20A - OpLog Summary')
+
+
     # Line pipeline jobs
 
+    job_filename = f"{track_folder_name}_job_line.sh"
+
+    print(jobs_line.cedar_submission_script_default(target_name=track_folder_name.split('_')[0],
+                                                    config=track_folder_name.split('_')[1],
+                                                    trackname=track_folder_name.split('_')[2],
+                                                    slurm_kwargs={},
+                                                    setup_kwargs={},
+                                                    conditional_on_jobnum=importsplit_jobid),
+          file=open(track_scripts_dir / job_filename, 'a'))
+
+    # Move the job script to the cluster:
+    result = connect.put(track_scripts_dir / job_filename,
+                         remote=f'scratch/VLAXL_reduction/{track_folder_name}/')
+
+    # Submit the script:
+
+    chdir_cmd = f"cd scratch/VLAXL_reduction/{track_folder_name}/"
+    submit_cmd = f"sbatch --account={CLUSTERACCOUNT} --time={CLUSTER_LINE_JOBTIME} {job_filename}"
+
+    result = connect.run(f"{chdir_cmd} && {submit_cmd}", hide=True)
+
+    if result.failed:
+        raise ValueError(f"Failed to submit line pipeline job! See stderr: {result.stderr}")
+
+    # Record the job ID so we can check for completion.
+    line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+    update_cell(ebid, f"{CLUSTERNAME}:{line_jobid}", name_col=24,
+                sheetname='20A - OpLog Summary')
+
+    connect.close()
 
 # Check on pipeline job status and transfer pipeline products to gdrive:
 # Trigger completion based on finding email w/ job status
 # TODO: Will need to add in checks for job failures, still
+
+# Update the track status as complete split
+
+# update_cell(ebid, "TRUE", name_col=20,
+#             sheetname='20A - OpLog Summary')
+
+# And for complete continuum and line
 
 # Create QA suite for review
 # Where to do this? Here or another instance?
