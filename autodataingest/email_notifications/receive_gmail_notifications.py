@@ -7,7 +7,7 @@ USERNAME = "ekoch"
 EMAILADDR = "ualberta.ca"
 
 
-def do_authentication(emailaddress=f"{USERNAME}@{EMAILADDR}"):
+def do_authentication_gmail(emailaddress=f"{USERNAME}@{EMAILADDR}"):
     """
     Check authentication for email address
 
@@ -29,7 +29,7 @@ def check_for_archive_notification(ebid):
     sent an email for the staged data. Return the whole MS name and lustre path on AOC.
     """
 
-    if not do_authentication():
+    if not do_authentication_gmail():
         raise ValueError("Cannot login with ezgmail. Check credentials.")
 
     notification_emails = ezgmail.search("label:Telescope Notifications/20A-346 Archive Notifications")
@@ -61,3 +61,29 @@ def extract_path_and_name(message):
     ms_name = f"{PROJECTID}{path_to_data.split(PROJECTID)[-1].rstrip('.tar')}"
 
     return path_to_data, ms_name
+
+
+def check_for_job_notification(jobid):
+
+    if not do_authentication_gmail():
+        raise ValueError("Cannot login with ezgmail. Check credentials.")
+
+    notification_emails = ezgmail.search("label:Telescope Notifications/20A-346 Cedar Jobs")
+
+    # Loop through and see if we find that EBID:
+    for email in notification_emails:
+
+        # Emails can have multiple messages (replies/grouped emails)
+        for message in email.messages:
+
+            if str(jobid) not in message.subject:
+                continue
+
+            # Grab completion, run time for job.
+            jobinfo = message.subject.split(",")
+
+            status = jobinfo[2].replace(' ', '')
+
+            runtime = jobinfo[1].split(" ")[-1]
+
+            return status, runtime
