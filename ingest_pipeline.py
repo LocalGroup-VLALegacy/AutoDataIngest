@@ -11,7 +11,7 @@ from glob import glob
 import fabric
 
 # TODO: cleanup imports. Separated now as development is on-going.
-from autodataingest.email_notifications.receive_gmail_notifications import check_for_archive_notification
+from autodataingest.email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification)
 from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
                                              update_cell, return_cell)
 from autodataingest.archive_request_LG import archive_copy_SDM
@@ -207,6 +207,11 @@ for ebid in tracks_processing:
 
     connect.close()
 
+    update_track_status(ebid, message=f"Reduction running on {CLUSTERNAME}",
+                        sheetname='20A - OpLog Summary',
+                        status_col=1)
+
+
 # With the job number for that track, submit the reduction pipeline
 # jobs
 
@@ -308,12 +313,92 @@ for ebid in tracks_processing:
 # the pipeline outputs.
 # TODO: Will need to add in checks for job failures
 
-# Update the track status as complete split
+for ebid in tracks_processing:
 
-# update_cell(ebid, "TRUE", name_col=20,
-#             sheetname='20A - OpLog Summary')
+    importsplit_jobid = return_cell(ebid, column=20).split(":")[-1]
+    continuum_jobid = return_cell(ebid, column=22).split(":")[-1]
+    line_jobid = return_cell(ebid, column=24).split(":")[-1]
 
-# And for complete continuum and line
+
+    # Check for a job completion email and check the final status
+    job_check = check_for_job_notification(importsplit_jobid)
+    # If None, it isn't done yet!
+    if job_check is None:
+        continue
+
+    job_status_split, job_runtime =  job_check
+    is_done_split = True
+
+    update_cell(ebid, job_status_split, name_col=19,
+                sheetname='20A - OpLog Summary')
+    update_cell(ebid, job_runtime, name_col=25,
+                sheetname='20A - OpLog Summary')
+
+    job_check = check_for_job_notification(continuum_jobid)
+
+    is_done_continuum = False
+    if job_check is not None:
+
+        is_done_continuum = True
+
+        job_status_continuum, job_runtime =  job_check
+
+        update_cell(ebid, job_status_continuum, name_col=21,
+                    sheetname='20A - OpLog Summary')
+        update_cell(ebid, job_runtime, name_col=26,
+                    sheetname='20A - OpLog Summary')
+
+    job_check = check_for_job_notification(line_jobid)
+
+    is_done_line = False
+    if job_check is not None:
+
+        is_done_line = True
+
+        job_status_line, job_runtime =  job_check
+
+        update_cell(ebid, job_status_line, name_col=23,
+                    sheetname='20A - OpLog Summary')
+        update_cell(ebid, job_runtime, name_col=27,
+                    sheetname='20A - OpLog Summary')
+
+    if all([is_done_split, is_done_continuum, is_done_line]):
+        # Remove this EBID! This round of reductions is done!
+        tracks_processing.pop(ebid)
+
+        # Check if these were successful runs:
+        job_split_complete = job_status_split == "COMPLETED"
+        job_continuum_complete = job_status_continuum == "COMPLETED"
+        job_line_complete = job_status_line == "COMPLETED"
+
+        completeness_checks = [job_split_complete, job_continuum_complete, job_line_complete]
+
+        if all(completeness_checks):
+
+            update_track_status(ebid, message=f"Ready for QA",
+                                sheetname='20A - OpLog Summary',
+                                status_col=1)
+
+        else:
+
+            update_track_status(ebid, message=f"ISSUE needs manual check of job status",
+                                sheetname='20A - OpLog Summary',
+                                status_col=1)
+
+
 
 # Create QA suite for review
 # Where to do this? Here or another instance?
+
+# Add some check of "final" and therefore finished reduction for each track
+
+# update_track_status(ebid, message=f"Ready for imaging",
+#                     sheetname='20A - OpLog Summary',
+#                     status_col=1)
+
+# Add some check for what a true fail case looks like.
+# COuld be manual because this should (hopefully) not happen much
+
+# update_track_status(ebid, message=f"FAILED",
+#                     sheetname='20A - OpLog Summary',
+#                     status_col=1)
