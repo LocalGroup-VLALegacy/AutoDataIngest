@@ -126,9 +126,17 @@ tar -cvf $TRACK_FOLDER"_continuum_products.tar" products
 outfolder=/home/ekoch/projects/rpp-pbarmby/ekoch/VLAXL_products/
 name=$TRACK_FOLDER"_continuum_products"
 if [[ -e $outfolder/$name.tar || -L $outfolder/$name.tar ]] ; then
-    i=0
+    i=1
     while [[ -e $outfolder/$name-$i.tar || -L $outfolder/$name-$i.tar ]] ; do
         let i++
+
+        # Build in check to avoid endless loop.
+        if [ "$i" -gt 100 ]; then
+            break
+        fi
+
+        echo "$i"
+
     done
     name=$name-$i
 fi
