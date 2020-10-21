@@ -70,7 +70,22 @@ stage_colors = {'Archive download staged': {'row_color': [0.9254901960784314, 0.
                                             'bold_text': False},
                 'Data transferred to': {'row_color': [0.33725490196078434, 0.7058823529411765, 0.9137254901960784],
                                         'text_color': [0., 0., 0.],
-                                        'bold_text': False}}
+                                        'bold_text': False},
+                'Reduction running on': {'row_color': [0.00392156862745098, 0.45098039215686275, 0.6980392156862745],
+                                        'text_color': [1., 1., 1.],
+                                        'bold_text': False},
+                'Ready for QA': {'row_color': [0.8352941176470589, 0.3686274509803922, 0.0],
+                                        'text_color': [1., 1., 1.],
+                                        'bold_text': False},
+                'Ready for imaging': {'row_color': [0.00784313725490196, 0.6196078431372549, 0.45098039215686275],
+                                        'text_color': [1., 1., 1.],
+                                        'bold_text': True},
+                'ISSUE needs manual check': {'row_color': [0., 0., 0.],
+                                             'text_color': [1., 1., 1.],
+                                             'bold_text': False},
+                'FAILED': {'row_color': [0., 0., 0.],
+                           'text_color': [1., 1., 1.],
+                           'bold_text': False}}
 
 # Future stage colors:
 # Deep blue: initial/revised reduction running
