@@ -87,3 +87,5 @@ def check_for_job_notification(jobid):
             runtime = jobinfo[1].split(" ")[-1]
 
             return status, runtime
+
+    return None
