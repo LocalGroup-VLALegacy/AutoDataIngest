@@ -47,8 +47,8 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
 
     # the following should start firefox in headless (no-GUI) mode, but this is not working at NRAO
     # also not working on canfar cloud instance
-    # options = Options()
-    # options.headless = True
+    options = Options()
+    options.headless = True
     # driver = webdriver.Firefox(fp, firefox_options=options, executable_path='/home/ekoch/geckodriver')
 
     num_tries = 0
@@ -57,7 +57,7 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
 
         try:
             # Requires geckodriver
-            driver = webdriver.Firefox(fp)
+            driver = webdriver.Firefox(fp, options=options)
 
             # I haven't needed this window size option but it was included in an example I was working with.
             # It may be useful in headless mode.
