@@ -57,7 +57,7 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
 
         try:
             # Requires geckodriver
-            driver = webdriver.Firefox(fp, executable_path=os.path.expanduser('~/geckodriver'))
+            driver = webdriver.Firefox(fp)
 
             # I haven't needed this window size option but it was included in an example I was working with.
             # It may be useful in headless mode.
