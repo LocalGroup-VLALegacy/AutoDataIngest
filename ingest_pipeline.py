@@ -5,6 +5,7 @@ The full staging/transfer/reduction pipeline process.
 
 import sys
 from pathlib import Path
+from glob import glob
 
 # fabric handles ssh to cluster running jobs
 import fabric
@@ -17,6 +18,7 @@ from autodataingest.archive_request_LG import archive_copy_SDM
 from autodataingest.globus_functions.globus_wrappers import (transfer_file, transfer_pipeline,
                                             cleanup_source, globus_wait_for_completion)
 from autodataingest.get_track_info import match_ebid_to_source
+from autodataingest.download_vlaant_corrections import download_vla_antcorr
 
 import autodataingest.job_templates.job_import_and_merge as jobs_import
 import autodataingest.job_templates.job_continuum_pipeline as jobs_continuum
@@ -203,13 +205,16 @@ for ebid in tracks_processing:
     update_cell(ebid, f"{CLUSTERNAME}:{importsplit_jobid}", name_col=20,
                 sheetname='20A - OpLog Summary')
 
-
     connect.close()
 
 # With the job number for that track, submit the reduction pipeline
 # jobs
 
 for ebid in tracks_processing:
+
+    # Before running any reduction, update the antenna correction files
+    # and copy that folder to each folder where the pipeline is run
+    download_vla_antcorr(data_folder="VLA_antcorr_tables")
 
     # Continuum pipeline job
 
@@ -240,6 +245,11 @@ for ebid in tracks_processing:
     # Move the job script to the cluster:
     result = connect.put(track_scripts_dir / job_filename,
                          remote=f'scratch/VLAXL_reduction/{track_folder_name}/')
+
+    # Move the antenna correction folder over:
+    result = connect.run(f"mkdir scratch/VLAXL_reduction/{track_folder_name}/VLA_antcorr_tables")
+    for file in glob("VLA_antcorr_tables/*.txt"):
+        result = connect.put(file, remote=f"scratch/VLAXL_reduction/{track_folder_name}/VLA_antcorr_tables/")
 
     # Submit the script:
 
@@ -294,7 +304,9 @@ for ebid in tracks_processing:
 
 # Check on pipeline job status and transfer pipeline products to gdrive:
 # Trigger completion based on finding email w/ job status
-# TODO: Will need to add in checks for job failures, still
+# ALSO: use fabric to get the log files and put them here for inclusion with
+# the pipeline outputs.
+# TODO: Will need to add in checks for job failures
 
 # Update the track status as complete split
 
