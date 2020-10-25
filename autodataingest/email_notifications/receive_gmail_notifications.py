@@ -70,7 +70,7 @@ def check_for_job_notification(jobid):
 
     notification_emails = ezgmail.search("label:Telescope Notifications/20A-346 Cedar Jobs")
 
-    # Loop through and see if we find that EBID:
+    # Loop through and see if we find that job ID:
     for email in notification_emails:
 
         # Emails can have multiple messages (replies/grouped emails)
@@ -89,3 +89,47 @@ def check_for_job_notification(jobid):
             return status, runtime
 
     return None
+
+
+def add_jobtimes(times):
+
+    from datetime import timedelta
+
+    tdeltas = []
+
+    for timestr in times:
+
+        # Check for days
+        nday = float(timestr.split('-')[0])
+
+        subday_str = timestr.split('-')[-1].split(':')
+        if len(subday_str) == 3:
+            nhr = float(subday_str[0])
+            nmin = float(subday_str[1])
+            nsec = float(subday_str[2])
+        elif len(subday_str) == 2:
+            nhr = 0
+            nmin = float(subday_str[0])
+            nsec = float(subday_str[1])
+        elif len(subday_str) == 1:
+            nhr = 0
+            nmin = 0
+            nsec = float(subday_str[0])
+        else:
+            raise ValueError(f"Input time string {timestr} could not be understood.")
+
+        tdeltas.append(timedelta(days=nday, hours=nhr, minutes=nmin, seconds=nsec))
+
+    total_time = sum(tdeltas, timedelta())
+
+    # Convert to original format:
+    days = int(total_time.total_seconds() // (24 * 3600))
+    remainder = total_time.total_seconds() % (24 * 3600)
+    hrs = int(remainder // 3600)
+    remainder = remainder % 3600
+    mins = int(remainder // 60)
+    secs = int(remainder % 60)
+
+    total_timestr = f"{days}-{hrs:02d}:{mins:02d}:{secs:02d}"
+
+    return total_timestr
