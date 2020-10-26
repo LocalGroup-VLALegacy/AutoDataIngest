@@ -24,13 +24,15 @@ def do_authentication_gmail(emailaddress=f"{USERNAME}@{EMAILADDR}"):
 
 
 def check_for_archive_notification(ebid,
-                                   labelname='Telescope Notifications/20A-346 Archive Notifications'):
+                                   labelname='Telescope Notifications/20A-346 Archive Notifications',
+                                   project_id=PROJECTID,
+                                   **kwargs):
     """
     Given en execution block ID, search for a notification that the archive has
     sent an email for the staged data. Return the whole MS name and lustre path on AOC.
     """
 
-    if not do_authentication_gmail():
+    if not do_authentication_gmail(**kwargs):
         raise ValueError("Cannot login with ezgmail. Check credentials.")
 
     notification_emails = ezgmail.search(f"label:{labelname}")
@@ -45,31 +47,33 @@ def check_for_archive_notification(ebid,
                 continue
 
             # Grab and return the full MS name from the archive email:
-            path_to_data, ms_name = extract_path_and_name(message.originalBody)
+            path_to_data, ms_name = extract_path_and_name(message.originalBody,
+                                                          project_id=project_id)
 
             return path_to_data, ms_name
 
     return None
 
 
-def extract_path_and_name(message):
+def extract_path_and_name(message, project_id=PROJECTID):
     """
     docstring
     """
 
     path_to_data = message.split("ftp://ftp.aoc.nrao.edu/")[-1].strip("\n").strip("\r")
 
-    ms_name = f"{PROJECTID}{path_to_data.split(PROJECTID)[-1].rstrip('.tar')}"
+    ms_name = f"{project_id}{path_to_data.split(PROJECTID)[-1].rstrip('.tar')}"
 
     return path_to_data, ms_name
 
 
-def check_for_job_notification(jobid):
+def check_for_job_notification(jobid,
+                               labelname='Telescope Notifications/20A-346 Cedar Jobs'):
 
     if not do_authentication_gmail():
         raise ValueError("Cannot login with ezgmail. Check credentials.")
 
-    notification_emails = ezgmail.search("label:Telescope Notifications/20A-346 Cedar Jobs")
+    notification_emails = ezgmail.search(f"label:{labelname}")
 
     # Loop through and see if we find that job ID:
     for email in notification_emails:
