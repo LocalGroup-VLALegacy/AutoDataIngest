@@ -23,7 +23,8 @@ def do_authentication_gmail(emailaddress=f"{USERNAME}@{EMAILADDR}"):
         return False
 
 
-def check_for_archive_notification(ebid):
+def check_for_archive_notification(ebid,
+                                   labelname='Telescope Notifications/20A-346 Archive Notifications'):
     """
     Given en execution block ID, search for a notification that the archive has
     sent an email for the staged data. Return the whole MS name and lustre path on AOC.
@@ -32,7 +33,7 @@ def check_for_archive_notification(ebid):
     if not do_authentication_gmail():
         raise ValueError("Cannot login with ezgmail. Check credentials.")
 
-    notification_emails = ezgmail.search("label:Telescope Notifications/20A-346 Archive Notifications")
+    notification_emails = ezgmail.search(f"label:{labelname}")
 
     # Loop through and see if we find that EBID:
     for email in notification_emails:
