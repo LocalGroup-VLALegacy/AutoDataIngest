@@ -14,7 +14,8 @@ import time
 def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
                      lustre_path="/lustre/aoc/projects/20A-346/data_staged/",
                      projectaccess_key_file=os.path.expanduser('~/20A-346_accesskey.txt'),
-                     retry_times=5, retry_wait=30):
+                     retry_times=5, retry_wait=30,
+                     save_screenshot=True):
     '''
     eb : execution block, e.g., "TCAL0003_sb3369507_1_001.55601.74787561342"
     emailaddr : email address
@@ -114,8 +115,8 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
 
             print("Made it to archive download page")
 
-            #
-            driver.save_screenshot('{}.archive_request.png'.format(eb))
+            if save_screenshot:
+                driver.save_screenshot('{}.archive_request.png'.format(eb))
 
             driver.close()
 
