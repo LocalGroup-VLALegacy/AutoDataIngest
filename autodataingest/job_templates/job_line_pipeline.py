@@ -8,12 +8,12 @@ To be run in python3
 from .job_tools import cedar_slurm_setup, cedar_job_setup
 
 
-def cedar_submission_script_default(target_name="M31",
-                                    config="C",
-                                    trackname="20A-346.sb38098105.eb38158028.58985.68987263889",
-                                    slurm_kwargs={},
-                                    setup_kwargs={},
-                                    conditional_on_jobnum=None):
+def cedar_submission_script(target_name="M31",
+                            config="C",
+                            trackname="20A-346.sb38098105.eb38158028.58985.68987263889",
+                            slurm_kwargs={},
+                            setup_kwargs={},
+                            conditional_on_jobnum=None):
     '''
     Runs the default VLA pipeline.
 
