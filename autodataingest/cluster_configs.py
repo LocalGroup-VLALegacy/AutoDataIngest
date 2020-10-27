@@ -4,9 +4,9 @@ These are dictionaries containing the info required about the clusters
 that are used to do the reduction and to produce job scripts.
 '''
 
-import .job_templates.job_import_and_merge as jobs_import
-import .job_templates.job_continuum_pipeline as jobs_continuum
-import .job_templates.job_line_pipeline as jobs_line
+import autodataingest.job_templates.job_import_and_merge as jobs_import
+import autodataingest.job_templates.job_continuum_pipeline as jobs_continuum
+import autodataingest.job_templates.job_line_pipeline as jobs_line
 
 
 # Add new locations here so we can refer to each location by 1 name:
