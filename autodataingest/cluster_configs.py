@@ -23,3 +23,6 @@ JOB_CREATION_FUNCTIONS = \
     {'cc-cedar': {'IMPORT_SPLIT': jobs_import.cedar_submission_script,
                   'CONTINUUM_PIPE': jobs_continuum.cedar_submission_script,
                   'LINE_PIPE': jobs_line.cedar_submission_script}}
+
+CLUSTERADDRS = \
+    {'cc-cedar': 'cedar.computecanada.ca'}
