@@ -140,9 +140,9 @@ def setup_for_reduction_pipeline(track_folder_name,
         raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
 
     # Grab the repo; this is where we can also specify a version number, too
-    cd_command = f'cd scratch/VLAXL_reduction/{track_folder_name}/"
+    cd_command = f'cd scratch/VLAXL_reduction/{track_folder_name}/'
     git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
-    full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}
+    full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}'
     result = run_command(connect, full_command)
 
 
@@ -491,7 +491,7 @@ def get_job_notifications(ebid,
 
 
 
-def restart_job_submission(parameter_list):
+def restart_job_submission(ebid, restart_dictionary):
     """
     Step 3b.
 
