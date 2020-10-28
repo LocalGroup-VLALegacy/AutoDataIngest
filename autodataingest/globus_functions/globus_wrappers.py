@@ -7,6 +7,7 @@ import os
 import subprocess
 import time
 import asyncio
+import async_timeout
 
 from ..cluster_configs import ENDPOINT_INFO
 
@@ -64,23 +65,30 @@ def do_manual_login(nodename):
     return True
 
 
-async def globus_wait_for_completion(task_id, sleeptime=900):
+async def globus_wait_for_completion(task_id, sleeptime=900,
+                                     timeout=86400):
     '''
     Asynchronously poll if the transfer is completed.
     '''
 
     do_authenticate_globus()
 
-    while True:
-        # Will not return until the task is completed.
-        out = subprocess.run(['globus', 'task', 'show', f"{task_id}", '--jmespath', 'status'],
-                             capture_output=True)
+    async with async_timeout.timeout(timeout):
 
-        if "SUCCEEDED" in out.stdout.decode('utf-8'):
-            break
-        else:
-            # Wait
-            await asyncio.sleep(sleeptime)
+        while True:
+            # Will not return until the task is completed.
+            out = subprocess.run(['globus', 'task', 'show', f"{task_id}", '--jmespath', 'status'],
+                                capture_output=True)
+
+            result = out.stdout.decode('utf-8')
+
+            if "SUCCEEDED" in result:
+                break
+            elif "CANCELLED" in result:
+                raise ValueError('Transfer has been cancelled.')
+            else:
+                # Wait
+                await asyncio.sleep(sleeptime)
 
 
 def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
