@@ -14,10 +14,7 @@ from pathlib import Path
 
 from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks)
 
-from autodataingest.ingest_pipeline_functions import (archive_request_and_transfer,
-                                                      setup_for_reduction_pipeline,
-                                                      initial_job_submission,
-                                                      get_job_notifications)
+from autodataingest.ingest_pipeline_functions import AutoPipeline
 
 
 async def produce(queue, sleeptime=10, test_case_run_newest=False):
@@ -40,54 +37,47 @@ async def produce(queue, sleeptime=10, test_case_run_newest=False):
         await asyncio.sleep(sleeptime)
 
         # put the item in the queue
-        await queue.put(ebid)
+        await queue.put(AutoPipeline(ebid))
 
 
 async def consume(queue):
     while True:
         # wait for an item from the producer
-        ebid = await queue.get()
+        auto_pipe = await queue.get()
 
         # process the item
-        print('Processing {}...'.format(ebid))
+        print('Processing {}...'.format(auto_pipe.ebid))
         # simulate i/o operation using sleep
         # await asyncio.sleep(1)
 
-        print(f'Starting archive request for {ebid}')
+        print(f'Starting archive request for {auto_pipe.ebid}')
         # 1.
-        track_folder_name = \
-            archive_request_and_transfer(ebid,
-                                         emailaddr=EMAILADDR,
-                                         lustre_path=NRAODATAPATH,
-                                         do_cleanup=True)
+        await auto_pipe.archive_request_and_transfer(archive_kwargs={'emailaddr': EMAILADDR,
+                                                                     'lustre_path': NRAODATAPATH},
+                                                    sleeptime=600,
+                                                    clustername=CLUSTERNAME,
+                                                    do_cleanup=True)
 
         print(f"Setting up scripts for reduction.")
-        setup_for_reduction_pipeline(track_folder_name,
-                                     clustername=CLUSTERNAME)
+        await auto_pipe.setup_for_reduction_pipeline(clustername=CLUSTERNAME)
 
         print(f"Submitting pipeline jobs to {CLUSTERNAME}")
-        importsplit_jobid, continuum_jobid, line_jobid = \
-            initial_job_submission(ebid,
-                                track_folder_name,
+        await auto_pipe.initial_job_submission(
                                 clustername=CLUSTERNAME,
                                 scripts_dir=Path('reduction_job_scripts/'),
-                                scheduler_cmd=CLUSTER_SCHEDCMD,
                                 submit_continuum_pipeline=RUN_CONTINUUM,
                                 submit_line_pipeline=RUN_LINES,
                                 clusteracct=CLUSTERACCOUNT,
                                 split_time=CLUSTER_SPLIT_JOBTIME,
                                 continuum_time=CLUSTER_CONTINUUM_JOBTIME,
-                                line_time=CLUSTER_LINE_JOBTIME)
+                                line_time=CLUSTER_LINE_JOBTIME
+                                scheduler_cmd=CLUSTER_SCHEDCMD,)
 
         print("Checking and waiting for job completion")
         # Return dictionary of jobs to restart.
-        restarts = get_job_notifications(ebid,
-                                         importsplit_jobid=importsplit_jobid,
-                                         check_continuum_job=RUN_CONTINUUM,
-                                         continuum_jobid=continuum_jobid,
-                                         check_line_job=RUN_LINES,
-                                         line_jobid=line_jobid,
-                                         sleeptime=1800)
+        await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
+                                              check_line_job=RUN_LINES,
+                                              sleeptime=1800)
 
         # TODO: Add job restarting when timeouts occur.
 
