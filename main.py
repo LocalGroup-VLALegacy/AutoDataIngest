@@ -70,7 +70,7 @@ async def consume(queue):
                                 clusteracct=CLUSTERACCOUNT,
                                 split_time=CLUSTER_SPLIT_JOBTIME,
                                 continuum_time=CLUSTER_CONTINUUM_JOBTIME,
-                                line_time=CLUSTER_LINE_JOBTIME
+                                line_time=CLUSTER_LINE_JOBTIME,
                                 scheduler_cmd=CLUSTER_SCHEDCMD,)
 
         print("Checking and waiting for job completion")
