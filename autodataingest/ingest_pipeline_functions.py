@@ -8,7 +8,7 @@ They are meant to be called in "main.py"
 import sys
 from pathlib import Path
 from glob import glob
-import time
+import asyncio
 
 # fabric handles ssh to cluster running jobs
 import fabric
@@ -28,502 +28,524 @@ from .download_vlaant_corrections import download_vla_antcorr
 
 from .ssh_utils import try_run_command, run_command
 
+from .archive_request import archive_copy_SDM
 
-def archive_request_and_transfer(ebid, archive_kwargs={},
-                                 sleeptime=600,
-                                 clustername='cc-cedar',
-                                 do_cleanup=True):
+# Import dictionary defining the job creation script functions for each
+# cluster.
+from .cluster_configs import JOB_CREATION_FUNCTIONS, CLUSTERADDRS
+
+
+class AutoPipeline(object):
     """
-    Step 1.
+    Handler for the processing pipeline stages. Each instance is defined by the
+    exection block (EB) ID for each track.
 
-    Request the data be staged from the VLA archive and transfer to destination via globus.
-    """
-
-    from .archive_request import archive_copy_SDM
-
-    print(f'Sending archive request for {ebid}')
-
-    archive_copy_SDM(ebid, **archive_kwargs)
-
-    update_track_status(ebid, message="Archive download staged",
-                        sheetname='20A - OpLog Summary',
-                        status_col=1)
-
-    # Wait for the notification email that the data is ready for transfer
-    out = None
-    while out is None:
-        out = check_for_archive_notification(ebid)
-
-        time.sleep(sleeptime)
-
-    # We should have the path on AOC and the full MS name
-    # from the email.
-    path_to_data, track_name = out
-
-    # Update track name in sheet:
-    update_cell(ebid, track_name,
-                name_col=3,
-                sheetname='20A - OpLog Summary')
-
-    # Scrap the VLA archive for target and config w/ astroquery
-    # This will query the archive for the list of targets until the output has a matching EBID.
-    target, datasize = match_ebid_to_source(ebid,
-                                            targets=['M31', 'M33', 'NGC6822', 'IC10', 'IC1613', 'WLM'],
-                                            project_code='20A-346',
-                                            verbose=False)
-
-    # Add track target to the sheet
-    update_cell(ebid, target, name_col=4,
-                sheetname='20A - OpLog Summary')
-
-    # And the data size
-    update_cell(ebid, datasize.rstrip('GB'), name_col=14,
-                sheetname='20A - OpLog Summary')
-
-    # We want to easily track (1) target, (2) config, and (3) track name
-    # We'll combine these for our folder names where the data will get placed
-    # after transfer from the archive.
-    config = return_cell(ebid, column=9)
-
-    track_folder_name = f"{target}_{config}_{track_name}"
-
-    # Do globus transfer:
-
-    transfer_taskid = transfer_file(track_name, track_folder_name,
-                                    startnode='nrao-aoc',
-                                    endnode=clustername,
-                                    wait_for_completion=False)
-
-    # tracks_processing[ebid] = [track_name, track_folder_name, transfer_taskid]
-
-    update_track_status(ebid,
-                        message=f"Data transferred to {clustername}",
-                        sheetname='20A - OpLog Summary',
-                        status_col=1)
-
-    globus_wait_for_completion(transfer_taskid)
-
-    update_cell(ebid, "TRUE", name_col=18,
-                sheetname='20A - OpLog Summary')
-
-    # Remove the data staged at NRAO to avoid exceeding our storage quota
-    if do_cleanup:
-        cleanup_source(track_name, node='nrao-aoc')
-
-    return track_folder_name
-
-
-def setup_for_reduction_pipeline(track_folder_name,
-                                 clustername='cc-cedar',
-                                 scripts_dir=Path('reduction_job_scripts/')):
-    """
-    Step 2.
-
-    Create products and setup on the cluster running the reduction.
-    This should be the destination requested in `archive_request_and_transfer`.
-
-    1. Tests connection to cluster.
-    2. Clones the ReductionPipeline repo
-    TODO: Allow setting a version for the pipeline repo.
-    3. Updates + transfers offline copies of the antenna positions corrections.
+    Each stage is its own function and is meant to run asynchronously.
     """
 
-    # Import dictionary with the cluster address
-    from .cluster_configs import CLUSTERADDRS
+    def __init__(self, ebid):
+        self.ebid = ebid
 
-    # Setup connection:
-    connect = fabric.Connection(CLUSTERADDRS[clustername],
-                                connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
+    async def archive_request_and_transfer(self, archive_kwargs={},
+                                     sleeptime=600,
+                                     clustername='cc-cedar',
+                                     do_cleanup=True):
+        """
+        Step 1.
 
-    # Test the connection:
-    if not try_run_command(connect):
-        raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
+        Request the data be staged from the VLA archive and transfer to destination via globus.
+        """
 
-    # Grab the repo; this is where we can also specify a version number, too
-    cd_command = f'cd scratch/VLAXL_reduction/{track_folder_name}/'
-    git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
-    full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}'
-    result = run_command(connect, full_command)
+        ebid = self.ebid
 
+        print(f'Sending archive request for {ebid}')
 
-    # Before running any reduction, update the antenna correction files
-    # and copy that folder to each folder where the pipeline is run
-    download_vla_antcorr(data_folder="VLA_antcorr_tables")
+        archive_copy_SDM(ebid, **archive_kwargs)
 
-    # Move the antenna correction folder over:
-    result = connect.run(f"{cd_command}/VLA_antcorr_tables || mkdir scratch/VLAXL_reduction/{track_folder_name}/VLA_antcorr_tables")
-    for file in glob("VLA_antcorr_tables/*.txt"):
-        result = connect.put(file, remote=f"scratch/VLAXL_reduction/{track_folder_name}/VLA_antcorr_tables/")
-
-
-
-def initial_job_submission(ebid,
-                           track_folder_name,
-                           clustername='cc-cedar',
-                           scripts_dir=Path('reduction_job_scripts/'),
-                           submit_continuum_pipeline=True,
-                           submit_line_pipeline=True,
-                           clusteracct=None,
-                           split_time=None,
-                           continuum_time=None,
-                           line_time=None,
-                           scheduler_cmd=""):
-    """
-    Step 3.
-
-    Submit jobs or start the reduction pipeline.
-
-    This has three steps:
-    1. Import to MS and continuum/line split
-    2. Continuum reduction pipeline
-    3. Line reduction pipeline.
-
-    2 and 3 can run concurrently but require 1 to finish first.
-
-    Parameters
-    -----------
-
-    """
-
-    # Import dictionary defining the job creation script functions for each
-    # cluster.
-    from .cluster_configs import JOB_CREATION_FUNCTIONS, CLUSTERADDRS
-
-    track_name = track_folder_name.split('_')[-1]
-
-    # Create local folder where our job submission scripts will be saved to prior to
-    # transfer
-    track_scripts_dir = scripts_dir / track_folder_name
-
-    if not track_scripts_dir.exists():
-        track_scripts_dir.mkdir()
-
-    # Setup connection:
-    connect = fabric.Connection(CLUSTERADDRS[clustername],
-                                connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
-
-    # Test the connection:
-    if not try_run_command(connect):
-        raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
-
-    # Create 1. job to import and split.
-    job_split_filename = f"{track_folder_name}_job_import_and_split.sh"
-
-    if (track_scripts_dir / job_split_filename).exists():
-        (track_scripts_dir / job_split_filename).unlink()
-
-    # Create the job script.
-    print(JOB_CREATION_FUNCTIONS[clustername]['IMPORT_SPLIT'](
-            target_name=track_folder_name.split('_')[0],
-            config=track_folder_name.split('_')[1],
-            trackname=track_folder_name.split('_')[2],
-            slurm_kwargs={},
-            setup_kwargs={}),
-          file=open(track_scripts_dir / job_split_filename, 'a'))
-
-    # Move the job script to the cluster:
-    result = connect.put(track_scripts_dir / job_split_filename,
-                         remote=f'scratch/VLAXL_reduction/{track_folder_name}/')
-
-    chdir_cmd = f"cd scratch/VLAXL_reduction/{track_folder_name}/"
-
-    if clusteracct is not None:
-        acct_str = "--account={clusteracct}"
-    else:
-        acct_str = ""
-
-    if split_time is not None:
-        time_str = "--time={split_time}"
-    else:
-        time_str = ""
-
-    submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_split_filename}"
-
-    try:
-        result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-    except ValueError as exc:
-        raise ValueError(f"Failed to submit split job! See stderr: {exc}")
-
-    # Record the job ID so we can check for completion.
-    importsplit_jobid = result.stdout.replace("\n", '').split(" ")[-1]
-
-    update_cell(ebid, f"{clustername}:{importsplit_jobid}", name_col=20,
-                sheetname='20A - OpLog Summary')
-
-
-    # Move on to 2. and 3.
-    # NEED to make these jobs conditional on 1. finishing.
-
-    if submit_continuum_pipeline:
-
-        job_continuum_filename = f"{track_folder_name}_job_continuum.sh"
-
-        # Remove existing job file if it exists
-        if (track_scripts_dir / job_continuum_filename).exists():
-            (track_scripts_dir / job_continuum_filename).unlink()
-
-        print(JOB_CREATION_FUNCTIONS[clustername]['CONTINUUM_PIPE'](
-                target_name=track_folder_name.split('_')[0],
-                config=track_folder_name.split('_')[1],
-                trackname=track_folder_name.split('_')[2],
-                slurm_kwargs={},
-                setup_kwargs={},
-                conditional_on_jobnum=importsplit_jobid),
-            file=open(track_scripts_dir / job_continuum_filename, 'a'))
-
-        # Move the job script to the cluster:
-        result = connect.put(track_scripts_dir / job_continuum_filename,
-                            remote=f'scratch/VLAXL_reduction/{track_folder_name}/')
-
-        if continuum_time is not None:
-            time_str = "--time={continuum_time}"
-        else:
-            time_str = ""
-
-        submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_continuum_filename}"
-
-        try:
-            result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-        except ValueError as exc:
-            raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
-
-        # Record the job ID so we can check for completion.
-        continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
-
-        update_cell(ebid, f"{clustername}:{continuum_jobid}", name_col=22,
-                    sheetname='20A - OpLog Summary')
-
-    else:
-        continuum_jobid = None
-
-    if submit_line_pipeline:
-        job_line_filename = f"{track_folder_name}_job_line.sh"
-
-        # Remove existing job file if it exists
-        if (track_scripts_dir / job_line_filename).exists():
-            (track_scripts_dir / job_line_filename).unlink()
-
-        print(JOB_CREATION_FUNCTIONS[clustername]['LINE_PIPE'](
-                target_name=track_folder_name.split('_')[0],
-                config=track_folder_name.split('_')[1],
-                trackname=track_folder_name.split('_')[2],
-                slurm_kwargs={},
-                setup_kwargs={},
-                conditional_on_jobnum=importsplit_jobid),
-            file=open(track_scripts_dir / job_line_filename, 'a'))
-
-        # Move the job script to the cluster:
-        result = connect.put(track_scripts_dir / job_line_filename,
-                            remote=f'scratch/VLAXL_reduction/{track_folder_name}/')
-
-        if line_time is not None:
-            time_str = "--time={line_time}"
-        else:
-            time_str = ""
-
-        submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_line_filename}"
-
-        try:
-            result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-        except ValueError as exc:
-            raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
-
-        # Record the job ID so we can check for completion.
-        line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
-
-        update_cell(ebid, f"{clustername}:{line_jobid}", name_col=24,
-                    sheetname='20A - OpLog Summary')
-
-    else:
-        line_jobid = None
-
-    return importsplit_jobid, continuum_jobid, line_jobid
-
-
-def get_job_notifications(ebid,
-                          importsplit_jobid=None,
-                          check_continuum_job=True,
-                          continuum_jobid=None,
-                          check_line_job=True,
-                          line_jobid=None,
-                          sleeptime=1800):
-    """
-    Step 4.
-
-    Check if the pipeline jobs completed correctly.
-
-    If so, and if a manual flagging sheet doesn't exist, produce a new
-    google sheet that the manual flagging txt file will be generated from.
-    """
-
-    # if IDs are not available, try getting from the gsheet.
-    # otherwise, skip checking for those jobs to finish.
-
-    if importsplit_jobid is None:
-        importsplit_jobid = return_cell(ebid, column=20).split(":")[-1]
-
-    if continuum_jobid is None and check_continuum_job:
-        continuum_jobid = return_cell(ebid, column=22).split(":")[-1]
-
-    if line_jobid is None and check_line_job:
-        line_jobid = return_cell(ebid, column=24).split(":")[-1]
-
-    # If the split job ID is still not defined, something has gone wrong.
-    if importsplit_jobid is None or importsplit_jobid == "":
-        raise ValueError(f"Unable to identify split job ID for EB: {ebid}")
-
-    while True:
-        # Check for a job completion email and check the final status
-        job_check = check_for_job_notification(importsplit_jobid)
-        # If None, it isn't done yet!
-        if job_check is None:
-            time.sleep(sleeptime)
-            continue
-
-        job_status_split, job_runtime =  job_check
-        is_done_split = True
-
-        update_cell(ebid, job_status_split, name_col=19,
-                    sheetname='20A - OpLog Summary')
-        update_cell(ebid, job_runtime, name_col=25,
-                    sheetname='20A - OpLog Summary')
-
-        break
-
-    # Continuum check
-    while True:
-        if not check_continuum_job:
-            is_done_continuum = False
-            break
-
-        job_check = check_for_job_notification(continuum_jobid)
-
-        is_done_continuum = False
-        if job_check is None:
-            time.sleep(sleeptime)
-            continue
-
-        is_done_continuum = True
-
-        job_status_continuum, job_runtime =  job_check
-
-        update_cell(ebid, job_status_continuum, name_col=21,
-                    sheetname='20A - OpLog Summary')
-        update_cell(ebid, job_runtime, name_col=26,
-                    sheetname='20A - OpLog Summary')
-
-        break
-
-    # Line check
-    while True:
-        if not check_line_job:
-            is_done_line = False
-            break
-
-        job_check = check_for_job_notification(line_jobid)
-
-        is_done_line = True
-
-        job_status_line, job_runtime = job_check
-
-        update_cell(ebid, job_status_line, name_col=23,
-                    sheetname='20A - OpLog Summary')
-        update_cell(ebid, job_runtime, name_col=27,
-                    sheetname='20A - OpLog Summary')
-
-        break
-
-    # Make dictionary for restarting jobs.
-    restarts = {'IMPORT_SPLIT': False,
-                'CONTINUUM_PIPE': False,
-                'LINE_PIPE': False,}
-
-
-    if all([is_done_split, is_done_continuum, is_done_line]):
-        # Remove this EBID! This round of reductions is done!
-
-        # Check if these were successful runs:
-        # Expected types of job status:
-        # COMPLETED - probably a successful pipeline reduction
-        # TIMEOUT - ran out of time; trigger resubmitting the job
-        # CANCELLED - something happened to the job. Assumed this was for a good reason and don't resubmit
-
-        # TODO: handle timeout and restart jobs to get the total wall time
-
-
-        job_statuses = [job_status_split, job_status_continuum, job_status_line]
-
-        # Good! It worked! Move on to QA.
-        if all([job_status == 'COMPLETE' for job_status in job_statuses]):
-
-            update_track_status(ebid, message=f"Ready for QA",
-                                sheetname='20A - OpLog Summary',
-                                status_col=1)
-        # If the split failed, the other two will not have completed.
-        # Trigger resubmitting all three:
-        elif job_status_split == 'TIMEOUT':
-            # Re-add all to submission queue
-            restarts['IMPORT_SPLIT'] = True
-            restarts['CONTINUUM_PIPE'] = True
-            restarts['LINE_PIPE'] = True
-        # Trigger resubmitting the continuum
-        elif job_status_continuum == 'TIMEOUT':
-            # Add to resubmission queue
-            restarts['CONTINUUM_PIPE'] = True
-        # Trigger resubmitting the lines
-        elif job_status_line == 'TIMEOUT':
-            # Add to resubmission queue
-            restarts['LINE_PIPE'] = True
-
-        # Otherwise assume something else went wrong and request a manual review
-        else:
-
-            update_track_status(ebid, message=f"ISSUE: Needs manual check of job status",
-                                sheetname='20A - OpLog Summary',
-                                status_col=1)
-
-    else:
-        update_track_status(ebid, message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
+        update_track_status(ebid, message="Archive download staged",
                             sheetname='20A - OpLog Summary',
                             status_col=1)
 
-    return restarts
+        # Wait for the notification email that the data is ready for transfer
+        out = None
+        while out is None:
+            out = check_for_archive_notification(ebid)
+
+            await asyncio.sleep(sleeptime)
+
+        # We should have the path on AOC and the full MS name
+        # from the email.
+        path_to_data, track_name = out
+
+        self.track_name = track_name
+
+        # Update track name in sheet:
+        update_cell(ebid, track_name,
+                    name_col=3,
+                    sheetname='20A - OpLog Summary')
+
+        # Scrap the VLA archive for target and config w/ astroquery
+        # This will query the archive for the list of targets until the output has a matching EBID.
+        target, datasize = match_ebid_to_source(ebid,
+                                                targets=['M31', 'M33', 'NGC6822', 'IC10', 'IC1613', 'WLM'],
+                                                project_code='20A-346',
+                                                verbose=False)
+
+        # Add track target to the sheet
+        update_cell(ebid, target, name_col=4,
+                    sheetname='20A - OpLog Summary')
+
+        # And the data size
+        update_cell(ebid, datasize.rstrip('GB'), name_col=14,
+                    sheetname='20A - OpLog Summary')
+
+        # We want to easily track (1) target, (2) config, and (3) track name
+        # We'll combine these for our folder names where the data will get placed
+        # after transfer from the archive.
+        config = return_cell(ebid, column=9)
+
+        self.track_folder_name = f"{target}_{config}_{track_name}"
+
+        # Do globus transfer:
+
+        transfer_taskid = transfer_file(track_name, self.track_folder_name,
+                                        startnode='nrao-aoc',
+                                        endnode=clustername,
+                                        wait_for_completion=False)
+
+        self.transfer_taskid = transfer_taskid
+
+        update_track_status(ebid,
+                            message=f"Data transferred to {clustername}",
+                            sheetname='20A - OpLog Summary',
+                            status_col=1)
+
+        # TODO: MAKE THIS NON-BLOCKING
+        await globus_wait_for_completion(transfer_taskid)
+
+        update_cell(ebid, "TRUE", name_col=18,
+                    sheetname='20A - OpLog Summary')
+
+        # Remove the data staged at NRAO to avoid exceeding our storage quota
+        if do_cleanup:
+            cleanup_source(track_name, node='nrao-aoc')
+
+
+    async def setup_for_reduction_pipeline(self, clustername='cc-cedar'):
+        """
+        Step 2.
+
+        Create products and setup on the cluster running the reduction.
+        This should be the destination requested in `archive_request_and_transfer`.
+
+        1. Tests connection to cluster.
+        2. Clones the ReductionPipeline repo
+        TODO: Allow setting a version for the pipeline repo.
+        3. Updates + transfers offline copies of the antenna positions corrections.
+        """
+
+        # Import dictionary with the cluster address
+        from .cluster_configs import CLUSTERADDRS
+
+        # Setup connection:
+        connect = fabric.Connection(CLUSTERADDRS[clustername],
+                                    connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
+
+        # Test the connection:
+        if not try_run_command(connect):
+            raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
+
+        # Grab the repo; this is where we can also specify a version number, too
+        cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
+        git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
+        full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}'
+        result = run_command(connect, full_command)
+
+
+        # Before running any reduction, update the antenna correction files
+        # and copy that folder to each folder where the pipeline is run
+        download_vla_antcorr(data_folder="VLA_antcorr_tables")
+
+        # Move the antenna correction folder over:
+        result = connect.run(f"{cd_command}/VLA_antcorr_tables || mkdir scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables")
+        for file in glob("VLA_antcorr_tables/*.txt"):
+            result = connect.put(file, remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables/")
 
 
 
-def restart_job_submission(ebid, restart_dictionary):
-    """
-    Step 3b.
+    async def initial_job_submission(self,
+                                    clustername='cc-cedar',
+                                    scripts_dir=Path('reduction_job_scripts/'),
+                                    submit_continuum_pipeline=True,
+                                    submit_line_pipeline=True,
+                                    clusteracct=None,
+                                    split_time=None,
+                                    continuum_time=None,
+                                    line_time=None,
+                                    scheduler_cmd=""):
+        """
+        Step 3.
 
-    Resubmit an incomplete job.
-    """
-    pass
+        Submit jobs or start the reduction pipeline.
+
+        This has three steps:
+        1. Import to MS and continuum/line split
+        2. Continuum reduction pipeline
+        3. Line reduction pipeline.
+
+        2 and 3 can run concurrently but require 1 to finish first.
+
+        Parameters
+        -----------
+
+        """
 
 
-def explore_pipeline_products(parameter_list):
-    """
-    Step 5.
-    """
+        # Create local folder where our job submission scripts will be saved to prior to
+        # transfer
+        track_scripts_dir = scripts_dir / self.track_folder_name
 
-    pass
+        if not track_scripts_dir.exists():
+            track_scripts_dir.mkdir()
+
+        # Setup connection:
+        connect = fabric.Connection(CLUSTERADDRS[clustername],
+                                    connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
+
+        # Test the connection:
+        if not try_run_command(connect):
+            raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
+
+        # Create 1. job to import and split.
+        job_split_filename = f"{self.track_folder_name}_job_import_and_split.sh"
+
+        if (track_scripts_dir / job_split_filename).exists():
+            (track_scripts_dir / job_split_filename).unlink()
+
+        # Create the job script.
+        print(JOB_CREATION_FUNCTIONS[clustername]['IMPORT_SPLIT'](
+                target_name=self.track_folder_name.split('_')[0],
+                config=self.track_folder_name.split('_')[1],
+                trackname=self.track_folder_name.split('_')[2],
+                slurm_kwargs={},
+                setup_kwargs={}),
+            file=open(track_scripts_dir / job_split_filename, 'a'))
+
+        # Move the job script to the cluster:
+        result = connect.put(track_scripts_dir / job_split_filename,
+                            remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
+
+        chdir_cmd = f"cd scratch/VLAXL_reduction/{self.track_folder_name}/"
+
+        if clusteracct is not None:
+            acct_str = "--account={clusteracct}"
+        else:
+            acct_str = ""
+
+        if split_time is not None:
+            time_str = "--time={split_time}"
+        else:
+            time_str = ""
+
+        submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_split_filename}"
+
+        try:
+            result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
+        except ValueError as exc:
+            raise ValueError(f"Failed to submit split job! See stderr: {exc}")
+
+        # Record the job ID so we can check for completion.
+        self.importsplit_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+        update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}", name_col=20,
+                    sheetname='20A - OpLog Summary')
 
 
-def rerun_job_submission(parameter_list):
-    """
-    Step 6.
+        # Move on to 2. and 3.
+        # NEED to make these jobs conditional on 1. finishing.
 
-    After QA, supplies an additional manual flagging script to re-run the pipeline
-    calibration.
-    """
+        if submit_continuum_pipeline:
 
-    # TODO: define what to clean-up from the first pipeline runs.
-    pass
+            job_continuum_filename = f"{self.track_folder_name}_job_continuum.sh"
+
+            # Remove existing job file if it exists
+            if (track_scripts_dir / job_continuum_filename).exists():
+                (track_scripts_dir / job_continuum_filename).unlink()
+
+            print(JOB_CREATION_FUNCTIONS[clustername]['CONTINUUM_PIPE'](
+                    target_name=self.track_folder_name.split('_')[0],
+                    config=self.track_folder_name.split('_')[1],
+                    trackname=self.track_folder_name.split('_')[2],
+                    slurm_kwargs={},
+                    setup_kwargs={},
+                    conditional_on_jobnum=self.importsplit_jobid),
+                file=open(track_scripts_dir / job_continuum_filename, 'a'))
+
+            # Move the job script to the cluster:
+            result = connect.put(track_scripts_dir / job_continuum_filename,
+                                remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
+
+            if continuum_time is not None:
+                time_str = "--time={continuum_time}"
+            else:
+                time_str = ""
+
+            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_continuum_filename}"
+
+            try:
+                result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
+            except ValueError as exc:
+                raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
+
+            # Record the job ID so we can check for completion.
+            self.continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+            update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}", name_col=22,
+                        sheetname='20A - OpLog Summary')
+
+        else:
+            self.continuum_jobid = None
+
+        if submit_line_pipeline:
+            job_line_filename = f"{self.track_folder_name}_job_line.sh"
+
+            # Remove existing job file if it exists
+            if (track_scripts_dir / job_line_filename).exists():
+                (track_scripts_dir / job_line_filename).unlink()
+
+            print(JOB_CREATION_FUNCTIONS[clustername]['LINE_PIPE'](
+                    target_name=self.track_folder_name.split('_')[0],
+                    config=self.track_folder_name.split('_')[1],
+                    trackname=self.track_folder_name.split('_')[2],
+                    slurm_kwargs={},
+                    setup_kwargs={},
+                    conditional_on_jobnum=self.importsplit_jobid),
+                file=open(track_scripts_dir / job_line_filename, 'a'))
+
+            # Move the job script to the cluster:
+            result = connect.put(track_scripts_dir / job_line_filename,
+                                remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
+
+            if line_time is not None:
+                time_str = "--time={line_time}"
+            else:
+                time_str = ""
+
+            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_line_filename}"
+
+            try:
+                result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
+            except ValueError as exc:
+                raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
+
+            # Record the job ID so we can check for completion.
+            self.line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+            update_cell(self.ebid, f"{clustername}:{self.line_jobid}", name_col=24,
+                        sheetname='20A - OpLog Summary')
+
+        else:
+            self.line_jobid = None
 
 
-def export_track_for_imaging(parameter_list):
-    """
-    Step 7.
+    async def get_job_notifications(self,
+                            importsplit_jobid=None,
+                            check_continuum_job=True,
+                            continuum_jobid=None,
+                            check_line_job=True,
+                            line_jobid=None,
+                            sleeptime=1800):
+        """
+        Step 4.
 
-    Move calibrated MSs to a persistent storage location for imaging.
-    """
-    pass
+        Check if the pipeline jobs completed correctly.
+
+        If so, and if a manual flagging sheet doesn't exist, produce a new
+        google sheet that the manual flagging txt file will be generated from.
+        """
+
+        # if IDs are not available, try getting from the gsheet.
+        # otherwise, skip checking for those jobs to finish.
+
+        if importsplit_jobid is None:
+            importsplit_jobid = self.importsplit_jobid
+
+            # If still None, pull from the spreadsheet
+            if importsplit_jobid is None:
+                importsplit_jobid = return_cell(self.ebid, column=20).split(":")[-1]
+
+        if continuum_jobid is None and check_continuum_job:
+            continuum_jobid = self.continuum_jobid
+
+            # If still None, pull from the spreadsheet
+            if continuum_jobid is None:
+                continuum_jobid = return_cell(self.ebid, column=22).split(":")[-1]
+
+        if line_jobid is None and check_line_job:
+            line_jobid = self.line_jobid
+
+            # If still None, pull from the spreadsheet
+            if line_jobid is None:
+                line_jobid = return_cell(self.ebid, column=20).split(":")[-1]
+
+        # If the split job ID is still not defined, something has gone wrong.
+        if importsplit_jobid is None or importsplit_jobid == "":
+            raise ValueError(f"Unable to identify split job ID for EB: {self.ebid}")
+
+        while True:
+            # Check for a job completion email and check the final status
+            job_check = check_for_job_notification(importsplit_jobid)
+            # If None, it isn't done yet!
+            if job_check is None:
+                await asyncio.sleep(sleeptime)
+                continue
+
+            job_status_split, job_runtime =  job_check
+            is_done_split = True
+
+            update_cell(self.ebid, job_status_split, name_col=19,
+                        sheetname='20A - OpLog Summary')
+            update_cell(self.ebid, job_runtime, name_col=25,
+                        sheetname='20A - OpLog Summary')
+
+            break
+
+        # Continuum check
+        while True:
+            if not check_continuum_job:
+                is_done_continuum = False
+                break
+
+            job_check = check_for_job_notification(continuum_jobid)
+
+            is_done_continuum = False
+            if job_check is None:
+                await asyncio.sleep(sleeptime)
+                continue
+
+            is_done_continuum = True
+
+            job_status_continuum, job_runtime =  job_check
+
+            update_cell(self.center()ebid, job_status_continuum, name_col=21,
+                        sheetname='20A - OpLog Summary')
+            update_cell(self.center()ebid, job_runtime, name_col=26,
+                        sheetname='20A - OpLog Summary')
+
+            break
+
+        # Line check
+        while True:
+            if not check_line_job:
+                is_done_line = False
+                break
+
+            job_check = check_for_job_notification(line_jobid)
+
+            is_done_line = True
+
+            job_status_line, job_runtime = job_check
+
+            update_cell(self.ebid, job_status_line, name_col=23,
+                        sheetname='20A - OpLog Summary')
+            update_cell(self.ebid, job_runtime, name_col=27,
+                        sheetname='20A - OpLog Summary')
+
+            break
+
+        # Make dictionary for restarting jobs.
+        restarts = {'IMPORT_SPLIT': False,
+                    'CONTINUUM_PIPE': False,
+                    'LINE_PIPE': False,}
+
+
+        if all([is_done_split, is_done_continuum, is_done_line]):
+            # Remove this EBID! This round of reductions is done!
+
+            # Check if these were successful runs:
+            # Expected types of job status:
+            # COMPLETED - probably a successful pipeline reduction
+            # TIMEOUT - ran out of time; trigger resubmitting the job
+            # CANCELLED - something happened to the job. Assumed this was for a good reason and don't resubmit
+
+            # TODO: handle timeout and restart jobs to get the total wall time
+
+
+            job_statuses = [job_status_split, job_status_continuum, job_status_line]
+
+            # Good! It worked! Move on to QA.
+            if all([job_status == 'COMPLETE' for job_status in job_statuses]):
+
+                update_track_status(self.ebid, message=f"Ready for QA",
+                                    sheetname='20A - OpLog Summary',
+                                    status_col=1)
+            # If the split failed, the other two will not have completed.
+            # Trigger resubmitting all three:
+            elif job_status_split == 'TIMEOUT':
+                # Re-add all to submission queue
+                restarts['IMPORT_SPLIT'] = True
+                restarts['CONTINUUM_PIPE'] = True
+                restarts['LINE_PIPE'] = True
+            # Trigger resubmitting the continuum
+            elif job_status_continuum == 'TIMEOUT':
+                # Add to resubmission queue
+                restarts['CONTINUUM_PIPE'] = True
+            # Trigger resubmitting the lines
+            elif job_status_line == 'TIMEOUT':
+                # Add to resubmission queue
+                restarts['LINE_PIPE'] = True
+
+            # Otherwise assume something else went wrong and request a manual review
+            else:
+
+                update_track_status(self.ebid,
+                                    message=f"ISSUE: Needs manual check of job status",
+                                    sheetname='20A - OpLog Summary',
+                                    status_col=1)
+
+        else:
+            update_track_status(self.ebid,
+                                message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
+                                sheetname='20A - OpLog Summary',
+                                status_col=1)
+
+        return restarts
+
+
+
+    async def restart_job_submission(ebid, restart_dictionary):
+        """
+        Step 3b.
+
+        Resubmit an incomplete job.
+        """
+        pass
+
+
+    async def explore_pipeline_products(parameter_list):
+        """
+        Step 5.
+        """
+
+        pass
+
+
+    async def rerun_job_submission(parameter_list):
+        """
+        Step 6.
+
+        After QA, supplies an additional manual flagging script to re-run the pipeline
+        calibration.
+        """
+
+        # TODO: define what to clean-up from the first pipeline runs.
+        pass
+
+
+    async def export_track_for_imaging(parameter_list):
+        """
+        Step 7.
+
+        Move calibrated MSs to a persistent storage location for imaging.
+        """
+        pass
