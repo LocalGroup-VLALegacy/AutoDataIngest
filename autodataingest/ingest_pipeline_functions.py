@@ -120,7 +120,6 @@ class AutoPipeline(object):
                             sheetname='20A - OpLog Summary',
                             status_col=1)
 
-        # TODO: MAKE THIS NON-BLOCKING
         await globus_wait_for_completion(transfer_taskid)
 
         update_cell(ebid, "TRUE", name_col=18,
@@ -427,9 +426,9 @@ class AutoPipeline(object):
 
             job_status_continuum, job_runtime =  job_check
 
-            update_cell(self.center()ebid, job_status_continuum, name_col=21,
+            update_cell(self.ebid, job_status_continuum, name_col=21,
                         sheetname='20A - OpLog Summary')
-            update_cell(self.center()ebid, job_runtime, name_col=26,
+            update_cell(self.ebid, job_runtime, name_col=26,
                         sheetname='20A - OpLog Summary')
 
             break
@@ -509,8 +508,8 @@ class AutoPipeline(object):
                                 sheetname='20A - OpLog Summary',
                                 status_col=1)
 
-        return restarts
-
+        # TODO: These need to be handled below.
+        self.restarts = restarts
 
 
     async def restart_job_submission(ebid, restart_dictionary):
