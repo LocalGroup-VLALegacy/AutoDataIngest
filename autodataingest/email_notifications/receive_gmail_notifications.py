@@ -1,5 +1,6 @@
 
 import ezgmail
+from datetime import datetime
 
 PROJECTID = "20A-346"
 
@@ -26,10 +27,17 @@ def do_authentication_gmail(emailaddress=f"{USERNAME}@{EMAILADDR}"):
 def check_for_archive_notification(ebid,
                                    labelname='Telescope Notifications/20A-346 Archive Notifications',
                                    project_id=PROJECTID,
+                                   timewindow=2 * 24 * 3600,
+                                   verbose=True,
                                    **kwargs):
     """
     Given en execution block ID, search for a notification that the archive has
     sent an email for the staged data. Return the whole MS name and lustre path on AOC.
+
+    Parameters
+    ----------
+    timewindow: float or int, optional
+        Time window to consider notification within. Default is 48 hr.
     """
 
     if not do_authentication_gmail(**kwargs):
@@ -44,6 +52,11 @@ def check_for_archive_notification(ebid,
         for message in email.messages:
 
             if str(ebid) not in message.originalBody:
+                continue
+
+            if (datetime.now() - message.timestamp).total_seconds() > timewindow:
+                if verbose:
+                    print(f"Found notification older than {timewindow / 3600.} hr. Skipping.")
                 continue
 
             # Grab and return the full MS name from the archive email:
