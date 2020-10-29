@@ -35,7 +35,7 @@ def do_authenticate_globus():
         raise ValueError("Unexpected login user? {user}")
 
 
-def do_manual_login(nodename):
+def do_manual_login(nodename, verbose=True):
     '''
     Some transfer nodes aren't automated yet (we need some keys and
     stuff setup). For now just do some parts manually.
@@ -53,6 +53,9 @@ def do_manual_login(nodename):
     # If logged in, don't bother with another login.
     if 'is activated' in out.stdout.decode('utf-8'):
         return True
+
+    if verbose:
+        print(f"Require manual login to {nodename}")
 
     username = input("Username:")
     password = unix_getpass()
@@ -98,7 +101,11 @@ def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
     Start a globus transfer from `startnode` to `endnode`.
     """
 
-    do_authenticate_globus()
+    try:
+        do_authenticate_globus()
+    except ValueError:
+        print(f"Auto authentication of {endnode} failed. Try manual login.")
+        do_manual_login(endnode)
 
     # May have to change this ordering for both nodes in general.
     do_manual_login(startnode)
