@@ -80,7 +80,6 @@ class AutoPipeline(object):
                             status_col=1)
 
         # Wait for the notification email that the data is ready for transfer
-        out = None
         while out is None:
             out = check_for_archive_notification(ebid, **notification_kwargs)
 
