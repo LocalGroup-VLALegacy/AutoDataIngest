@@ -65,7 +65,7 @@ def check_for_archive_notification(ebid,
                                                           project_id=project_id)
 
             if markasread:
-                message.markasRead()
+                message.markAsRead()
 
             return path_to_data, ms_name
 
@@ -110,7 +110,7 @@ def check_for_job_notification(jobid,
             runtime = jobinfo[1].split(" ")[-1]
 
             if markasread:
-                message.markasRead()
+                message.markAsRead()
 
             return status, runtime
 
