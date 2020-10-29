@@ -140,7 +140,7 @@ class AutoPipeline(object):
                             sheetname='20A - OpLog Summary',
                             status_col=1)
 
-        print(f"Print waiting for globus transfer to {clustername} to complete.")
+        print(f"Waiting for globus transfer to {clustername} to complete.")
         await globus_wait_for_completion(transfer_taskid)
         print(f"Globus transfer {transfer_taskid} completed!")
 
@@ -166,9 +166,8 @@ class AutoPipeline(object):
         3. Updates + transfers offline copies of the antenna positions corrections.
         """
 
-        # Import dictionary with the cluster address
-        from .cluster_configs import CLUSTERADDRS
 
+        print(f"Starting connection to {clustername}")
         # Setup connection:
         connect = fabric.Connection(CLUSTERADDRS[clustername],
                                     connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
@@ -179,6 +178,9 @@ class AutoPipeline(object):
 
         # Grab the repo; this is where we can also specify a version number, too
         cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
+
+        print("Cloning ReductionPipeline to {clustername} at {cd_command}")
+
         git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
         full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}'
         result = run_command(connect, full_command)
@@ -186,9 +188,11 @@ class AutoPipeline(object):
 
         # Before running any reduction, update the antenna correction files
         # and copy that folder to each folder where the pipeline is run
+        print("Downloading updates of antenna corrections to 'VLA_antcorr_tables'")
         download_vla_antcorr(data_folder="VLA_antcorr_tables")
 
         # Move the antenna correction folder over:
+        print(f"Copying antenna corrections to {clustername}")
         result = connect.run(f"{cd_command}/VLA_antcorr_tables || mkdir scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables")
         for file in glob("VLA_antcorr_tables/*.txt"):
             result = connect.put(file, remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables/")
@@ -222,6 +226,7 @@ class AutoPipeline(object):
 
         """
 
+        print(f"Starting job submission of {self.ebid} on {clustername}.")
 
         # Create local folder where our job submission scripts will be saved to prior to
         # transfer
@@ -231,6 +236,7 @@ class AutoPipeline(object):
             track_scripts_dir.mkdir()
 
         # Setup connection:
+        print(f"Starting connection to {clustername}")
         connect = fabric.Connection(CLUSTERADDRS[clustername],
                                     connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
 
@@ -239,6 +245,8 @@ class AutoPipeline(object):
             raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
 
         # Create 1. job to import and split.
+        print(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
+
         job_split_filename = f"{self.track_folder_name}_job_import_and_split.sh"
 
         if (track_scripts_dir / job_split_filename).exists():
@@ -254,6 +262,7 @@ class AutoPipeline(object):
             file=open(track_scripts_dir / job_split_filename, 'a'))
 
         # Move the job script to the cluster:
+        print(f"Moving import/split job file for {self.ebid} to {clustername}")
         result = connect.put(track_scripts_dir / job_split_filename,
                             remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
@@ -279,6 +288,8 @@ class AutoPipeline(object):
         # Record the job ID so we can check for completion.
         self.importsplit_jobid = result.stdout.replace("\n", '').split(" ")[-1]
 
+        print(f"Submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
+
         update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}", name_col=20,
                     sheetname='20A - OpLog Summary')
 
@@ -287,6 +298,8 @@ class AutoPipeline(object):
         # NEED to make these jobs conditional on 1. finishing.
 
         if submit_continuum_pipeline:
+
+            print(f"Making continuum pipeline job file for {self.ebid} or {self.track_folder_name}")
 
             job_continuum_filename = f"{self.track_folder_name}_job_continuum.sh"
 
@@ -304,6 +317,7 @@ class AutoPipeline(object):
                 file=open(track_scripts_dir / job_continuum_filename, 'a'))
 
             # Move the job script to the cluster:
+            print(f"Moving continuum pipeline job file for {self.ebid} to {clustername}")
             result = connect.put(track_scripts_dir / job_continuum_filename,
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
@@ -322,6 +336,8 @@ class AutoPipeline(object):
             # Record the job ID so we can check for completion.
             self.continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
 
+            print(f"Submitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
+
             update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}", name_col=22,
                         sheetname='20A - OpLog Summary')
 
@@ -329,6 +345,9 @@ class AutoPipeline(object):
             self.continuum_jobid = None
 
         if submit_line_pipeline:
+
+            print(f"Making line pipeline job file for {self.ebid} or {self.track_folder_name}")
+
             job_line_filename = f"{self.track_folder_name}_job_line.sh"
 
             # Remove existing job file if it exists
@@ -345,6 +364,7 @@ class AutoPipeline(object):
                 file=open(track_scripts_dir / job_line_filename, 'a'))
 
             # Move the job script to the cluster:
+            print(f"Moving line pipeline job file for {self.ebid} to {clustername}")
             result = connect.put(track_scripts_dir / job_line_filename,
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
@@ -362,6 +382,8 @@ class AutoPipeline(object):
 
             # Record the job ID so we can check for completion.
             self.line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+            print(f"Submitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
 
             update_cell(self.ebid, f"{clustername}:{self.line_jobid}", name_col=24,
                         sheetname='20A - OpLog Summary')
@@ -389,6 +411,8 @@ class AutoPipeline(object):
         # if IDs are not available, try getting from the gsheet.
         # otherwise, skip checking for those jobs to finish.
 
+        print(f"Checking for job notifications on {self.ebid} or {self.track_folder_name}")
+
         if importsplit_jobid is None:
             importsplit_jobid = self.importsplit_jobid
 
@@ -414,6 +438,8 @@ class AutoPipeline(object):
         if importsplit_jobid is None or importsplit_jobid == "":
             raise ValueError(f"Unable to identify split job ID for EB: {self.ebid}")
 
+        print(f"Waiting for job notifications on {self.ebid} or {self.track_folder_name}")
+
         while True:
             # Check for a job completion email and check the final status
             job_check = check_for_job_notification(importsplit_jobid)
@@ -424,6 +450,8 @@ class AutoPipeline(object):
 
             job_status_split, job_runtime =  job_check
             is_done_split = True
+
+            print("Found import/split notification for {importsplit_jobid} with status {job_status_split}")
 
             update_cell(self.ebid, job_status_split, name_col=19,
                         sheetname='20A - OpLog Summary')
@@ -449,6 +477,8 @@ class AutoPipeline(object):
 
             job_status_continuum, job_runtime =  job_check
 
+            print("Found continuum notification for {continuum_jobid} with status {job_status_continuum}")
+
             update_cell(self.ebid, job_status_continuum, name_col=21,
                         sheetname='20A - OpLog Summary')
             update_cell(self.ebid, job_runtime, name_col=26,
@@ -467,6 +497,8 @@ class AutoPipeline(object):
             is_done_line = True
 
             job_status_line, job_runtime = job_check
+
+            print("Found line notification for {line_jobid} with status {job_status_line}")
 
             update_cell(self.ebid, job_status_line, name_col=23,
                         sheetname='20A - OpLog Summary')
@@ -498,27 +530,39 @@ class AutoPipeline(object):
             # Good! It worked! Move on to QA.
             if all([job_status == 'COMPLETE' for job_status in job_statuses]):
 
+                print("Processing complete for {self.ebid}! Ready for QA.")
+
                 update_track_status(self.ebid, message=f"Ready for QA",
                                     sheetname='20A - OpLog Summary',
                                     status_col=1)
+
             # If the split failed, the other two will not have completed.
             # Trigger resubmitting all three:
-            elif job_status_split == 'TIMEOUT':
+            if job_status_split == 'TIMEOUT':
                 # Re-add all to submission queue
+                print("Timeout for split. Needs resubmitting of all jobs")
+
                 restarts['IMPORT_SPLIT'] = True
                 restarts['CONTINUUM_PIPE'] = True
                 restarts['LINE_PIPE'] = True
+
             # Trigger resubmitting the continuum
-            elif job_status_continuum == 'TIMEOUT':
+            if job_status_continuum == 'TIMEOUT':
                 # Add to resubmission queue
+                print("Timeout for continuum pipeline. Needs resubmitting of continuum job.")
                 restarts['CONTINUUM_PIPE'] = True
+
             # Trigger resubmitting the lines
-            elif job_status_line == 'TIMEOUT':
+            if job_status_line == 'TIMEOUT':
                 # Add to resubmission queue
+                print("Timeout for line pipeline. Needs resubmitting of continuum job.")
                 restarts['LINE_PIPE'] = True
 
             # Otherwise assume something else went wrong and request a manual review
-            else:
+            if all([job_status not in ['COMPLETE', 'TIMEOUT'] for job_status in job_statuses]):
+
+
+                print(f"An unhandled issue occured in a job. Needs manual review for {self.ebid}")
 
                 update_track_status(self.ebid,
                                     message=f"ISSUE: Needs manual check of job status",
@@ -526,6 +570,8 @@ class AutoPipeline(object):
                                     status_col=1)
 
         else:
+            print(f"Not all jobs were run. Needs manual review for {self.ebid}")
+
             update_track_status(self.ebid,
                                 message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
                                 sheetname='20A - OpLog Summary',
