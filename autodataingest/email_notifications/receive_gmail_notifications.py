@@ -85,7 +85,8 @@ def extract_path_and_name(message, project_id=PROJECTID):
 
 
 def check_for_job_notification(jobid,
-                               labelname='Telescope Notifications/20A-346 Cedar Jobs'):
+                               labelname='Telescope Notifications/20A-346 Cedar Jobs',
+                               markasread=True):
 
     if not do_authentication_gmail():
         raise ValueError("Cannot login with ezgmail. Check credentials.")
@@ -107,6 +108,9 @@ def check_for_job_notification(jobid,
             status = jobinfo[2].replace(' ', '')
 
             runtime = jobinfo[1].split(" ")[-1]
+
+            if markasread:
+                message.markasRead()
 
             return status, runtime
 
