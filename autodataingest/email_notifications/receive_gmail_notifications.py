@@ -29,6 +29,7 @@ def check_for_archive_notification(ebid,
                                    project_id=PROJECTID,
                                    timewindow=2 * 24 * 3600,
                                    verbose=True,
+                                   markasread=True,
                                    **kwargs):
     """
     Given en execution block ID, search for a notification that the archive has
@@ -62,6 +63,9 @@ def check_for_archive_notification(ebid,
             # Grab and return the full MS name from the archive email:
             path_to_data, ms_name = extract_path_and_name(message.originalBody,
                                                           project_id=project_id)
+
+            if markasread:
+                message.markasRead()
 
             return path_to_data, ms_name
 
