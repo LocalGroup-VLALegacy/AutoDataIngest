@@ -46,6 +46,9 @@ class AutoPipeline(object):
     def __init__(self, ebid):
         self.ebid = ebid
 
+        # TODO: add flags that can provide the stage we need to run from.
+        # This enables easy restarting of tracks partially processed.
+
     async def archive_request_and_transfer(self, archive_kwargs={},
                                      notification_kwargs={'timewindow': 48 * 3600},
                                      sleeptime=600,
@@ -101,6 +104,8 @@ class AutoPipeline(object):
                                                 project_code='20A-346',
                                                 verbose=False)
 
+        print(f"Found target {target} with size {datasize} for {ebid}")
+
         # Add track target to the sheet
         update_cell(ebid, target, name_col=4,
                     sheetname='20A - OpLog Summary')
@@ -116,8 +121,12 @@ class AutoPipeline(object):
 
         self.track_folder_name = f"{target}_{config}_{track_name}"
 
+        print(f"This track was taken in {config} configuration.")
+        print(f"This track can be found in the folder with name {self.track_folder_name}")
+
         # Do globus transfer:
 
+        print(f"Transferring {self.track_folder_name} to {clustername}.")
         transfer_taskid = transfer_file(track_name, self.track_folder_name,
                                         startnode='nrao-aoc',
                                         endnode=clustername,
@@ -125,18 +134,23 @@ class AutoPipeline(object):
 
         self.transfer_taskid = transfer_taskid
 
+        print(f"The globus transfer ID is: {transfer_taskid}")
+
         update_track_status(ebid,
                             message=f"Data transferred to {clustername}",
                             sheetname='20A - OpLog Summary',
                             status_col=1)
 
+        print(f"Print waiting for globus transfer to {clustername} to complete.")
         await globus_wait_for_completion(transfer_taskid)
+        print(f"Globus transfer {transfer_taskid} completed!")
 
         update_cell(ebid, "TRUE", name_col=18,
                     sheetname='20A - OpLog Summary')
 
         # Remove the data staged at NRAO to avoid exceeding our storage quota
         if do_cleanup:
+            print(f"Cleaning up {ebid} on nrao-aoc")
             cleanup_source(track_name, node='nrao-aoc')
 
 
