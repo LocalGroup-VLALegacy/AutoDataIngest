@@ -47,6 +47,7 @@ class AutoPipeline(object):
         self.ebid = ebid
 
     async def archive_request_and_transfer(self, archive_kwargs={},
+                                     notification_kwargs={'timewindow': 48 * 3600},
                                      sleeptime=600,
                                      clustername='cc-cedar',
                                      do_cleanup=True):
@@ -58,9 +59,18 @@ class AutoPipeline(object):
 
         ebid = self.ebid
 
-        print(f'Sending archive request for {ebid}')
+        # First check for an archive notification within the last
+        # 48 hr. If one is found, don't re-request the track.
+        out = check_for_archive_notification(ebid, **notification_kwargs)
 
-        archive_copy_SDM(ebid, **archive_kwargs)
+        if out is None:
+
+            print(f'Sending archive request for {ebid}')
+
+            archive_copy_SDM(ebid, **archive_kwargs)
+
+        else:
+            print(f"Found recent archive request for {ebid}.")
 
         update_track_status(ebid, message="Archive download staged",
                             sheetname='20A - OpLog Summary',
@@ -69,7 +79,7 @@ class AutoPipeline(object):
         # Wait for the notification email that the data is ready for transfer
         out = None
         while out is None:
-            out = check_for_archive_notification(ebid)
+            out = check_for_archive_notification(ebid, **notification_kwargs)
 
             await asyncio.sleep(sleeptime)
 
