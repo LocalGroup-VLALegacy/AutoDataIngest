@@ -29,7 +29,7 @@ def run_command(connect, cmd, test_connection=False):
         if try_run_command(connect) is False:
             raise ValueError("Connection requires a password.")
 
-    result = connect.run(test_cmd, hide=True)
+    result = connect.run(cmd, hide=True)
 
     if result.failed:
         raise ValueError(f"Failed to clone pipeline! See stderr: {result.stderr}")
