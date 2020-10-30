@@ -14,26 +14,45 @@ import asyncio
 import fabric
 import paramiko
 
-from .email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification, add_jobtimes)
+# from .email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification, add_jobtimes)
 
-from .gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
+# from .gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
+#                                              update_cell, return_cell)
+
+# from .globus_functions import (transfer_file, transfer_pipeline,
+#                                cleanup_source, globus_wait_for_completion)
+
+# from .get_track_info import match_ebid_to_source
+
+# from .download_vlaant_corrections import download_vla_antcorr
+
+# from .ssh_utils import try_run_command, run_command
+
+# from .archive_request import archive_copy_SDM
+
+# # Import dictionary defining the job creation script functions for each
+# # cluster.
+# from .cluster_configs import JOB_CREATION_FUNCTIONS, CLUSTERADDRS
+
+from autodataingest.email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification, add_jobtimes)
+
+from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
                                              update_cell, return_cell)
 
-from .globus_functions import (transfer_file, transfer_pipeline,
+from autodataingest.globus_functions import (transfer_file, transfer_pipeline,
                                cleanup_source, globus_wait_for_completion)
 
-from .get_track_info import match_ebid_to_source
+from autodataingest.get_track_info import match_ebid_to_source
 
-from .download_vlaant_corrections import download_vla_antcorr
+from autodataingest.download_vlaant_corrections import download_vla_antcorr
 
-from .ssh_utils import try_run_command, run_command
+from autodataingest.ssh_utils import try_run_command, run_command
 
-from .archive_request import archive_copy_SDM
+from autodataingest.archive_request import archive_copy_SDM
 
 # Import dictionary defining the job creation script functions for each
 # cluster.
-from .cluster_configs import JOB_CREATION_FUNCTIONS, CLUSTERADDRS
-
+from autodataingest.cluster_configs import JOB_CREATION_FUNCTIONS, CLUSTERADDRS
 
 class AutoPipeline(object):
     """
@@ -179,12 +198,11 @@ class AutoPipeline(object):
         # Grab the repo; this is where we can also specify a version number, too
         cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
 
-        print("Cloning ReductionPipeline to {clustername} at {cd_command}")
+        print(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
 
         git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
         full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}'
         result = run_command(connect, full_command)
-
 
         # Before running any reduction, update the antenna correction files
         # and copy that folder to each folder where the pipeline is run
@@ -269,16 +287,18 @@ class AutoPipeline(object):
         chdir_cmd = f"cd scratch/VLAXL_reduction/{self.track_folder_name}/"
 
         if clusteracct is not None:
-            acct_str = "--account={clusteracct}"
+            acct_str = f"--account={clusteracct}"
         else:
             acct_str = ""
 
         if split_time is not None:
-            time_str = "--time={split_time}"
+            time_str = f"--time={split_time}"
         else:
             time_str = ""
 
         submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_split_filename}"
+
+        print(f"Submitting command: {submit_cmd}")
 
         try:
             result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
@@ -322,11 +342,13 @@ class AutoPipeline(object):
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
             if continuum_time is not None:
-                time_str = "--time={continuum_time}"
+                time_str = f"--time={continuum_time}"
             else:
                 time_str = ""
 
             submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_continuum_filename}"
+
+            print(f"Submitting command: {submit_cmd}")
 
             try:
                 result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
@@ -369,11 +391,13 @@ class AutoPipeline(object):
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
             if line_time is not None:
-                time_str = "--time={line_time}"
+                time_str = f"--time={line_time}"
             else:
                 time_str = ""
 
             submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_line_filename}"
+
+            print(f"Submitting command: {submit_cmd}")
 
             try:
                 result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
@@ -383,13 +407,18 @@ class AutoPipeline(object):
             # Record the job ID so we can check for completion.
             self.line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
 
-            print(f"Submitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
+            print(f"Submitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
 
             update_cell(self.ebid, f"{clustername}:{self.line_jobid}", name_col=24,
                         sheetname='20A - OpLog Summary')
 
         else:
             self.line_jobid = None
+
+        update_track_status(self.ebid,
+                            message=f"Reduction running on {clustername}",
+                            sheetname='20A - OpLog Summary',
+                            status_col=1)
 
 
     async def get_job_notifications(self,
@@ -493,6 +522,9 @@ class AutoPipeline(object):
                 break
 
             job_check = check_for_job_notification(line_jobid)
+            if job_check is None:
+                await asyncio.sleep(sleeptime)
+                continue
 
             is_done_line = True
 
