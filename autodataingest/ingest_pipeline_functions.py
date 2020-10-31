@@ -480,7 +480,7 @@ class AutoPipeline(object):
             job_status_split, job_runtime =  job_check
             is_done_split = True
 
-            print("Found import/split notification for {importsplit_jobid} with status {job_status_split}")
+            print(f"Found import/split notification for {importsplit_jobid} with status {job_status_split}")
 
             update_cell(self.ebid, job_status_split, name_col=19,
                         sheetname='20A - OpLog Summary')
@@ -506,7 +506,7 @@ class AutoPipeline(object):
 
             job_status_continuum, job_runtime =  job_check
 
-            print("Found continuum notification for {continuum_jobid} with status {job_status_continuum}")
+            print(f"Found continuum notification for {continuum_jobid} with status {job_status_continuum}")
 
             update_cell(self.ebid, job_status_continuum, name_col=21,
                         sheetname='20A - OpLog Summary')
@@ -530,7 +530,7 @@ class AutoPipeline(object):
 
             job_status_line, job_runtime = job_check
 
-            print("Found line notification for {line_jobid} with status {job_status_line}")
+            print(f"Found line notification for {line_jobid} with status {job_status_line}")
 
             update_cell(self.ebid, job_status_line, name_col=23,
                         sheetname='20A - OpLog Summary')
@@ -562,7 +562,7 @@ class AutoPipeline(object):
             # Good! It worked! Move on to QA.
             if all([job_status == 'COMPLETE' for job_status in job_statuses]):
 
-                print("Processing complete for {self.ebid}! Ready for QA.")
+                print(f"Processing complete for {self.ebid}! Ready for QA.")
 
                 update_track_status(self.ebid, message=f"Ready for QA",
                                     sheetname='20A - OpLog Summary',
@@ -572,7 +572,7 @@ class AutoPipeline(object):
             # Trigger resubmitting all three:
             if job_status_split == 'TIMEOUT':
                 # Re-add all to submission queue
-                print("Timeout for split. Needs resubmitting of all jobs")
+                print(f"Timeout for split. Needs resubmitting of all jobs")
 
                 restarts['IMPORT_SPLIT'] = True
                 restarts['CONTINUUM_PIPE'] = True
@@ -581,17 +581,17 @@ class AutoPipeline(object):
             # Trigger resubmitting the continuum
             if job_status_continuum == 'TIMEOUT':
                 # Add to resubmission queue
-                print("Timeout for continuum pipeline. Needs resubmitting of continuum job.")
+                print(f"Timeout for continuum pipeline. Needs resubmitting of continuum job.")
                 restarts['CONTINUUM_PIPE'] = True
 
             # Trigger resubmitting the lines
             if job_status_line == 'TIMEOUT':
                 # Add to resubmission queue
-                print("Timeout for line pipeline. Needs resubmitting of continuum job.")
+                print(f"Timeout for line pipeline. Needs resubmitting of line job.")
                 restarts['LINE_PIPE'] = True
 
             # Otherwise assume something else went wrong and request a manual review
-            if all([job_status not in ['COMPLETE', 'TIMEOUT'] for job_status in job_statuses]):
+            if any([job_status not in ['COMPLETE', 'TIMEOUT'] for job_status in job_statuses]):
 
 
                 print(f"An unhandled issue occured in a job. Needs manual review for {self.ebid}")
