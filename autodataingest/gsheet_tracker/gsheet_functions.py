@@ -7,6 +7,7 @@ that the authentication is handled through
 
 '''
 
+import requests
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
 
@@ -105,13 +106,21 @@ def update_track_status(ebid, message="Archive download staged",
                         bool_status_colname="Staged data \nfrom archive",
                         row_color=[1., 1., 1.],
                         text_color=[0., 0., 0.],
-                        bold_text=False):
+                        bold_text=False,
+                        max_retry=5):
     """
     docstring
     """
 
-    full_sheet = read_tracksheet()
-    worksheet = full_sheet.worksheet(sheetname)
+    while i = 0:
+        try:
+            full_sheet = read_tracksheet()
+            worksheet = full_sheet.worksheet(sheetname)
+        except requests.ReadTimeout:
+            i += 1
+
+        if i >= max_retry:
+            raise ValueError("Error: timed out multiple time reading google sheet.")
 
     cell = worksheet.find(str(ebid))
 
