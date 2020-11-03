@@ -68,3 +68,23 @@ export DISPLAY=:1
         '''
 
     return setup_script
+
+
+def cedar_qa_plots(pythonpath='/home/ekoch/miniconda3/bin/python'):
+    """
+    Append code to produce the QA plots.
+    """
+
+    plot_script = \
+    f'''
+
+# Change to product directory.
+cd products
+
+${pythonpath} -c "import qaplotter; qaplotter.make_all_plots()"
+
+cd ../
+
+    '''
+
+    return plot_script

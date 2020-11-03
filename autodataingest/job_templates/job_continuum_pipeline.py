@@ -5,7 +5,7 @@ Create a slurm submission script to convert to an MS and split the SPWs.
 To be run in python3
 '''
 
-from .job_tools import cedar_slurm_setup, cedar_job_setup
+from .job_tools import cedar_slurm_setup, cedar_job_setup, cedar_qa_plots
 
 
 def cedar_submission_script_default(target_name="M31",
@@ -98,6 +98,7 @@ def cedar_submission_script(target_name="M31",
 
     slurm_str = cedar_slurm_setup(**slurm_kwargs)
     setup_str = cedar_job_setup(**setup_kwargs)
+    plots_str = cedar_qa_plots()
 
     job_str = \
         f'''{slurm_str}\n{setup_str}
@@ -117,6 +118,9 @@ cd $TRACK_FOLDER"_continuum"
 echo 'Start casa default continuum pipeline'
 
 ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+
+# Make the QA plots
+{plots_str}\n
 
 # Tar the products folder for export off cedar
 tar -cvf $TRACK_FOLDER"_continuum_products.tar" products
