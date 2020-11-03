@@ -7,6 +7,7 @@ that the authentication is handled through
 
 '''
 
+import time
 import requests
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
@@ -119,6 +120,7 @@ def update_track_status(ebid, message="Archive download staged",
             worksheet = full_sheet.worksheet(sheetname)
             break
         except requests.ReadTimeout:
+            time.sleep(10)
             pass
 
         i += 1
