@@ -112,7 +112,8 @@ def update_track_status(ebid, message="Archive download staged",
     docstring
     """
 
-    while i = 0:
+    i = 0
+    while i == 0:
         try:
             full_sheet = read_tracksheet()
             worksheet = full_sheet.worksheet(sheetname)
