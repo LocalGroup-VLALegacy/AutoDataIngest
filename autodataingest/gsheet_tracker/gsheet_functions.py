@@ -117,8 +117,11 @@ def update_track_status(ebid, message="Archive download staged",
         try:
             full_sheet = read_tracksheet()
             worksheet = full_sheet.worksheet(sheetname)
+            break
         except requests.ReadTimeout:
-            i += 1
+            pass
+
+        i += 1
 
         if i >= max_retry:
             raise ValueError("Error: timed out multiple time reading google sheet.")
