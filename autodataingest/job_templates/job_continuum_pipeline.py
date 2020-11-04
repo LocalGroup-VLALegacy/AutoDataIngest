@@ -48,6 +48,12 @@ echo 'Start casa default continuum pipeline'
 
 ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}.continuum.ms')"
 
+export exitcode = $?
+if [ $exitcode -ge 1 ]; then
+    echo "Non-zero exit code from CASA. Exiting"
+    exit 1
+fi
+
 # Copy the casa log file into the products folder
 cp casa*.log products/
 
@@ -118,6 +124,7 @@ cd $TRACK_FOLDER"_continuum"
 echo 'Start casa default continuum pipeline'
 
 ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+
 
 # Make the QA plots
 {plots_str}\n
