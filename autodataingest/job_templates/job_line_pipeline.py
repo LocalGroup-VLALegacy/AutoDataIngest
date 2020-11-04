@@ -45,6 +45,9 @@ echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/Reducti
 
 cd $TRACK_FOLDER"_speclines"
 
+# Copy the offline ant correction tables to here.
+cp -r ../VLA_antcorr_tables .
+
 echo 'Start casa default speclines pipeline'
 
 ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
