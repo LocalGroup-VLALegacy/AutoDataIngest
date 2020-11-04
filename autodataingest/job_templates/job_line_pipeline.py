@@ -49,7 +49,7 @@ echo 'Start casa default speclines pipeline'
 
 ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
 
-export exitcode = $?
+export exitcode=$?
 if [ $exitcode -ge 1 ]; then
     echo "Non-zero exit code from CASA. Exiting"
     exit 1
