@@ -546,7 +546,6 @@ class AutoPipeline(object):
 
 
         if all([is_done_split, is_done_continuum, is_done_line]):
-            # Remove this EBID! This round of reductions is done!
 
             # Check if these were successful runs:
             # Expected types of job status:
@@ -591,7 +590,7 @@ class AutoPipeline(object):
                 restarts['LINE_PIPE'] = True
 
             # Otherwise assume something else went wrong and request a manual review
-            if any([job_status not in ['COMPLETE', 'TIMEOUT'] for job_status in job_statuses]):
+            if any([job_status not in ['COMPLETED', 'TIMEOUT'] for job_status in job_statuses]):
 
 
                 print(f"An unhandled issue occured in a job. Needs manual review for {self.ebid}")
@@ -639,6 +638,7 @@ class AutoPipeline(object):
         """
 
         # TODO: define what to clean-up from the first pipeline runs.
+        # TODO: add in routine to pull in manual flagging scripts. Also backup to a github repo.
         pass
 
 
