@@ -559,7 +559,7 @@ class AutoPipeline(object):
             job_statuses = [job_status_split, job_status_continuum, job_status_line]
 
             # Good! It worked! Move on to QA.
-            if all([job_status == 'COMPLETE' for job_status in job_statuses]):
+            if all([job_status == 'COMPLETED' for job_status in job_statuses]):
 
                 print(f"Processing complete for {self.ebid}! Ready for QA.")
 
