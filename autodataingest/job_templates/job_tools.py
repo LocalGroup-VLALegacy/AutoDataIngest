@@ -81,7 +81,7 @@ def cedar_qa_plots(pythonpath='/home/ekoch/miniconda3/bin/python'):
 # Change to product directory.
 cd products
 
-${pythonpath} -c "import qaplotter; qaplotter.make_all_plots()"
+{pythonpath} -c "import qaplotter; qaplotter.make_all_plots()"
 
 cd ../
 
