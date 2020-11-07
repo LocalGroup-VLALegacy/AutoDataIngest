@@ -24,10 +24,11 @@ async def produce(queue, sleeptime=10, test_case_run_newest=False):
 
     new_ebids = find_new_tracks()
 
-    # Test case enabled will only queue a single job.
+    # Test case enabled will only queue two jobs.
+    # This is a test of running >1 tracks concurrently.
     if test_case_run_newest:
-        print("Test case of 1 run only has been enabled.")
-        new_ebids = new_ebids[-1:]
+        print("Test case of 2 run only has been enabled.")
+        new_ebids = new_ebids[-2:]
 
     for ebid in new_ebids:
         # produce an item
@@ -128,37 +129,37 @@ if __name__ == "__main__":
 
     test_case_run_newest = True
 
-    # while True:
+    while True:
 
-    #     print("Starting new event loop")
+        print("Starting new event loop")
 
-    #     loop = asyncio.new_event_loop()
-    #     loop.run_until_complete(run(test_case_run_newest=test_case_run_newest))
-    #     loop.close()
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(run(test_case_run_newest=test_case_run_newest))
+        loop.close()
 
-    #     del loop
+        del loop
 
-    #     if test_case_run_newest:
-    #         print('Completed test case. Stoping.')
-    #         break
+        if test_case_run_newest:
+            print('Completed test case. Stoping.')
+            break
 
-    #     # In production, comment out "break" and uncomment the sleep
-    #     print("Completed current event loop.")
-    #     time.sleep(3600)
+        # In production, comment out "break" and uncomment the sleep
+        print("Completed current event loop.")
+        time.sleep(3600)
 
     # Run purely a test
-    ebid = 38730505
-    tester = AutoPipeline(ebid)
-    asyncio.run(tester.archive_request_and_transfer())
-    asyncio.run(tester.setup_for_reduction_pipeline(clustername=CLUSTERNAME))
-    asyncio.run(tester.initial_job_submission(
-                                    clustername=CLUSTERNAME,
-                                    scripts_dir=Path('reduction_job_scripts/'),
-                                    submit_continuum_pipeline=RUN_CONTINUUM,
-                                    submit_line_pipeline=RUN_LINES,
-                                    clusteracct=CLUSTERACCOUNT,
-                                    split_time=CLUSTER_SPLIT_JOBTIME,
-                                    continuum_time=CLUSTER_CONTINUUM_JOBTIME,
-                                    line_time=CLUSTER_LINE_JOBTIME,
-                                    scheduler_cmd=CLUSTER_SCHEDCMD,))
-    asyncio.run(tester.get_job_notifications())
+    # ebid = 38730505
+    # tester = AutoPipeline(ebid)
+    # asyncio.run(tester.archive_request_and_transfer())
+    # asyncio.run(tester.setup_for_reduction_pipeline(clustername=CLUSTERNAME))
+    # asyncio.run(tester.initial_job_submission(
+    #                                 clustername=CLUSTERNAME,
+    #                                 scripts_dir=Path('reduction_job_scripts/'),
+    #                                 submit_continuum_pipeline=RUN_CONTINUUM,
+    #                                 submit_line_pipeline=RUN_LINES,
+    #                                 clusteracct=CLUSTERACCOUNT,
+    #                                 split_time=CLUSTER_SPLIT_JOBTIME,
+    #                                 continuum_time=CLUSTER_CONTINUUM_JOBTIME,
+    #                                 line_time=CLUSTER_LINE_JOBTIME,
+    #                                 scheduler_cmd=CLUSTER_SCHEDCMD,))
+    # asyncio.run(tester.get_job_notifications())
