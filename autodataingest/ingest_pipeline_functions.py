@@ -215,6 +215,8 @@ class AutoPipeline(object):
         for file in glob("VLA_antcorr_tables/*.txt"):
             result = connect.put(file, remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables/")
 
+        if connect.is_connected:
+            connect.close()
 
 
     async def initial_job_submission(self,
@@ -414,6 +416,9 @@ class AutoPipeline(object):
 
         else:
             self.line_jobid = None
+
+        if connect.is_connected:
+            connect.close()
 
         update_track_status(self.ebid,
                             message=f"Reduction running on {clustername}",
