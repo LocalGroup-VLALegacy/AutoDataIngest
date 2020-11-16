@@ -56,6 +56,8 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
 
     while True:
 
+        driver = None
+
         try:
             # Requires geckodriver
             driver = webdriver.Firefox(fp, options=options)
@@ -119,12 +121,15 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
                 driver.save_screenshot('{}.archive_request.png'.format(eb))
 
             driver.close()
+            driver.quit()
 
             break
 
         except TimeoutException:
 
-            driver.close()
+            if driver is not None:
+                driver.close()
+                driver.quit()
 
             num_tries += 1
 
