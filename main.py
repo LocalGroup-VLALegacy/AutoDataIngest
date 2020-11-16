@@ -93,12 +93,12 @@ async def consume(queue):
         queue.task_done()
 
 
-async def run(test_case_run_newest=False):
+async def run(**produce_kwargs):
     queue = asyncio.Queue()
     # schedule the consumer
     consumer = asyncio.ensure_future(consume(queue))
     # run the producer and wait for completion
-    await produce(queue, test_case_run_newest=test_case_run_newest)
+    await produce(queue, **produce_kwargs)
     # wait until the consumer has processed all items
     await queue.join()
     # the consumer is still awaiting for an item, cancel it
