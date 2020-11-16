@@ -17,12 +17,17 @@ from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks)
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
 
-async def produce(queue, sleeptime=10, test_case_run_newest=False):
+async def produce(queue, sleeptime=10, test_case_run_newest=False,
+                  run_newest_first=False):
     '''
     Check for new tracks from the google sheet.
     '''
 
     new_ebids = find_new_tracks()
+
+    # Switch order if running newest first.
+    if run_newest_first:
+        new_ebids = new_ebids[::-1]
 
     # Test case enabled will only queue two jobs.
     # This is a test of running >1 tracks concurrently.
@@ -127,7 +132,9 @@ if __name__ == "__main__":
 
     password = unix_getpass()
 
-    test_case_run_newest = True
+    test_case_run_newest = False
+
+    run_newest_first = True
 
     while True:
 
@@ -138,7 +145,8 @@ if __name__ == "__main__":
         loop.set_debug(True)
         loop.slow_callback_duration = 0.001
 
-        loop.run_until_complete(run(test_case_run_newest=test_case_run_newest))
+        loop.run_until_complete(run(test_case_run_newest=test_case_run_newest,
+                                    run_newest_first=run_newest_first))
         loop.close()
 
         del loop
