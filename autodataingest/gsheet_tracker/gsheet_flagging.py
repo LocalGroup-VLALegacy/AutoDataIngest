@@ -38,7 +38,7 @@ def read_track_flagsheet(trackname):
     return worksheet
 
 
-def download_flagsheet_to_flagtxt(trackname, output_folder):
+def download_flagsheet_to_flagtxt(trackname, output_folder, debug=True):
     """
     Create a txt file of the flagging commands generated in the spreadsheet.
     We will also link to the MS name to include in the file header.
@@ -85,6 +85,9 @@ def download_flagsheet_to_flagtxt(trackname, output_folder):
         rownumbers_with_flags = np.where(np.array(applyflag_column) == "TRUE")
 
         for row in rownumbers_with_flags:
+
+            if debug:
+                print(f"On {row}")
 
             # Note that the counting starts at 1. So we want: row + head_nrow + 1
             row_values = worksheet.row_values(row + head_nrow + 1)
