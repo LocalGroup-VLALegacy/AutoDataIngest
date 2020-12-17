@@ -38,7 +38,9 @@ def read_track_flagsheet(trackname):
     return worksheet
 
 
-def download_flagsheet_to_flagtxt(trackname, output_folder, debug=False):
+def download_flagsheet_to_flagtxt(trackname, output_folder,
+                                  raise_noflag_error=True,
+                                  debug=False):
     """
     Create a txt file of the flagging commands generated in the spreadsheet.
     We will also link to the MS name to include in the file header.
@@ -47,6 +49,13 @@ def download_flagsheet_to_flagtxt(trackname, output_folder, debug=False):
     ----------
     trackname : str
         Name of the track name. Must be contained in the `SB_Issue_Tracking` sheet.
+    output_folder : str
+        Existing output folder to save to.
+    raise_noflag_error : bool, optional
+        Raises an error if no valid flags are found. When False, we allow empty
+        flag files to be written.
+    debug : bool, optional
+        Print to terminal the rows that are being used for valid flags.
     """
 
     # TODO: add handling for the continuum and speclines parts
@@ -57,7 +66,7 @@ def download_flagsheet_to_flagtxt(trackname, output_folder, debug=False):
     max_vers = 10
     while True:
 
-        outfilename = Path(output_folder) / f"{trackname}_manualflagging_{vers}.txt"
+        outfilename = Path(output_folder) / f"{trackname}_manualflagging_v{vers}.txt"
 
         if not os.path.exists(outfilename):
             break
@@ -78,11 +87,14 @@ def download_flagsheet_to_flagtxt(trackname, output_folder, debug=False):
     # Write flagging lines to txt file.
     with open(outfilename, "w") as outfile:
 
-        outfile.write(f"# Manual flagging for track {trackname}\n")
-
         # Loop over columns with TRUE enabled for applying the flags
         applyflag_column = worksheet.col_values(4)[head_nrow:]
         rownumbers_with_flags = np.where(np.array(applyflag_column) == "TRUE")[0]
+
+        if len(rownumbers_with_flags) == 0 and raise_noflag_error:
+            raise ValueError(f"No flags found for {trackname}")
+
+        outfile.write(f"# Manual flagging for track {trackname}\n")
 
         for row in rownumbers_with_flags:
 
