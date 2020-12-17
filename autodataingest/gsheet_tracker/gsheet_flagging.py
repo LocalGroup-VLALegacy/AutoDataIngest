@@ -31,6 +31,8 @@ def read_track_flagsheet(trackname):
     Return the sheet for the given track name.
     '''
 
+    gsheet = read_flagsheet()
+
     worksheet = gsheet.worksheet(trackname)
 
     return worksheet
