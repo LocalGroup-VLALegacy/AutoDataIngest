@@ -96,7 +96,7 @@ def download_flagsheet_to_flagtxt(trackname, output_folder,
         if len(rownumbers_with_flags) == 0 and raise_noflag_error:
             raise ValueError(f"No flags found for {trackname}")
 
-        outfile.write(f"# Manual flagging for track {trackname}\n")
+        outfile.write(f"# Manual flagging for track {trackname} version {vers}\n")
 
         for row in rownumbers_with_flags:
 
