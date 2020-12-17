@@ -38,7 +38,7 @@ def read_track_flagsheet(trackname):
     return worksheet
 
 
-def download_flagsheet_to_flagtxt(trackname, output_folder, debug=True):
+def download_flagsheet_to_flagtxt(trackname, output_folder, debug=False):
     """
     Create a txt file of the flagging commands generated in the spreadsheet.
     We will also link to the MS name to include in the file header.
@@ -82,7 +82,7 @@ def download_flagsheet_to_flagtxt(trackname, output_folder, debug=True):
 
         # Loop over columns with TRUE enabled for applying the flags
         applyflag_column = worksheet.col_values(4)[head_nrow:]
-        rownumbers_with_flags = np.where(np.array(applyflag_column) == "TRUE")
+        rownumbers_with_flags = np.where(np.array(applyflag_column) == "TRUE")[0]
 
         for row in rownumbers_with_flags:
 
