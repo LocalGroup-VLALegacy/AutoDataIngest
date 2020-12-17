@@ -5,6 +5,7 @@ Functions for handling our google sheet with track flagging.
 
 from .gsheet_functions import do_authentication_gspread
 
+import time
 import numpy as np
 from pathlib import Path
 import os
@@ -148,4 +149,4 @@ def download_all_flags(output_folder="manual_flags",
                                       test_against_previous=True)
 
         # You hit the read quota limit without some pausing
-        os.sleep(waittime)
+        time.sleep(waittime)
