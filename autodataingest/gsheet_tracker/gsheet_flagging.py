@@ -8,6 +8,7 @@ from .gsheet_functions import do_authentication_gspread
 import numpy as np
 from pathlib import Path
 import os
+import filecmp
 
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
@@ -40,7 +41,8 @@ def read_track_flagsheet(trackname):
 
 def download_flagsheet_to_flagtxt(trackname, output_folder,
                                   raise_noflag_error=True,
-                                  debug=False):
+                                  debug=False,
+                                  test_against_previous=True):
     """
     Create a txt file of the flagging commands generated in the spreadsheet.
     We will also link to the MS name to include in the file header.
@@ -108,3 +110,13 @@ def download_flagsheet_to_flagtxt(trackname, output_folder,
                 raise ValueError(f"Empty flag string in {trackname}. Check for mistakes in the google sheet!")
 
             outfile.write(f"{row_values[flgstr_col]}\n")
+
+    # Add check to see if the new version matches the previous.
+    # If there's no change, remove the new version.
+    if test_against_previous and vers > 1:
+
+        newfilename = outfilename
+        oldfilename = Path(output_folder) / f"{trackname}_manualflagging_v{vers-1}.txt"
+
+        if filecmp.cmp(oldfilename, newfilename, shallow=False):
+            os.remove(newfilename)
