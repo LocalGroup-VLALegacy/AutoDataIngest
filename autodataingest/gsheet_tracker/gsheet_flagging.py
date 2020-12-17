@@ -122,7 +122,8 @@ def download_flagsheet_to_flagtxt(trackname, output_folder,
             os.remove(newfilename)
 
 
-def download_all_flags(output_folder="manual_flags"):
+def download_all_flags(output_folder="manual_flags",
+                       waittime=30):
     """
     Download all manual flags from the flag sheet.
     """
@@ -134,12 +135,17 @@ def download_all_flags(output_folder="manual_flags"):
 
     skip_list = ['FRONT', 'TEMPLATE', "Testing"]
 
-    for worksheet in gsheet.worksheets():
+    worksheet_names = [worksheet.title for worksheet in gsheet.worksheets()]
 
-        if any([skip in worksheet.title for skip in skip_list]):
+    for sheetname in worksheet_names:
+
+        if any([skip in sheetname for skip in skip_list]):
             continue
 
-        download_flagsheet_to_flagtxt(worksheet.title, output_folder,
+        download_flagsheet_to_flagtxt(sheetname, output_folder,
                                       raise_noflag_error=False,
                                       debug=False,
                                       test_against_previous=True)
+
+        # You hit the read quota limit without some pausing
+        os.sleep(waittime)
