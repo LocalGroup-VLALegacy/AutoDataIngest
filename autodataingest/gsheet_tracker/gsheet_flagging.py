@@ -120,3 +120,26 @@ def download_flagsheet_to_flagtxt(trackname, output_folder,
 
         if filecmp.cmp(oldfilename, newfilename, shallow=False):
             os.remove(newfilename)
+
+
+def download_all_flags(output_folder="manual_flags"):
+    """
+    Download all manual flags from the flag sheet.
+    """
+
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+
+    gsheet = read_flagsheet()
+
+    skip_list = ['FRONT', 'TEMPLATE', "Testing"]
+
+    for worksheet in gsheet.worksheets():
+
+        if any([skip in worksheet.title for skip in skip_list]):
+            continue
+
+        download_flagsheet_to_flagtxt(worksheet.title, output_folder,
+                                      raise_noflag_error=False,
+                                      debug=False,
+                                      test_against_previous=True)
