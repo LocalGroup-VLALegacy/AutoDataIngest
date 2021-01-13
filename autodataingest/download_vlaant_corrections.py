@@ -16,7 +16,7 @@ def download_vla_antcorr(data_folder="VLA_antcorr_tables"):
     the `data_folder` directory.
     '''
 
-    import urllib
+    import urllib.request
 
     URL_BASE = 'http://www.vla.nrao.edu/cgi-bin/evlais_blines.cgi?Year='
 
