@@ -99,13 +99,19 @@ def download_flagsheet_to_flagtxt(trackname, output_folder,
 
         outfile.write(f"# Manual flagging for track {trackname}\n")
 
+        # Do single read in of the whole sheet.
+        all_values = worksheet.get_all_values()
+
         for row in rownumbers_with_flags:
 
             if debug:
                 print(f"On {row}")
 
             # Note that the counting starts at 1. So we want: row + head_nrow + 1
-            row_values = worksheet.row_values(row + head_nrow + 1)
+            # row_values = worksheet.row_values(row + head_nrow + 1)
+
+            # But from worksheet.get_all_values() we get a list and so don't need the +1
+            row_values = all_values[row + head_nrow]
 
             if len(row_values[flgstr_col]) == 0:
                 raise ValueError(f"Empty flag string in {trackname}. Check for mistakes in the google sheet!")
@@ -124,7 +130,7 @@ def download_flagsheet_to_flagtxt(trackname, output_folder,
 
 
 def download_all_flags(output_folder="manual_flags",
-                       waittime=30):
+                       waittime=10):
     """
     Download all manual flags from the flag sheet.
     """
