@@ -46,7 +46,9 @@ sudo apt install firefox xvfb
 # https://askubuntu.com/questions/870530/how-to-install-geckodriver-in-ubuntu
 wget https://github.com/mozilla/geckodriver/releases/download/v0.26.0/geckodriver-v0.26.0-linux64.tar.gz
 tar zxf geckodriver-v0.26.0-linux64.tar.gz
-# executable now in home directory
+# executable now in home directory, move to somewhere in PATH
+mv geckodriver .local/bin/
+
 
 # And selenium
 conda install -y selenium
@@ -70,6 +72,8 @@ pip install schedule
 # fabric handles ssh connections in python
 pip install fabric
 
+# timeout context handler for async functions
+pip install async_timeout
 
 # Install globus here. This require some manual steps to setup the endpoint.
 # But it need to be running at all times:

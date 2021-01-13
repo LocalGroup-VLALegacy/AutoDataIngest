@@ -9,9 +9,11 @@ from glob import glob
 
 # fabric handles ssh to cluster running jobs
 import fabric
+import paramiko
 
 # TODO: cleanup imports. Separated now as development is on-going.
-from autodataingest.email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification)
+from autodataingest.email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification, add_jobtimes)
+
 from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
                                              update_cell, return_cell)
 from autodataingest.archive_request_LG import archive_copy_SDM
@@ -33,6 +35,8 @@ CLUSTER_SPLIT_JOBTIME = '8:00:00'
 CLUSTER_CONTINUUM_JOBTIME = '30:00:00'
 CLUSTER_LINE_JOBTIME = '30:00:00'
 
+password = None
+
 # Check for new tracks
 
 new_track_ebids = find_new_tracks()
@@ -40,11 +44,15 @@ new_track_ebids = find_new_tracks()
 if len(new_track_ebids) == 0:
     sys.exit(0)
 
+# FOR TEST RUN trigger for only a single track:
+new_track_ebids = new_track_ebids[-1:]
+
+
 # Stage the archive downloads.
 
 staged_ebids = []
 
-for ebid in new_track_ebids[-2:]:
+for ebid in new_track_ebids:
 
     print(f"Staging archive request for new EBID {ebid}")
 
@@ -159,6 +167,9 @@ for ebid in tracks_processing:
 
     job_filename = f"{track_folder_name}_job_import_and_split.sh"
 
+    if (track_scripts_dir / job_filename).exists():
+        (track_scripts_dir / job_filename).unlink()
+
     print(jobs_import.cedar_submission_script(target_name=track_folder_name.split('_')[0],
                                               config=track_folder_name.split('_')[1],
                                               trackname=track_folder_name.split('_')[2],
@@ -172,8 +183,24 @@ for ebid in tracks_processing:
     # Grab the repo; this is where we can also specify a version number, too
     git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
 
-    result = connect.run(f'cd scratch/VLAXL_reduction/{track_folder_name}/ && rm -r ReductionPipeline && {git_clone_command}',
-                         hide=True)
+    try:
+        result = connect.run(f'cd scratch/VLAXL_reduction/{track_folder_name}/ ; rm -r     ReductionPipeline ; {git_clone_command}',
+                             hide=True)
+    except paramiko.PasswordRequiredException:
+        # Prompt for password first.
+
+        if password is None:
+            from getpass import unix_getpass
+            password = unix_getpass()
+
+        connect.close()
+
+        connect = fabric.Connection('cedar.computecanada.ca',
+                                    connect_kwargs={'passphrase': password})
+
+        result = connect.run(f'cd scratch/VLAXL_reduction/{track_folder_name}/ ; rm -r     ReductionPipeline ; {git_clone_command}',
+                             hide=True)
+
 
     if result.failed:
         raise ValueError(f"Failed to clone pipeline! See stderr: {result.stderr}")
@@ -237,6 +264,10 @@ for ebid in tracks_processing:
 
     job_filename = f"{track_folder_name}_job_continuum.sh"
 
+    # Remove existing job file if it exists
+    if (track_scripts_dir / job_filename).exists():
+        (track_scripts_dir / job_filename).unlink()
+
     print(jobs_continuum.cedar_submission_script(target_name=track_folder_name.split('_')[0],
                                                  config=track_folder_name.split('_')[1],
                                                  trackname=track_folder_name.split('_')[2],
@@ -245,14 +276,15 @@ for ebid in tracks_processing:
                                                  conditional_on_jobnum=importsplit_jobid),
           file=open(track_scripts_dir / job_filename, 'a'))
 
-    connect = fabric.Connection('cedar.computecanada.ca')
+    connect = fabric.Connection('cedar.computecanada.ca',
+                                connect_kwargs={'passphrase': password})
 
     # Move the job script to the cluster:
     result = connect.put(track_scripts_dir / job_filename,
                          remote=f'scratch/VLAXL_reduction/{track_folder_name}/')
 
     # Move the antenna correction folder over:
-    result = connect.run(f"mkdir scratch/VLAXL_reduction/{track_folder_name}/VLA_antcorr_tables")
+    result = connect.run(f"cd scratch/VLAXL_reduction/{track_folder_name}/VLA_antcorr_tables || mkdir scratch/VLAXL_reduction/{track_folder_name}/VLA_antcorr_tables")
     for file in glob("VLA_antcorr_tables/*.txt"):
         result = connect.put(file, remote=f"scratch/VLAXL_reduction/{track_folder_name}/VLA_antcorr_tables/")
 
@@ -277,12 +309,16 @@ for ebid in tracks_processing:
 
     job_filename = f"{track_folder_name}_job_line.sh"
 
-    print(jobs_line.cedar_submission_script_default(target_name=track_folder_name.split('_')[0],
-                                                    config=track_folder_name.split('_')[1],
-                                                    trackname=track_folder_name.split('_')[2],
-                                                    slurm_kwargs={},
-                                                    setup_kwargs={},
-                                                    conditional_on_jobnum=importsplit_jobid),
+    # Remove existing job file if it exists
+    if (track_scripts_dir / job_filename).exists():
+        (track_scripts_dir / job_filename).unlink()
+
+    print(jobs_line.cedar_submission_script(target_name=track_folder_name.split('_')[0],
+                                            config=track_folder_name.split('_')[1],
+                                            trackname=track_folder_name.split('_')[2],
+                                            slurm_kwargs={},
+                                            setup_kwargs={},
+                                            conditional_on_jobnum=importsplit_jobid),
           file=open(track_scripts_dir / job_filename, 'a'))
 
     # Move the job script to the cluster:
@@ -367,18 +403,36 @@ for ebid in tracks_processing:
         tracks_processing.pop(ebid)
 
         # Check if these were successful runs:
-        job_split_complete = job_status_split == "COMPLETED"
-        job_continuum_complete = job_status_continuum == "COMPLETED"
-        job_line_complete = job_status_line == "COMPLETED"
+        # Expected types of job status:
+        # COMPLETED - probably a successful pipeline reduction
+        # TIMEOUT - ran out of time; trigger resubmitting the job
+        # CANCELLED - something happened to the job. Assumed this was for a good reason and don't resubmit
 
-        completeness_checks = [job_split_complete, job_continuum_complete, job_line_complete]
+        # TODO: handle timeout and restart jobs to get the total wall time
 
-        if all(completeness_checks):
+
+        job_statuses = [job_status_split, job_status_continuum, job_status_line]
+
+        # Good! It worked! Move on to QA.
+        if all([job_status == 'COMPLETE' for job_status in job_statuses]):
 
             update_track_status(ebid, message=f"Ready for QA",
                                 sheetname='20A - OpLog Summary',
                                 status_col=1)
-
+        # If the split failed, the other two will not have completed.
+        # Trigger resubmitting all three:
+        elif job_status_split == 'TIMEOUT':
+            # Re-add all to submission queue
+            pass
+        # Trigger resubmitting the continuum
+        elif job_status_continuum == 'TIMEOUT':
+            # Add to resubmission queue
+            pass
+        # Trigger resubmitting the lines
+        elif job_status_line == 'TIMEOUT':
+            # Add to resubmission queue
+            pass
+        # Otherwise assume something else went wrong and request a manual review
         else:
 
             update_track_status(ebid, message=f"ISSUE needs manual check of job status",
