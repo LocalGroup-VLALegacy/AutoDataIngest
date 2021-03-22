@@ -66,6 +66,14 @@ def match_ebid_to_source(ebid,
         if verbose:
             print(f"Found table {result_table}")
 
+        print(f"Result table length {len(result_table)}")
+
+        # Skip if empty
+        if len(result_table) == 0 or "Archive File" not in result_table.colnames:
+            if verbose:
+                print("No tracks found for this target.")
+            continue
+
         # Loop through MS names
         found_source = False
         for i, name in enumerate(result_table['Archive File']):
