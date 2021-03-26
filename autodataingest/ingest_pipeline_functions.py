@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from glob import glob
 import asyncio
+import socket
 
 # fabric handles ssh to cluster running jobs
 import fabric
