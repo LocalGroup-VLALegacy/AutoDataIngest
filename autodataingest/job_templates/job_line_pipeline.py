@@ -20,7 +20,7 @@ def cedar_submission_script(target_name="M31",
     TODO: Make job start conditional on the split job finishing (need to pass that job num)
     '''
 
-    slurm_kwargs['job_name'] = f"{target_name}_{config}_{trackname}.vla_pipeline"
+    slurm_kwargs['job_name'] = f"{target_name}_{config}_{trackname}"
     slurm_kwargs['job_type'] = "line_pipeline_default"
 
     if conditional_on_jobnum is not None:

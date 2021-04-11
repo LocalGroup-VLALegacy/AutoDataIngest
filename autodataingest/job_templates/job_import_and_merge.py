@@ -14,7 +14,7 @@ def cedar_submission_script(target_name="M31", config="C",
                             setup_kwargs={}):
 
     # Add in default info to set the log file, job name, etc
-    slurm_kwargs['job_name'] = f"{target_name}_{config}_{trackname}.vla_pipeline"
+    slurm_kwargs['job_name'] = f"{target_name}_{config}_{trackname}"
     slurm_kwargs['job_type'] = "import_and_split"
 
     slurm_str = cedar_slurm_setup(**slurm_kwargs)

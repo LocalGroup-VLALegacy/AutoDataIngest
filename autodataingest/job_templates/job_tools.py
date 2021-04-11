@@ -26,7 +26,7 @@ def cedar_slurm_setup(job_time="72:00:00", mem="16000M",
         f'''#!/bin/bash
 #SBATCH --time={job_time}
 #SBATCH --mem={mem}
-#SBATCH --job-name={job_name}.{job_type}-%J
+#SBATCH --job-name={job_name}.vla_pipeline.{job_type}-%J
 #SBATCH --output={job_name}_{job_type}-%J.out
 #SBATCH --mail-user={sendto}
 #SBATCH --mail-type=END
