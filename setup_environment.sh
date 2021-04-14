@@ -28,7 +28,7 @@ globus update
 pip install --upgrade --user vofs
 
 # We also want some astropy packages
-conda install -y astropy ipython numpy scipy matplotlib
+conda install -y astropy ipython numpy scipy matplotlib pandas
 
 # There's a bug fix we need from astroquery that is only in the
 # dev version as of 10/14/20
@@ -102,3 +102,19 @@ cd ../
 # this should work:
 python -c "import ezgmail; ezgmail.init()"
 
+
+# Now download our pipeline repos:
+git clone https://github.com/LocalGroup-VLALegacy/AutoDataIngest.git
+cd AutoDataIngest
+pip install -e .
+cd ../
+
+git clone https://github.com/LocalGroup-VLALegacy/QAPlotter.git
+cd QAPlotter
+pip install -e .
+cd ../
+
+# Our flag repo is private (for now)
+# The data-manager has its own deploy key
+# Must use ssh!
+git clone git@github.com:LocalGroup-VLALegacy/FlagRepository.git
