@@ -107,9 +107,15 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
             elem.send_keys(Keys.RETURN)
 
             # accept popup
-            WebDriverWait(driver, 5).until(EC.alert_is_present())
-            alert = driver.switch_to.alert
-            alert.accept()
+            # EK: I've removed this as of 04/17/2021 as the behaviour changed
+            # and selenium crashes trying to find a non-existent user file.
+            # It's possible the pop-up no longer exists and selenium crashes somewhere
+            # else unrelated to the FileNotFoundError.
+            # Also can't just try/except wrap this b/c it's async
+
+            # WebDriverWait(driver, 5).until(EC.alert_is_present())
+            # alert = driver.switch_to.alert
+            # alert.accept()
 
             # load download page
             elem = WebDriverWait(driver, 300, poll_frequency=2).until(lambda x: x.find_element_by_xpath("//input[@name='DOWNLOADFTPCHK' and @value='Retrieve over internet']"))
