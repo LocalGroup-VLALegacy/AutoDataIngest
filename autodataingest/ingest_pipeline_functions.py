@@ -69,6 +69,14 @@ class AutoPipeline(object):
         # TODO: add flags that can provide the stage we need to run from.
         # This enables easy restarting of tracks partially processed.
 
+
+    def _grab_sheetdata(self):
+        '''
+        Get info from the google sheet. This is needed to allow for restarting at
+        different stages.
+        '''
+        pass
+
     async def archive_request_and_transfer(self, archive_kwargs={},
                                      notification_kwargs={'timewindow': 48 * 3600},
                                      sleeptime=600,
@@ -175,7 +183,8 @@ class AutoPipeline(object):
 
     async def setup_for_reduction_pipeline(self, clustername='cc-cedar',
                                            reconnect_waittime=900,
-                                           max_retry_connection=10):
+                                           max_retry_connection=10,
+                                           user='ekoch'):
 
         """
         Step 2.
@@ -195,6 +204,7 @@ class AutoPipeline(object):
         while True:
             try:
                 connect = fabric.Connection(CLUSTERADDRS[clustername],
+                                            user=user,
                                             connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
                 # I'm getting intermittent DNS issues on the CC cloud.
                 # This is to handle waiting until the DNS problem goes away
@@ -250,7 +260,8 @@ class AutoPipeline(object):
                                     line_time=None,
                                     scheduler_cmd="",
                                     reconnect_waittime=900,
-                                    max_retry_connection=10):
+                                    max_retry_connection=10,
+                                    user='ekoch'):
         """
         Step 3.
 
@@ -283,6 +294,7 @@ class AutoPipeline(object):
         while True:
             try:
                 connect = fabric.Connection(CLUSTERADDRS[clustername],
+                                            user=user,
                                             connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
                 # I'm getting intermittent DNS issues on the CC cloud.
                 # This is to handle waiting until the DNS problem goes away
@@ -298,7 +310,7 @@ class AutoPipeline(object):
                 retry_times += 1
 
                 if retry_times >= max_retry_connection:
-                    raise Exception(r"Reached maximum retries to connect to {clustername}")
+                    raise Exception(f"Reached maximum retries to connect to {clustername}")
 
         # Test the connection:
         if not try_run_command(connect):
@@ -666,7 +678,7 @@ class AutoPipeline(object):
         pass
 
 
-    async def explore_pipeline_products(parameter_list):
+    async def transfer_pipeline_products(parameter_list):
         """
         Step 5.
         """
