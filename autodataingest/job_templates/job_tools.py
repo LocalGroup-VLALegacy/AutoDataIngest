@@ -88,3 +88,17 @@ cd ../
     '''
 
     return plot_script
+
+
+def cedar_casa_startupfile(casa6=True):
+    '''
+    CASA 5 uses init.py on startup. CASA 6 uses config.py on startup.
+    Make sure the job knows the correct startup file.
+    '''
+
+    if casa6:
+        filename = 'config.py'
+    else:
+        filename = 'init.py'
+
+    return filename

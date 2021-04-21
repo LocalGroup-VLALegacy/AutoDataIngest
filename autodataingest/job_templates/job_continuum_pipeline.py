@@ -5,7 +5,8 @@ Create a slurm submission script to convert to an MS and split the SPWs.
 To be run in python3
 '''
 
-from .job_tools import cedar_slurm_setup, cedar_job_setup, cedar_qa_plots
+from .job_tools import (cedar_slurm_setup, cedar_job_setup,
+                        cedar_qa_plots, cedar_casa_startupfile)
 
 
 def cedar_submission_script_default(target_name="M31",
@@ -13,7 +14,8 @@ def cedar_submission_script_default(target_name="M31",
                                     trackname="20A-346.sb38098105.eb38158028.58985.68987263889",
                                     slurm_kwargs={},
                                     setup_kwargs={},
-                                    conditional_on_jobnum=None):
+                                    conditional_on_jobnum=None,
+                                    run_casa6=True):
     '''
     Runs the default VLA pipeline.
 
@@ -29,6 +31,8 @@ def cedar_submission_script_default(target_name="M31",
     slurm_str = cedar_slurm_setup(**slurm_kwargs)
     setup_str = cedar_job_setup(**setup_kwargs)
 
+    startup_filename = cedar_casa_startupfile(casa6=run_casa6)
+
     job_str = \
         f'''{slurm_str}\n{setup_str}
 
@@ -38,7 +42,7 @@ cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
 # Copy the rcdir here and append the pipeline path
 cp -r ~/.casa .
-echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/init.py
+echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/{startup_filename}
 
 # Move into the continuum pipeline
 
