@@ -196,7 +196,8 @@ def cleanup_source(track_name, node='nrao-aoc'):
 def transfer_general(filename, output_destination,
                     startnode='cc-cedar',
                     endnode='ingester',
-                    wait_for_completion=False):
+                    wait_for_completion=False,
+                    use_rootname=True):
     """
     Start a globus transfer from `startnode` to `endnode`.
     """
@@ -210,9 +211,14 @@ def transfer_general(filename, output_destination,
     # May have to change this ordering for both nodes in general.
     do_manual_login(startnode)
 
+    if use_rootname:
+        output_filename = filename.split('/')[-1]
+    else:
+        output_filename = filename
+
     # Want to return the task_id in the command line output.
     input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode]['data_path']}/{filename}"
-    output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{output_destination}/{filename}"
+    output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{output_destination}/{output_filename}"
 
     # task_command = f"$(globus transfer {input_cmd} {output_cmd} --jmes path 'task_id' --format=UNIX)"
     task_command = ['globus', 'transfer', input_cmd, output_cmd]
