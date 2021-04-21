@@ -77,6 +77,38 @@ class AutoPipeline(object):
         '''
         pass
 
+    async def setup_ssh_connection(self, clustername, user='ekoch',
+                                   max_retry_connection=10,
+                                   reconnect_waittime=900):
+        '''
+        Setup and test the ssh connection to the cluster.
+        '''
+
+        retry_times = 0
+        while True:
+            try:
+                connect = fabric.Connection(CLUSTERADDRS[clustername],
+                                            user=user,
+                                            connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
+                # I'm getting intermittent DNS issues on the CC cloud.
+                # This is to handle waiting until the DNS problem goes away
+                connect.open()
+
+                break
+
+            except socket.gaierror as e:
+                print("Encountering DNS issue with exception {e}")
+                print("Waiting to retry connection")
+                await asyncio.sleep(reconnect_waittime)
+
+                retry_times += 1
+
+                if retry_times >= max_retry_connection:
+                    raise Exception(f"Reached maximum retries to connect to {clustername}")
+        # Test the connection:
+        if not try_run_command(connect):
+            raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
+
     async def archive_request_and_transfer(self, archive_kwargs={},
                                      notification_kwargs={'timewindow': 48 * 3600},
                                      sleeptime=600,
@@ -182,9 +214,7 @@ class AutoPipeline(object):
 
 
     async def setup_for_reduction_pipeline(self, clustername='cc-cedar',
-                                           reconnect_waittime=900,
-                                           max_retry_connection=10,
-                                           user='ekoch'):
+                                           **ssh_kwargs):
 
         """
         Step 2.
@@ -200,30 +230,8 @@ class AutoPipeline(object):
 
 
         print(f"Starting connection to {clustername}")
-        retry_times = 0
-        while True:
-            try:
-                connect = fabric.Connection(CLUSTERADDRS[clustername],
-                                            user=user,
-                                            connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
-                # I'm getting intermittent DNS issues on the CC cloud.
-                # This is to handle waiting until the DNS problem goes away
-                connect.open()
 
-                break
-
-            except socket.gaierror as e:
-                print("Encountering DNS issue with exception {e}")
-                print("Waiting to retry connection")
-                await asyncio.sleep(reconnect_waittime)
-
-                retry_times += 1
-
-                if retry_times >= max_retry_connection:
-                    raise Exception(r"Reached maximum retries to connect to {clustername}")
-        # Test the connection:
-        if not try_run_command(connect):
-            raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
+        connect = self.setup_ssh_connection(clustername, **ssh_kwargs)
 
         # Grab the repo; this is where we can also specify a version number, too
         cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
@@ -259,9 +267,7 @@ class AutoPipeline(object):
                                     continuum_time=None,
                                     line_time=None,
                                     scheduler_cmd="",
-                                    reconnect_waittime=900,
-                                    max_retry_connection=10,
-                                    user='ekoch'):
+                                    **ssh_kwargs):
         """
         Step 3.
 
@@ -290,31 +296,7 @@ class AutoPipeline(object):
 
         # Setup connection:
         print(f"Starting connection to {clustername}")
-        retry_times = 0
-        while True:
-            try:
-                connect = fabric.Connection(CLUSTERADDRS[clustername],
-                                            user=user,
-                                            connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
-                # I'm getting intermittent DNS issues on the CC cloud.
-                # This is to handle waiting until the DNS problem goes away
-                connect.open()
-
-                break
-
-            except socket.gaierror as e:
-                print("Encountering DNS issue with exception {e}")
-                print("Waiting to retry connection")
-                await asyncio.sleep(reconnect_waittime)
-
-                retry_times += 1
-
-                if retry_times >= max_retry_connection:
-                    raise Exception(f"Reached maximum retries to connect to {clustername}")
-
-        # Test the connection:
-        if not try_run_command(connect):
-            raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
+        connect = self.setup_ssh_connection(clustername, **ssh_kwargs)
 
         # Create 1. job to import and split.
         print(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
