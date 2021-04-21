@@ -118,3 +118,10 @@ cd ../
 # The data-manager has its own deploy key
 # Must use ssh!
 git clone git@github.com:LocalGroup-VLALegacy/FlagRepository.git
+
+# You will also need to:
+# 1. Validate the globus connection (needs to open a browser)
+# 2. Create an SSH key
+# 3. Add the SSH key to all locations where jobs will be submitted
+# 4. Have copies of credentials and tokens for the gdrive and gmail connection
+# 5. Have the VLA archive private key saved in a txt file in $HOME
