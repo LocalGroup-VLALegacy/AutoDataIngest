@@ -661,7 +661,7 @@ class AutoPipeline(object):
         pass
 
 
-    async def transfer_pipeline_products(self, data_type='lines',
+    async def transfer_pipeline_products(self, data_type='speclines',
                                          startnode='cc-cedar',
                                          endnode='ingester'):
         """
@@ -672,8 +672,8 @@ class AutoPipeline(object):
 
         # Get info from the spreadsheet.
 
-        if not data_type in ['lines', 'continuum']:
-            raise ValueError(f"Data type must be 'lines' or 'continuum'. Received {data_type}")
+        if not data_type in ['speclines', 'continuum']:
+            raise ValueError(f"Data type must be 'speclines' or 'continuum'. Received {data_type}")
 
         target = return_cell(self.ebid, column=4)
         config = return_cell(self.ebid, column=9)
