@@ -41,7 +41,8 @@ from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks, upd
                                              update_cell, return_cell)
 
 from autodataingest.globus_functions import (transfer_file, transfer_pipeline,
-                               cleanup_source, globus_wait_for_completion)
+                               cleanup_source, globus_wait_for_completion,
+                               transfer_general)
 
 from autodataingest.get_track_info import match_ebid_to_source
 
@@ -651,7 +652,7 @@ class AutoPipeline(object):
         self.restarts = restarts
 
 
-    async def restart_job_submission(ebid, restart_dictionary):
+    async def restart_job_submission(self, ebid, restart_dictionary):
         """
         Step 3b.
 
@@ -660,13 +661,47 @@ class AutoPipeline(object):
         pass
 
 
-    async def transfer_pipeline_products(parameter_list):
+    async def transfer_pipeline_products(self, data_type='lines',
+                                         startnode='cc-cedar',
+                                         endnode='ingester'):
         """
         Step 5.
+
+        Transfer pipeline outputs to a storage system the webserver can access to host.
         """
 
-        pass
+        # Get info from the spreadsheet.
 
+        if not data_type in ['lines', 'continuum']:
+            raise ValueError(f"Data type must be 'lines' or 'continuum'. Received {data_type}")
+
+        target = return_cell(self.ebid, column=4)
+        config = return_cell(self.ebid, column=9)
+        track_name = return_cell(self.ebid, column=3)
+
+        track_folder_name = f"{target}_{config}_{track_name}"
+
+        print(f"Transferring {track_folder_name} {data_type} products from {startnode} to {endnode}.")
+
+        path_to_products = f'{track_folder_name}/{track_folder_name}_{data_type}/'
+
+        filename = f'{path_to_products}/{track_folder_name}_{data_type}_products.tar'
+
+        # Going to the ingester instance. Doesn't need an extra path.
+        output_destination = "/"
+
+        transfer_taskid = transfer_general(filename, output_destination,
+                                           startnode=startnode,
+                                           endnode=endnode,
+                                           wait_for_completion=False)
+
+        self.transfer_taskid = transfer_taskid
+
+        print(f"The globus transfer ID is: {transfer_taskid}")
+
+        print(f"Waiting for globus transfer to {endnode} to complete.")
+        await globus_wait_for_completion(transfer_taskid)
+        print(f"Globus transfer {transfer_taskid} completed!")
 
     async def rerun_job_submission(parameter_list):
         """
