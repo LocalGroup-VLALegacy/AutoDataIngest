@@ -191,3 +191,49 @@ def cleanup_source(track_name, node='nrao-aoc'):
     time.sleep(30)
 
     return True
+
+
+def transfer_general(filename, output_destination,
+                    startnode='cc-cedar',
+                    endnode='ingester',
+                    wait_for_completion=False):
+    """
+    Start a globus transfer from `startnode` to `endnode`.
+    """
+
+    try:
+        do_authenticate_globus()
+    except ValueError:
+        print(f"Auto authentication of {endnode} failed. Try manual login.")
+        do_manual_login(endnode)
+
+    # May have to change this ordering for both nodes in general.
+    do_manual_login(startnode)
+
+    # Want to return the task_id in the command line output.
+    input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode]['data_path']}/{filename}"
+    output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{output_destination}/{filename}"
+
+    # task_command = f"$(globus transfer {input_cmd} {output_cmd} --jmes path 'task_id' --format=UNIX)"
+    task_command = ['globus', 'transfer', input_cmd, output_cmd]
+
+    task_transfer = subprocess.run(task_command, capture_output=True)
+
+    # Extract the task ID from the stdout
+    task_transfer_stdout = task_transfer.stdout.decode('utf-8').replace("\n", " ")
+
+    if not 'accepted' in task_transfer_stdout:
+        print(task_transfer_stdout)
+        print(task_transfer.stderr.decode('utf-8'))
+
+        raise ValueError("Transfer was not accepted Check the above messages.")
+
+    task_id = task_transfer_stdout.split('Task ID:')[-1].replace(" ", '')
+
+    # Wait for 30 seconds to allow the transfer to get started.
+    time.sleep(30)
+
+    if wait_for_completion:
+        globus_wait_for_completion(task_id)
+
+    return task_id
