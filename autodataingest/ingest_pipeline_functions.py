@@ -700,7 +700,7 @@ class AutoPipeline(object):
         print(f"The globus transfer ID is: {transfer_taskid}")
 
         print(f"Waiting for globus transfer to {endnode} to complete.")
-        await globus_wait_for_completion(transfer_taskid)
+        await globus_wait_for_completion(transfer_taskid, sleeptime=180)
         print(f"Globus transfer {transfer_taskid} completed!")
 
     async def rerun_job_submission(parameter_list):

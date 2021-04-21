@@ -87,7 +87,15 @@ async def consume(queue):
 
         # TODO: Add job restarting when timeouts occur.
 
-        # TODO: Move pipeline products to QA webserver
+        # Move pipeline products to QA webserver
+        await auto_pipe.transfer_pipeline_products(data_type='speclines',
+                                                   startnode='cc-cedar',
+                                                   endnode='ingester')
+
+        await auto_pipe.transfer_pipeline_products(data_type='continuum',
+                                                   startnode='cc-cedar',
+                                                   endnode='ingester')
+
 
         # Notify the queue that the item has been processed
         queue.task_done()
@@ -175,3 +183,5 @@ if __name__ == "__main__":
     #                                 line_time=CLUSTER_LINE_JOBTIME,
     #                                 scheduler_cmd=CLUSTER_SCHEDCMD,))
     # asyncio.run(tester.get_job_notifications())
+    # asyncio.run(tester.transfer_pipeline_products(data_type='speclines'))
+    # asyncio.run(tester.transfer_pipeline_products(data_type='continuum'))
