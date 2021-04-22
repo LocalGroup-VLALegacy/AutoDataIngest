@@ -737,7 +737,8 @@ class AutoPipeline(object):
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
         print(f"Globus transfer {transfer_taskid} completed!")
 
-    def make_qa_products(self, data_type='speclines'):
+    def make_qa_products(self, data_type='speclines',
+                         verbose=False):
         '''
         Create the QA products for the QA webserver.
         '''
@@ -756,7 +757,9 @@ class AutoPipeline(object):
 
         data_path = Path(ENDPOINT_INFO['ingester']['data_path'])
 
-        qa_path = Path(ENDPOINT_INFO['ingester']['qa_path'])
+
+        self.setup_qa_track_path()
+        qa_path = self.qa_track_path
 
         product_file = data_path / f"{self.track_folder_name}_{data_type}_products.tar"
 
@@ -768,7 +771,7 @@ class AutoPipeline(object):
         temp_path = f'{product_file.with_suffix("")}_QA_output'
 
         if os.path.exists(temp_path):
-            shutil.remove(temp_path)
+            shutil.rmtree(temp_path)
 
         os.mkdir(temp_path)
 
@@ -798,17 +801,23 @@ class AutoPipeline(object):
         os.chdir(temp_path)
 
         # Extract the weblog
+        os.mkdir('weblog')
+
         task_command = ['tar', '--strip-components=1', '-C',
                         "weblog", '-xf', "weblog.tgz"]
 
         task_weblog2 = subprocess.run(task_command, capture_output=True)
 
-        os.remove('weblog.tgz')
+        if verbose:
+            print(f"The extracted files are: {os.listdir()}")
+
+        if os.path.exists('weblog'):
+            os.remove('weblog.tgz')
 
         # Generate the QA products:
-        import qa_plotter
-        # qa_plotter.make_all_plots(data_type=data_type)
-        qa_plotter.make_all_plots()
+        import qaplotter
+        # qaplotter.make_all_plots(data_type=data_type)
+        qaplotter.make_all_plots()
 
         # Return the original directory
         os.chdir(cur_dir)
@@ -817,8 +826,34 @@ class AutoPipeline(object):
         task_command = ['mv', temp_path, qa_path]
 
         task_move = subprocess.run(task_command, capture_output=True)
+        if verbose:
+            print(f"The task was: {task_command}")
+            task_move_stdout = task_move.stdout.decode('utf-8').replace("\n", " ")
+            print(f"Stdout: {task_move_stdout}")
+            task_move_stderr = task_move.stderr.decode('utf-8').replace("\n", " ")
+            print(f"Stderr: {task_move_stderr}")
 
+    @property
+    def qa_track_path(self):
+        '''
+        Location for all QA products on the webserver.
+        '''
 
+        qa_path = Path(ENDPOINT_INFO['ingester']['qa_path'])
+
+        return qa_path / self.project_code / self.track_folder_name
+
+    def setup_qa_track_path(self):
+        '''
+        Create the folder structure that will be ingested into the webserver.
+
+        PROJCODE / TRACKNAME / {continuum/speclines} /
+
+        '''
+
+        self.qa_track_path.mkdir(parents=True, exist_ok=True)
+        (self.qa_track_path / 'continuum').mkdir(parents=True, exist_ok=True)
+        (self.qa_track_path / 'speclines').mkdir(parents=True, exist_ok=True)
 
     async def rerun_job_submission(parameter_list):
         """
