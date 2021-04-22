@@ -744,6 +744,7 @@ class AutoPipeline(object):
 
         import os
         import subprocess
+        import shutil
 
         if not data_type in ['speclines', 'continuum']:
             raise ValueError(f"Data type must be 'speclines' or 'continuum'. Received {data_type}")
@@ -765,6 +766,9 @@ class AutoPipeline(object):
 
         # Make a temp folder to extract into:
         temp_path = f'{product_file.with_suffix("")}_QA_output'
+
+        if os.path.exists(temp_path):
+            shutil.remove(temp_path)
 
         os.mkdir(temp_path)
 
