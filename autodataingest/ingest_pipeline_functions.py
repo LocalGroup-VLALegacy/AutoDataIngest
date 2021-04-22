@@ -54,7 +54,8 @@ from autodataingest.archive_request import archive_copy_SDM
 
 # Import dictionary defining the job creation script functions for each
 # cluster.
-from autodataingest.cluster_configs import JOB_CREATION_FUNCTIONS, CLUSTERADDRS
+from autodataingest.cluster_configs import (JOB_CREATION_FUNCTIONS, CLUSTERADDRS,
+                                            ENDPOINT_INFO)
 
 class AutoPipeline(object):
     """
@@ -101,6 +102,13 @@ class AutoPipeline(object):
     @property
     def track_folder_name(self):
         return f"{self.target}_{self.config}_{self.track_name}"
+
+    @property
+    def project_code(self):
+        if self.track_name is None:
+            raise ValueError("The track name could not be found. Cannot find the project code.")
+
+        return self.track_name.split(".")[0]
 
     async def setup_ssh_connection(self, clustername, user='ekoch',
                                    max_retry_connection=10,
@@ -729,9 +737,88 @@ class AutoPipeline(object):
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
         print(f"Globus transfer {transfer_taskid} completed!")
 
+    def make_qa_products(self, data_type='speclines'):
+        '''
+        Create the QA products for the QA webserver.
+        '''
+
+        import os
+        import tarfile
+
+        if not data_type in ['speclines', 'continuum']:
+            raise ValueError(f"Data type must be 'speclines' or 'continuum'. Received {data_type}")
+
+        self._grab_sheetdata()
+
+        if self.target is None or self.track_name is None:
+            raise ValueError(f"Cannot find target or trackname in {self.ebid}")
+
+        data_path = Path(ENDPOINT_INFO['ingester']['data_path'])
+
+        qa_path = Path(ENDPOINT_INFO['ingester']['qa_path'])
+
+        product_file = data_path / f"{self.track_folder_name}_{data_type}_products.tar"
+
+        if not os.path.exists(product_file):
+            print(f"Unable to find products file at {product_file}")
+            return
+
+        # Make a temp folder to extract into:
+        temp_path = f'{product_file.with_suffix("")}_QA_output'
+
+        os.mkdir(temp_path)
+
+        # Extract weblog
+        task_command = ['tar', '--strip-components=1', '-C',
+                        f"{temp_path}", '-xf', f"{product_file}",
+                        "products/weblog.tgz"]
+
+        task_weblog1 = subprocess.run(task_command, capture_output=True)
+
+        # Extract cal plots
+        task_command = ['tar', '--strip-components=1', '-C',
+                        f"{temp_path}", '-xf', f"{product_file}",
+                        "products/finalBPcal_txt"]
+
+        task_caltxt = subprocess.run(task_command, capture_output=True)
+
+        # Extract scan plots
+        task_command = ['tar', '--strip-components=1', '-C',
+                        f"{temp_path}", '-xf', f"{product_file}",
+                        "products/scan_plots_txt"]
+
+        task_scantxt = subprocess.run(task_command, capture_output=True)
+
+        cur_dir = os.getcwd()
+
+        os.chdir(temp_path)
+
+        # Extract the weblog
+        task_command = ['tar', '--strip-components=1', '-C',
+                        "weblog", '-xf', "weblog.tgz"]
+
+        task_weblog2 = subprocess.run(task_command, capture_output=True)
+
+        os.remove('weblog.tgz')
+
+        # Generate the QA products:
+        import qa_plotter
+        # qa_plotter.make_all_plots(data_type=data_type)
+        qa_plotter.make_all_plots()
+
+        # Return the original directory
+        os.chdir(cur_dir)
+
+        # Move the directory of the webserver:
+        task_command = ['mv', temp_path, qa_path]
+
+        task_move = subprocess.run(task_command, capture_output=True)
+
+
+
     async def rerun_job_submission(parameter_list):
         """
-        Step 6.
+        Step 7.
 
         After QA, supplies an additional manual flagging script to re-run the pipeline
         calibration.
@@ -744,8 +831,9 @@ class AutoPipeline(object):
 
     async def export_track_for_imaging(parameter_list):
         """
-        Step 7.
+        Step 8.
 
         Move calibrated MSs to a persistent storage location for imaging.
+        Clean-up scratch space.
         """
         pass
