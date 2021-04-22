@@ -57,6 +57,8 @@ from autodataingest.archive_request import archive_copy_SDM
 from autodataingest.cluster_configs import (JOB_CREATION_FUNCTIONS, CLUSTERADDRS,
                                             ENDPOINT_INFO)
 
+from autodataingest.utils import uniquify
+
 class AutoPipeline(object):
     """
     Handler for the processing pipeline stages. Each instance is defined by the
@@ -759,16 +761,17 @@ class AutoPipeline(object):
 
 
         self.setup_qa_track_path()
-        qa_path = self.qa_track_path
+        qa_path = self.qa_track_path / data_type
 
-        product_file = data_path / f"{self.track_folder_name}_{data_type}_products.tar"
+        product_tarname = f"{self.track_folder_name}_{data_type}_products.tar"
+        product_file = data_path / product_tarname
 
         if not os.path.exists(product_file):
             print(f"Unable to find products file at {product_file}")
             return
 
         # Make a temp folder to extract into:
-        temp_path = f'{product_file.with_suffix("")}_QA_output'
+        temp_path = product_file.with_suffix("")
 
         if os.path.exists(temp_path):
             shutil.rmtree(temp_path)
@@ -822,8 +825,30 @@ class AutoPipeline(object):
         # Return the original directory
         os.chdir(cur_dir)
 
-        # Move the directory of the webserver:
-        task_command = ['mv', temp_path, qa_path]
+        # Check if the name is already in the qa path:
+
+        new_qa_path = qa_path / os.path.split(temp_path)[-1]
+        # Add a unique 1,2,3, etc to make sure the name is unique
+        new_qa_path =  uniquify(new_qa_path)
+
+        # Move to the directory of the webserver:
+        task_command = ['mv', temp_path, new_qa_path]
+
+        task_move = subprocess.run(task_command, capture_output=True)
+        if verbose:
+            print(f"The task was: {task_command}")
+            task_move_stdout = task_move.stdout.decode('utf-8').replace("\n", " ")
+            print(f"Stdout: {task_move_stdout}")
+            task_move_stderr = task_move.stderr.decode('utf-8').replace("\n", " ")
+            print(f"Stderr: {task_move_stderr}")
+
+        # Now move the tar file to "processed" folder:
+        proced_folder = data_path / "processed"
+        proced_folder.mkdir(parents=True, exist_ok=True)
+
+        product_file = uniquify(proced_folder / product_tarname)
+
+        task_command = ['mv', temp_path, product_file]
 
         task_move = subprocess.run(task_command, capture_output=True)
         if verbose:
