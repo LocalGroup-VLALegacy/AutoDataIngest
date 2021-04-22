@@ -67,6 +67,8 @@ class AutoPipeline(object):
     def __init__(self, ebid):
         self.ebid = ebid
 
+        self._grab_sheetdata()
+
         # TODO: add flags that can provide the stage we need to run from.
         # This enables easy restarting of tracks partially processed.
 
@@ -76,7 +78,29 @@ class AutoPipeline(object):
         Get info from the google sheet. This is needed to allow for restarting at
         different stages.
         '''
-        pass
+
+        target = return_cell(self.ebid, column=4)
+        config = return_cell(self.ebid, column=9)
+        track_name = return_cell(self.ebid, column=3)
+
+        if len(target) > 0:
+            self.target = target
+        else:
+            self.target = None
+
+        if len(config):
+            self.config = config
+        else:
+            self.config = None
+
+        if len(track_name):
+            self.track_name = track_name
+        else:
+            self.track_name = None
+
+    @property
+    def track_folder_name(self):
+        return f"{self.target}_{self.config}_{self.track_name}"
 
     async def setup_ssh_connection(self, clustername, user='ekoch',
                                    max_retry_connection=10,
@@ -164,6 +188,8 @@ class AutoPipeline(object):
                                                 project_code='20A-346',
                                                 verbose=False)
 
+        self.target = target
+
         print(f"Found target {target} with size {datasize} for {ebid}")
 
         # Add track target to the sheet
@@ -178,6 +204,7 @@ class AutoPipeline(object):
         # We'll combine these for our folder names where the data will get placed
         # after transfer from the archive.
         config = return_cell(ebid, column=9)
+        self.config = config
 
         self.track_folder_name = f"{target}_{config}_{track_name}"
 
@@ -675,17 +702,16 @@ class AutoPipeline(object):
         if not data_type in ['speclines', 'continuum']:
             raise ValueError(f"Data type must be 'speclines' or 'continuum'. Received {data_type}")
 
-        target = return_cell(self.ebid, column=4)
-        config = return_cell(self.ebid, column=9)
-        track_name = return_cell(self.ebid, column=3)
+        self._grab_sheetdata()
 
-        track_folder_name = f"{target}_{config}_{track_name}"
+        if self.target is None or self.track_name is None:
+            raise ValueError(f"Cannot find target or trackname in {self.ebid}")
 
-        print(f"Transferring {track_folder_name} {data_type} products from {startnode} to {endnode}.")
+        print(f"Transferring {self.track_folder_name} {data_type} products from {startnode} to {endnode}.")
 
-        path_to_products = f'{track_folder_name}/{track_folder_name}_{data_type}/'
+        path_to_products = f'{self.track_folder_name}/{self.track_folder_name}_{data_type}/'
 
-        filename = f'{path_to_products}/{track_folder_name}_{data_type}_products.tar'
+        filename = f'{path_to_products}/{self.track_folder_name}_{data_type}_products.tar'
 
         # Going to the ingester instance. Doesn't need an extra path.
         output_destination = "/"
