@@ -18,7 +18,7 @@ ENDPOINT_INFO = {'cc-cedar': {'endpoint_id': "c99fd40c-5545-11e7-beb6-22000b9a44
                              'data_path': "/mnt/research/ChomiukLab/LocalGroupX/M31_20A-346/"},
                  'ingester': {'endpoint_id': "e8fc98cc-9ca8-11eb-92cd-6b08dd67ff48",
                               'data_path': "/mnt/space/vlaxl/track_products/",
-                              'qa_path': "/mnt/bigdata/vlaxl/public_html/"}}
+                              'qa_path': "/mnt/bigdata/vlaxl/data_staging/"}}
 
 JOB_CREATION_FUNCTIONS = \
     {'cc-cedar': {'IMPORT_SPLIT': jobs_import.cedar_submission_script,
