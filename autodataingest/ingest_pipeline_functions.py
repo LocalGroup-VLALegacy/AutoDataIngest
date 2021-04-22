@@ -57,7 +57,7 @@ from autodataingest.archive_request import archive_copy_SDM
 from autodataingest.cluster_configs import (JOB_CREATION_FUNCTIONS, CLUSTERADDRS,
                                             ENDPOINT_INFO)
 
-from autodataingest.utils import uniquify
+from autodataingest.utils import uniquify, uniquify_folder
 
 class AutoPipeline(object):
     """
@@ -829,7 +829,7 @@ class AutoPipeline(object):
 
         new_qa_path = qa_path / os.path.split(temp_path)[-1]
         # Add a unique 1,2,3, etc to make sure the name is unique
-        new_qa_path =  uniquify(new_qa_path)
+        new_qa_path =  uniquify_folder(new_qa_path)
 
         # Move to the directory of the webserver:
         task_command = ['mv', temp_path, new_qa_path]
