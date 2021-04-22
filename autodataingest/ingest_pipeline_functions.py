@@ -743,7 +743,7 @@ class AutoPipeline(object):
         '''
 
         import os
-        import tarfile
+        import subprocess
 
         if not data_type in ['speclines', 'continuum']:
             raise ValueError(f"Data type must be 'speclines' or 'continuum'. Received {data_type}")
