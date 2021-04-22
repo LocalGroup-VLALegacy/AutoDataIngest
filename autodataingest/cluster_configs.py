@@ -17,7 +17,8 @@ ENDPOINT_INFO = {'cc-cedar': {'endpoint_id': "c99fd40c-5545-11e7-beb6-22000b9a44
                  'msu-hpcc': {'endpoint_id': "a640bafc-6d04-11e5-ba46-22000b92c6ec",
                              'data_path': "/mnt/research/ChomiukLab/LocalGroupX/M31_20A-346/"},
                  'ingester': {'endpoint_id': "e8fc98cc-9ca8-11eb-92cd-6b08dd67ff48",
-                              'data_path': "/mnt/space/vlaxl/track_products/"}}
+                              'data_path': "/mnt/space/vlaxl/track_products/",
+                              'qa_path': "/mnt/bigdata/vlaxl/public_html/"}}
 
 JOB_CREATION_FUNCTIONS = \
     {'cc-cedar': {'IMPORT_SPLIT': jobs_import.cedar_submission_script,
