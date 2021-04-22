@@ -846,9 +846,9 @@ class AutoPipeline(object):
         proced_folder = data_path / "processed"
         proced_folder.mkdir(parents=True, exist_ok=True)
 
-        product_file = uniquify(proced_folder / product_tarname)
+        proced_file = uniquify(proced_folder / product_tarname)
 
-        task_command = ['mv', temp_path, product_file]
+        task_command = ['mv', product_file, proced_file]
 
         task_move = subprocess.run(task_command, capture_output=True)
         if verbose:
