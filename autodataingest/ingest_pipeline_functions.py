@@ -837,6 +837,17 @@ class AutoPipeline(object):
         # Add a unique 1,2,3, etc to make sure the name is unique
         new_qa_path =  uniquify_folder(new_qa_path)
 
+        # Open permission for the webserver to read and access the files
+        task_command = ['chmod', '-R', 'o+rx', temp_path]
+
+        task_chmod = subprocess.run(task_command, capture_output=True)
+        if verbose:
+            print(f"The task was: {task_command}")
+            task_chmod_stdout = task_chmod.stdout.decode('utf-8').replace("\n", " ")
+            print(f"Stdout: {task_chmod_stdout}")
+            task_chmod_stderr = task_chmod.stderr.decode('utf-8').replace("\n", " ")
+            print(f"Stderr: {task_chmod_stderr}")
+
         # Move to the directory of the webserver:
         task_command = ['mv', temp_path, new_qa_path]
 
@@ -863,6 +874,9 @@ class AutoPipeline(object):
             print(f"Stdout: {task_move_stdout}")
             task_move_stderr = task_move.stderr.decode('utf-8').replace("\n", " ")
             print(f"Stderr: {task_move_stderr}")
+
+        # Make tabs in the google sheet for manual flagging:
+        # TODO
 
     @property
     def qa_track_path(self):
