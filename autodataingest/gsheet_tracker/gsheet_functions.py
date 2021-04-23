@@ -63,6 +63,20 @@ def find_new_tracks(sheetname='20A - OpLog Summary', status_check=''):
     return new_tracks
 
 
+def return_all_ebids(sheetname='20A - OpLog Summary'):
+
+    # Find the right sheet according to sheetname
+    full_sheet = read_tracksheet()
+
+    worksheet = full_sheet.worksheet(sheetname)
+
+    ebids = worksheet.col_values(7)
+
+    ebids = [ebid for ebid in ebids if len(ebid) > 0]
+
+    return ebids
+
+
 # Existing colors:
 # Light yellow: staged data for transfer
 # Light blue: data transferred finished; ready for reduction pipeline run
@@ -110,7 +124,7 @@ def update_track_status(ebid, message="Archive download staged",
                         bold_text=False,
                         max_retry=5):
     """
-    docstring
+    Update the processing status of a track running through the pipeline.
     """
 
     i = 0

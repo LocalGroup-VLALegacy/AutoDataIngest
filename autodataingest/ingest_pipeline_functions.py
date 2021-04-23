@@ -101,6 +101,12 @@ class AutoPipeline(object):
         else:
             self.track_name = None
 
+    def _restart_flag(self):
+        '''
+        Request a restart on the jobs.
+        '''
+        return True if return_cell(self.ebid, column=28) == 'TRUE' else False
+
     @property
     def track_folder_name(self):
         return f"{self.target}_{self.config}_{self.track_name}"
@@ -887,6 +893,12 @@ class AutoPipeline(object):
         After QA, supplies an additional manual flagging script to re-run the pipeline
         calibration.
         """
+
+        restart_flag = self._restart_flag()
+
+        if not restart_flag:
+            print("No restart requested. Exiting")
+            return
 
         # TODO: define what to clean-up from the first pipeline runs.
         # TODO: add in routine to pull in manual flagging scripts. Also backup to a github repo.

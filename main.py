@@ -96,6 +96,9 @@ async def consume(queue):
                                                    startnode='cc-cedar',
                                                    endnode='ingester')
 
+        # Create the final QA products and move to the webserver
+        auto_pipe.make_qa_products(data_type='speclines')
+        auto_pipe.make_qa_products(data_type='continuum')
 
         # Notify the queue that the item has been processed
         queue.task_done()
