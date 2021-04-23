@@ -68,6 +68,8 @@ fi
 # Copy the casa log file into the products folder
 cp casa*.log products/
 
+cp manual_flagging.txt products/
+
 # Clean up small unneeded files
 rm *.last
 

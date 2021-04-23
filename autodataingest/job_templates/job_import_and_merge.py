@@ -43,6 +43,15 @@ echo 'Start casa'
 
 ~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} all
 
+# Copy manual flag files if they're present:
+if [ -f manual_flagging_speclines.txt ]; then
+    cp manual_flagging_speclines.txt $TRACK_FOLDER"_speclines"/manual_flagging.txt
+fi
+
+if [ -f manual_flagging_continuum.txt ]; then
+    cp manual_flagging_continuum.txt $TRACK_FOLDER"_continuum"/manual_flagging.txt
+fi
+
 echo "casa split finished."
 
         '''
