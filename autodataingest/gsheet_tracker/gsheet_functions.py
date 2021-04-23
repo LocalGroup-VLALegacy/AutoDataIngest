@@ -72,7 +72,8 @@ def return_all_ebids(sheetname='20A - OpLog Summary'):
 
     ebids = worksheet.col_values(7)
 
-    ebids = [ebid for ebid in ebids if len(ebid) > 0]
+    # Drop empties and the first (the column name)
+    ebids = [ebid for ebid in ebids if len(ebid) > 0][1:]
 
     return ebids
 
