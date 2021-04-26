@@ -6,6 +6,7 @@ They are meant to be called in "main.py"
 '''
 
 import sys
+import os
 from pathlib import Path
 from glob import glob
 import asyncio
