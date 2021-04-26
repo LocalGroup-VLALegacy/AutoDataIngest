@@ -5,7 +5,7 @@ Functions for handling our google sheet with track flagging.
 
 from .gsheet_functions import do_authentication_gspread
 
-from qaplotter import datetime_from_msname
+from qaplotter.utils import datetime_from_msname
 
 import time
 import numpy as np
