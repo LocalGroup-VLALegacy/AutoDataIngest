@@ -738,7 +738,7 @@ class AutoPipeline(object):
 
         from autodataingest.gsheet_tracker.gsheet_flagging import make_new_flagsheet
 
-        new_flagsheet = make_new_flagsheet(self.trackname, self.target, self.config,
+        new_flagsheet = make_new_flagsheet(self.track_name, self.target, self.config,
                                            data_type=data_type,
                                            template_name='TEMPLATE')
 
