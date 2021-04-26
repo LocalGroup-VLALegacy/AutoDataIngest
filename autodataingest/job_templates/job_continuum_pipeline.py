@@ -50,7 +50,7 @@ cd $TRACK_FOLDER"_continuum"
 
 echo 'Start casa default continuum pipeline'
 
-~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}.continuum.ms')"
+~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}.continuum.ms')"
 
 export exitcode = $?
 if [ $exitcode -ge 1 ]; then

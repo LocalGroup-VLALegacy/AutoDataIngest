@@ -41,7 +41,7 @@ echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/Reducti
 
 echo 'Start casa'
 
-~/casa-pipeline-release-5.6.2-3.el7/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} all
+~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} all
 
 # Copy manual flag files if they're present:
 if [ -f manual_flagging_speclines.txt ]; then
