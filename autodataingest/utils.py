@@ -6,7 +6,7 @@ def uniquify(path):
     counter = 1
 
     while os.path.exists(path):
-        path = f"{filename}_{str(counter)}.{extension}"
+        path = f"{filename}_{str(counter)}{extension}"
         counter += 1
 
     return path
