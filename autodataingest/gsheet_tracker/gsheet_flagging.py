@@ -216,7 +216,7 @@ def make_new_flagsheet(trackname, target, config,
 
     # Insert new metadata
     worksheet.update_cell(1, 5, trackname)
-    worksheet.update_cell(2, 5, datetime_from_msname(trackname))
+    worksheet.update_cell(2, 5, datetime_from_msname(trackname).strftime('%Y-%B-%d'))
     worksheet.update_cell(3, 5, target)
     worksheet.update_cell(4, 5, config)
 
