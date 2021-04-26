@@ -101,8 +101,8 @@ async def consume(queue):
                                                    endnode='ingester')
 
         # Create the flagging sheets in the google sheet
-        await auto_pipe.make_flagging_sheet(data_type='continuum'):
-        await auto_pipe.make_flagging_sheet(data_type='speclines'):
+        await auto_pipe.make_flagging_sheet(data_type='continuum')
+        await auto_pipe.make_flagging_sheet(data_type='speclines')
 
 
         # Create the final QA products and move to the webserver
