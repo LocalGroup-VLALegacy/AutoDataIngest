@@ -155,7 +155,7 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
         if filecmp.cmp(oldfilename, newfilename, shallow=False):
             os.remove(newfilename)
 
-    return newfilename
+    return outfilename
 
 
 def download_all_flags(output_folder="manual_flags",
