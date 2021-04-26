@@ -148,7 +148,7 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
     if test_against_previous and vers > 1:
 
         newfilename = outfilename
-        oldfilename = Path(output_folder) / f"{trackname}_manualflagging_v{vers-1}.txt"
+        oldfilename = Path(output_folder) / f"{trackname}_{data_type}_manualflagging_v{vers-1}.txt"
 
         if filecmp.cmp(oldfilename, newfilename, shallow=False):
             os.remove(newfilename)
