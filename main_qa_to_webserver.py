@@ -22,7 +22,7 @@ from autodataingest.gsheet_tracker.gsheet_functions import (return_all_ebids)
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
 
-async def produce(queue, sleeptime=10, start_with_newest=False):
+async def produce(queue, sleeptime=60, start_with_newest=False):
     '''
     Check for new tracks from the google sheet.
     '''
@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
         loop = asyncio.new_event_loop()
 
-        loop.set_debug(True)
+        loop.set_debug(False)
         loop.slow_callback_duration = 0.001
 
         loop.run_until_complete(run(start_with_newest=start_with_newest))
