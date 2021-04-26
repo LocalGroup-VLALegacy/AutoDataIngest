@@ -930,6 +930,7 @@ class AutoPipeline(object):
                                  data_type='continuum',
                                  output_folder=os.path.expanduser('FlagRepository'),
                                  scripts_dir=Path('reduction_job_scripts/'),
+                                 **ssh_kwargs,
                                  ):
         '''
         1. Download the flagging file
@@ -967,7 +968,7 @@ class AutoPipeline(object):
         if not track_scripts_dir.exists():
             track_scripts_dir.mkdir()
 
-        newfilename = tracks_scripts_dir / f'manual_flagging_{data_type}.txt'
+        newfilename = track_scripts_dir / f'manual_flagging_{data_type}.txt'
 
         task_command = ['cp', filename, newfilename]
 
@@ -999,7 +1000,7 @@ class AutoPipeline(object):
         # TODO: define what to clean-up from the first pipeline runs.
 
         # Download manual flagging files from the google sheet.
-        self.get_flagging_files()
+        await self.get_flagging_files()
 
         # TODO: add transfer to the cluster
 
