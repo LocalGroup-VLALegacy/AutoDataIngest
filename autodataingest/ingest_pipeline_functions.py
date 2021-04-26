@@ -138,6 +138,9 @@ class AutoPipeline(object):
 
     @property
     def connect(self):
+        if not hasattr(self, '_connect'):
+            raise ValueError('Run `setup_ssh_connection` first to create the ssh connection.')
+
         return self._connect
 
     async def archive_request_and_transfer(self, archive_kwargs={},
