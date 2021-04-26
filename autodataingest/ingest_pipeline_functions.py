@@ -203,10 +203,8 @@ class AutoPipeline(object):
         # We want to easily track (1) target, (2) config, and (3) track name
         # We'll combine these for our folder names where the data will get placed
         # after transfer from the archive.
-        config = return_cell(ebid, column=9)
+        config = return_cell(self.ebid, column=9)
         self.config = config
-
-        self.track_folder_name = f"{target}_{config}_{track_name}"
 
         print(f"This track was taken in {config} configuration.")
         print(f"This track can be found in the folder with name {self.track_folder_name}")
