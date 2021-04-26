@@ -42,7 +42,9 @@ def read_track_flagsheet(trackname):
     return worksheet
 
 
-def download_flagsheet_to_flagtxt(trackname, output_folder,
+def download_flagsheet_to_flagtxt(trackname, target, config,
+                                  output_folder,
+                                  data_type='continuum',
                                   raise_noflag_error=True,
                                   debug=False,
                                   test_against_previous=True):
@@ -52,6 +54,7 @@ def download_flagsheet_to_flagtxt(trackname, output_folder,
 
     Parameters
     ----------
+    TODO: add description for all inputs
     trackname : str
         Name of the track name. Must be contained in the `SB_Issue_Tracking` sheet.
     output_folder : str
@@ -63,15 +66,31 @@ def download_flagsheet_to_flagtxt(trackname, output_folder,
         Print to terminal the rows that are being used for valid flags.
     """
 
-    # TODO: add handling for the continuum and speclines parts
+    if not data_type in ['continuum', 'speclines']:
+        raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
 
-    worksheet = read_track_flagsheet(trackname)
+    gsheet = read_flagsheet()
+
+    orig_worksheet = gsheet.worksheet(template_name)
+
+    # Abbrev. name b/c it hits the charac. limit
+    # projcode_mjd_ebid
+    abbrev_tname = "_".join([trackname.split('.')[0],
+                             trackname.split('.')[3],
+                             trackname.split('.')[2][2:]])
+    sheet_name = f"{target}_{config}_{abbrev}_{data_type}"
+
+    # Check if it exists:
+    if new_sheet_name not in [sheet.title for sheet in gsheet.worksheets()]:
+        raise ValueError(f"The worksheet {new_sheet_name} does not exist.")
+
+    worksheet = read_track_flagsheet(sheet_name)
 
     vers = 1
-    max_vers = 10
+    max_vers = 100
     while True:
 
-        outfilename = Path(output_folder) / f"{trackname}_manualflagging_v{vers}.txt"
+        outfilename = Path(output_folder) / f"{trackname}_{data_type}_manualflagging_v{vers}.txt"
 
         if not os.path.exists(outfilename):
             break
@@ -99,7 +118,8 @@ def download_flagsheet_to_flagtxt(trackname, output_folder,
         if len(rownumbers_with_flags) == 0 and raise_noflag_error:
             raise ValueError(f"No flags found for {trackname}")
 
-        outfile.write(f"# Manual flagging for track {trackname}\n")
+        outfile.write(f"# Manual flagging for track {trackname} {data_type}\n")
+        outfile.write(f"# Target: {target} Config: {config}\n")
 
         # Do single read in of the whole sheet.
         all_values = worksheet.get_all_values()
