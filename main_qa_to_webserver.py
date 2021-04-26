@@ -43,7 +43,7 @@ async def produce(queue, sleeptime=10, start_with_newest=False):
         await queue.put(AutoPipeline(ebid))
 
 
-async def consume(queue):
+async def consume(queue, sleeptime=60):
     while True:
         # wait for an item from the producer
         auto_pipe = await queue.get()
@@ -60,13 +60,22 @@ async def consume(queue):
                                                     startnode=CLUSTERNAME,
                                                     endnode='ingester')
 
+            await asyncio.sleep(sleeptime)
+
             await auto_pipe.transfer_pipeline_products(data_type='continuum',
                                                     startnode=CLUSTERNAME,
                                                     endnode='ingester')
 
+            await asyncio.sleep(sleeptime)
+
             # Create the final QA products and move to the webserver
             auto_pipe.make_qa_products(data_type='speclines')
+
+            await asyncio.sleep(sleeptime)
+
             auto_pipe.make_qa_products(data_type='continuum')
+
+            await asyncio.sleep(sleeptime)
 
         # Notify the queue that the item has been processed
         queue.task_done()
