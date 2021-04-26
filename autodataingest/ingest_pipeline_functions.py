@@ -852,8 +852,13 @@ class AutoPipeline(object):
 
         # Generate the QA products:
         import qaplotter
-        # qaplotter.make_all_plots(data_type=data_type)
-        qaplotter.make_all_plots()
+        if data_type == 'continuum':
+            flagging_sheet_link = self.continuum_flagsheet_url
+        if data_type == 'continuum':
+            flagging_sheet_link = self.speclines_flagsheet_url
+        else:
+            raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
+        qaplotter.make_all_plots(flagging_sheet_link=flagging_sheet_link)
 
         # Return the original directory
         os.chdir(cur_dir)
@@ -901,9 +906,6 @@ class AutoPipeline(object):
             print(f"Stdout: {task_move_stdout}")
             task_move_stderr = task_move.stderr.decode('utf-8').replace("\n", " ")
             print(f"Stderr: {task_move_stderr}")
-
-        # Make tabs in the google sheet for manual flagging:
-        # TODO
 
     @property
     def qa_track_path(self):
