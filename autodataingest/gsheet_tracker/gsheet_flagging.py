@@ -72,8 +72,6 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
 
     gsheet = read_flagsheet()
 
-    orig_worksheet = gsheet.worksheet(template_name)
-
     # Abbrev. name b/c it hits the charac. limit
     # projcode_mjd_ebid
     abbrev_tname = "_".join([trackname.split('.')[0],
