@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
         loop = asyncio.new_event_loop()
 
-        loop.set_debug(True)
+        loop.set_debug(False)
         loop.slow_callback_duration = 0.001
 
         loop.run_until_complete(run(test_case_run_newest=test_case_run_newest,
