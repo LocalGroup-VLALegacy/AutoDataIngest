@@ -205,7 +205,7 @@ def make_new_flagsheet(trackname, target, config,
     abbrev_tname = "_".join([trackname.split('.')[0],
                              trackname.split('.')[3],
                              trackname.split('.')[2][2:]])
-    new_sheet_name = f"{target}_{config}_{abbrev}_{data_type}"
+    new_sheet_name = f"{target}_{config}_{abbrev_tname}_{data_type}"
 
     # Check if it exists:
     if new_sheet_name in [sheet.title for sheet in gsheet.worksheets()]:
