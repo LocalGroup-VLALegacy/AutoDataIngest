@@ -266,7 +266,7 @@ class AutoPipeline(object):
 
         print(f"Starting connection to {clustername}")
 
-        self.setup_ssh_connection(clustername, **ssh_kwargs)
+        await self.setup_ssh_connection(clustername, **ssh_kwargs)
 
         # Grab the repo; this is where we can also specify a version number, too
         cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
@@ -331,7 +331,7 @@ class AutoPipeline(object):
 
         # Setup connection:
         print(f"Starting connection to {clustername}")
-        self.setup_ssh_connection(clustername, **ssh_kwargs)
+        await self.setup_ssh_connection(clustername, **ssh_kwargs)
 
         # Create 1. job to import and split.
         print(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
