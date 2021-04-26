@@ -948,7 +948,7 @@ class AutoPipeline(object):
         flag_repo_path_type = flag_repo_path / data_type
         flag_repo_path_type.mkdir(parents=True, exist_ok=True)
 
-        filename = download_flagsheet_to_flagtxt(self.trackname,
+        filename = download_flagsheet_to_flagtxt(self.track_name,
                                                 self.target,
                                                 self.config,
                                                 flag_repo_path_type,
@@ -956,6 +956,10 @@ class AutoPipeline(object):
                                                 raise_noflag_error=False,
                                                 debug=False,
                                                 test_against_previous=True)
+
+        if filename is None:
+            print(f"Unable to find a manual flagging sheet for {self.track_name}")
+            return
 
         # Copy to the same folder that job scripts are/will be in
         track_scripts_dir = scripts_dir / self.track_folder_name
