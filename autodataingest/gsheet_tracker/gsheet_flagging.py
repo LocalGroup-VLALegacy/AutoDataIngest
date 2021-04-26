@@ -210,6 +210,7 @@ def make_new_flagsheet(trackname, target, config,
     # Check if it exists:
     if new_sheet_name in [sheet.title for sheet in gsheet.worksheets()]:
         print(f"A worksheet with the name {new_sheet_name} already exists.")
+        return gsheet.worksheet(new_sheet_name)
 
     worksheet = orig_worksheet.duplicate(new_sheet_name=new_sheet_name,
                                          insert_sheet_index=2)
