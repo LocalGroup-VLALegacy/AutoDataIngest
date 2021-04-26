@@ -197,7 +197,8 @@ def transfer_general(filename, output_destination,
                     startnode='cc-cedar',
                     endnode='ingester',
                     wait_for_completion=False,
-                    use_rootname=True):
+                    use_rootname=True,
+                    skip_if_not_existing=True):
     """
     Start a globus transfer from `startnode` to `endnode`.
     """
@@ -219,6 +220,18 @@ def transfer_general(filename, output_destination,
     # Want to return the task_id in the command line output.
     input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode]['data_path']}/{filename}"
     output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{output_destination}/{output_filename}"
+
+    # Check if the input file/folder exists:
+    task_command = ['globus', 'ls', "/".join(input_cmd.split("/")[:-1])]
+
+    task_check = subprocess.run(task_command, capture_output=True)
+
+    if filename is not in task_check.stdout.decode('utf-8'):
+        if skip_if_not_existing:
+            print(f"The file {filename} does not exist at {input_cmd}. Skipping.")
+            return None
+
+        raise ValueError(f"The file {filename} does not exist at {input_cmd}.")
 
     # task_command = f"$(globus transfer {input_cmd} {output_cmd} --jmes path 'task_id' --format=UNIX)"
     task_command = ['globus', 'transfer', input_cmd, output_cmd]

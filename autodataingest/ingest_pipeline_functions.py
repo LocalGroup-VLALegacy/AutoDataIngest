@@ -717,7 +717,11 @@ class AutoPipeline(object):
         transfer_taskid = transfer_general(filename, output_destination,
                                            startnode=startnode,
                                            endnode=endnode,
-                                           wait_for_completion=False)
+                                           wait_for_completion=False,
+                                           skip_if_not_existing=True)
+
+        if transfer_taskid is None:
+            return
 
         self.transfer_taskid = transfer_taskid
 
