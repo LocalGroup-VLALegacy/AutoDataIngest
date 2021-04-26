@@ -226,12 +226,14 @@ def transfer_general(filename, output_destination,
 
     task_check = subprocess.run(task_command, capture_output=True)
 
-    if filename not in task_check.stdout.decode('utf-8'):
+    base_filename = filename.split('/')[0]
+
+    if base_filename not in task_check.stdout.decode('utf-8'):
         if skip_if_not_existing:
-            print(f"The file {filename} does not exist at {input_cmd}. Skipping.")
+            print(f"The file {base_filename} does not exist at {input_cmd}. Skipping.")
             return None
 
-        raise ValueError(f"The file {filename} does not exist at {input_cmd}.")
+        raise ValueError(f"The file {base_filename} does not exist at {input_cmd}.")
 
     # task_command = f"$(globus transfer {input_cmd} {output_cmd} --jmes path 'task_id' --format=UNIX)"
     task_command = ['globus', 'transfer', input_cmd, output_cmd]
