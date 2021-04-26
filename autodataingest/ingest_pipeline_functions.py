@@ -134,6 +134,8 @@ class AutoPipeline(object):
         if not try_run_command(connect):
             raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
 
+        return connect
+
     async def archive_request_and_transfer(self, archive_kwargs={},
                                      notification_kwargs={'timewindow': 48 * 3600},
                                      sleeptime=600,
