@@ -70,6 +70,7 @@ class AutoPipeline(object):
         config = return_cell(self.ebid, column=9)
         track_name = return_cell(self.ebid, column=3)
 
+        print(target)
         if len(target) > 0:
             self.target = target
         else:
