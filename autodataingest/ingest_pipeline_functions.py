@@ -927,40 +927,31 @@ class AutoPipeline(object):
         (self.qa_track_path / 'continuum').mkdir(parents=True, exist_ok=True)
         (self.qa_track_path / 'speclines').mkdir(parents=True, exist_ok=True)
 
-    async def get_flagging_files(self, output_folder=os.path.expanduser('FlagRepository')):
+    async def get_flagging_files(self,
+                                 data_type='continuum',
+                                 output_folder=os.path.expanduser('FlagRepository')):
         '''
         1. Download the flagging file
         TODO:
         2. Copy to git repo, make commit, push to gihub
         '''
 
+        if not data_type in ['continuum', 'speclines']:
+            raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
+
         from autodataingest.gsheet_track.gsheet_flagging import download_flagsheet_to_flagtxt
 
         flag_repo_path = Path(output_folder) / self.project_code
         flag_repo_path.mkdir(parents=True, exist_ok=True)
 
-        flag_repo_path_continuum = flag_repo_path / 'continuum'
-        flag_repo_path_continuum.mkdir(parents=True, exist_ok=True)
-
-        # Continuum
-        download_flagsheet_to_flagtxt(self.trackname,
-                                      self.target,
-                                      self.config,
-                                      flag_repo_path_continuum,
-                                      data_type='continuum',
-                                      raise_noflag_error=False,
-                                      debug=False,
-                                      test_against_previous=True)
-
-        # Lines
-        flag_repo_path_speclines = flag_repo_path / 'speclines'
-        flag_repo_path_speclines.mkdir(parents=True, exist_ok=True)
+        flag_repo_path_type = flag_repo_path / data_type
+        flag_repo_path_type.mkdir(parents=True, exist_ok=True)
 
         download_flagsheet_to_flagtxt(self.trackname,
                                       self.target,
                                       self.config,
-                                      flag_repo_path_speclines,
-                                      data_type='speclines',
+                                      flag_repo_path_type,
+                                      data_type=data_type,
                                       raise_noflag_error=False,
                                       debug=False,
                                       test_against_previous=True)
