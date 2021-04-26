@@ -37,8 +37,10 @@ import paramiko
 
 from autodataingest.email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification, add_jobtimes)
 
-from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
+from autodataingest.gsheet_tracker.gsheet_flagging import (find_new_tracks, update_track_status,
                                              update_cell, return_cell)
+
+from autodataingest.gsheet_tracker.gsheet_functions import (download_flagsheet_to_flagtxt)
 
 from autodataingest.globus_functions import (transfer_file, transfer_pipeline,
                                cleanup_source, globus_wait_for_completion,
@@ -745,6 +747,31 @@ class AutoPipeline(object):
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
         print(f"Globus transfer {transfer_taskid} completed!")
 
+    async def make_flagging_sheet(self, data_type='continuum'):
+        '''
+        Create the flagging sheet and remember the URLs to use as links.
+        '''
+
+        from autodataingest.gsheet_track.gsheet_flagging import make_new_flagsheet
+
+        new_flagsheet = make_new_flagsheet(self.trackname, self.target, self.config,
+                                           data_type=data_type,
+                                           template_name='TEMPLATE')
+
+        # make_new_flagsheet already checks for continuum vs. speclines
+        if data_type == "continuum":
+            self._continuum_flagsheet_url = new_flagsheet.url
+        else:
+            self._speclines_flagsheet_url = new_flagsheet.url
+
+    @property
+    def continuum_flagsheet_url:
+        return self._continuum_flagsheet_url
+
+    @property
+    def speclines_flagsheet_url:
+        return self._speclines_flagsheet_url
+
     def make_qa_products(self, data_type='speclines',
                          verbose=False):
         '''
@@ -900,7 +927,47 @@ class AutoPipeline(object):
         (self.qa_track_path / 'continuum').mkdir(parents=True, exist_ok=True)
         (self.qa_track_path / 'speclines').mkdir(parents=True, exist_ok=True)
 
-    async def rerun_job_submission(parameter_list):
+    async def get_flagging_files(self, output_folder=os.path.expanduser('FlagRepository')):
+        '''
+        1. Download the flagging file
+        TODO:
+        2. Copy to git repo, make commit, push to gihub
+        '''
+
+        from autodataingest.gsheet_track.gsheet_flagging import download_flagsheet_to_flagtxt
+
+        flag_repo_path = Path(output_folder) / self.project_code
+        flag_repo_path.mkdir(parents=True, exist_ok=True)
+
+        flag_repo_path_continuum = flag_repo_path / 'continuum'
+        flag_repo_path_continuum.mkdir(parents=True, exist_ok=True)
+
+        # Continuum
+        download_flagsheet_to_flagtxt(self.trackname,
+                                      self.target,
+                                      self.config,
+                                      flag_repo_path_continuum,
+                                      data_type='continuum',
+                                      raise_noflag_error=False,
+                                      debug=False,
+                                      test_against_previous=True)
+
+        # Lines
+        flag_repo_path_speclines = flag_repo_path / 'speclines'
+        flag_repo_path_speclines.mkdir(parents=True, exist_ok=True)
+
+        download_flagsheet_to_flagtxt(self.trackname,
+                                      self.target,
+                                      self.config,
+                                      flag_repo_path_speclines,
+                                      data_type='speclines',
+                                      raise_noflag_error=False,
+                                      debug=False,
+                                      test_against_previous=True)
+
+        # TODO: If changed, make git commit and push
+
+    async def rerun_job_submission(self, parameter_list):
         """
         Step 7.
 
@@ -915,7 +982,12 @@ class AutoPipeline(object):
             return
 
         # TODO: define what to clean-up from the first pipeline runs.
-        # TODO: add in routine to pull in manual flagging scripts. Also backup to a github repo.
+
+        # Download manual flagging files from the google sheet.
+        self.get_flagging_files()
+
+        # TODO: add transfer to the cluster
+
         pass
 
 
