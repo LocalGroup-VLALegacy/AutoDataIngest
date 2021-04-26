@@ -765,11 +765,11 @@ class AutoPipeline(object):
             self._speclines_flagsheet_url = new_flagsheet.url
 
     @property
-    def continuum_flagsheet_url:
+    def continuum_flagsheet_url(self):
         return self._continuum_flagsheet_url
 
     @property
-    def speclines_flagsheet_url:
+    def speclines_flagsheet_url(self):
         return self._speclines_flagsheet_url
 
     def make_qa_products(self, data_type='speclines',
