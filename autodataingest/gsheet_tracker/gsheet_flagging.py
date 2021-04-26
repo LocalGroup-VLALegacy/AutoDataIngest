@@ -156,33 +156,33 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
     return outfilename
 
 
-def download_all_flags(output_folder="manual_flags",
-                       waittime=10):
-    """
-    Download all manual flags from the flag sheet.
-    """
+# def download_all_flags(output_folder="manual_flags",
+#                        waittime=10):
+#     """
+#     Download all manual flags from the flag sheet.
+#     """
 
-    if not os.path.exists(output_folder):
-        os.mkdir(output_folder)
+#     if not os.path.exists(output_folder):
+#         os.mkdir(output_folder)
 
-    gsheet = read_flagsheet()
+#     gsheet = read_flagsheet()
 
-    skip_list = ['FRONT', 'TEMPLATE', "Testing"]
+#     skip_list = ['FRONT', 'TEMPLATE', "Testing"]
 
-    worksheet_names = [worksheet.title for worksheet in gsheet.worksheets()]
+#     worksheet_names = [worksheet.title for worksheet in gsheet.worksheets()]
 
-    for sheetname in worksheet_names:
+#     for sheetname in worksheet_names:
 
-        if any([skip in sheetname for skip in skip_list]):
-            continue
+#         if any([skip in sheetname for skip in skip_list]):
+#             continue
 
-        download_flagsheet_to_flagtxt(sheetname, output_folder,
-                                      raise_noflag_error=False,
-                                      debug=False,
-                                      test_against_previous=True)
+#         filename = download_flagsheet_to_flagtxt(sheetname, output_folder,
+#                                                  raise_noflag_error=False,
+#                                                  debug=False,
+#                                                  test_against_previous=True)
 
-        # You hit the read quota limit without some pausing
-        time.sleep(waittime)
+#         # You hit the read quota limit without some pausing
+#         time.sleep(waittime)
 
 
 def make_new_flagsheet(trackname, target, config,
