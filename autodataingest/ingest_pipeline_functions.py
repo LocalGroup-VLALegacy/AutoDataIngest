@@ -743,10 +743,15 @@ class AutoPipeline(object):
                                            template_name='TEMPLATE')
 
         # make_new_flagsheet already checks for continuum vs. speclines
+        # Make the equiv google docs link, not the API version
+        prefix = "https://docs.google.com/spreadsheets/d/"
+
+        this_sheet_url = new_flagsheet.url.split("spreadsheets/")[1]
+
         if data_type == "continuum":
-            self._continuum_flagsheet_url = new_flagsheet.url
+            self._continuum_flagsheet_url = f"{prefix}/{this_sheet_url}"
         else:
-            self._speclines_flagsheet_url = new_flagsheet.url
+            self._speclines_flagsheet_url = f"{prefix}/{this_sheet_url}"
 
     @property
     def continuum_flagsheet_url(self):
