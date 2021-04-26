@@ -68,6 +68,10 @@ async def consume(queue, sleeptime=60):
 
             await asyncio.sleep(sleeptime)
 
+            # Create the flagging sheets in the google sheet
+            await auto_pipe.make_flagging_sheet(data_type='continuum')
+            await auto_pipe.make_flagging_sheet(data_type='speclines')
+
             # Create the final QA products and move to the webserver
             auto_pipe.make_qa_products(data_type='speclines')
 
@@ -128,7 +132,12 @@ if __name__ == "__main__":
         time.sleep(3600)
 
     # Run purely a test
-    # ebid = 38730505
+    # ebid = 39549030
     # tester = AutoPipeline(ebid)
-    # asyncio.run(tester.transfer_pipeline_products(data_type='speclines'))
     # asyncio.run(tester.transfer_pipeline_products(data_type='continuum'))
+    # asyncio.run(tester.make_flagging_sheet(data_type='continuum'))
+    # tester.make_qa_products(data_type='continuum')
+    # asyncio.run(tester.transfer_pipeline_products(data_type='speclines'))
+    # asyncio.run(tester.make_flagging_sheet(data_type='speclines'))
+    # tester.make_qa_products(data_type='speclines')
+
