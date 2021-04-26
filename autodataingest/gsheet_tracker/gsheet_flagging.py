@@ -86,7 +86,7 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
         if raise_nosheet_exists:
             raise ValueError(f"The worksheet {new_sheet_name} does not exist.")
         else:
-            print((f"The worksheet {new_sheet_name} does not exist. Skipping")
+            print(f"The worksheet {new_sheet_name} does not exist. Skipping")
             return
 
     worksheet = read_track_flagsheet(sheet_name)
