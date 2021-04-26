@@ -5,6 +5,8 @@ Functions for handling our google sheet with track flagging.
 
 from .gsheet_functions import do_authentication_gspread
 
+from qa_plotter import datetime_from_msname
+
 import time
 import numpy as np
 from pathlib import Path
@@ -156,3 +158,43 @@ def download_all_flags(output_folder="manual_flags",
 
         # You hit the read quota limit without some pausing
         time.sleep(waittime)
+
+
+def make_new_flagsheet(trackname, target, config,
+                       data_type='continuum',
+                       template_name='TEMPLATE'):
+    '''
+    Copy the template flagging sheet to a new sheet for the track.
+    Return the new sheet
+    '''
+
+    if not data_type in ['continuum', 'speclines']:
+        raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
+
+    gsheet = read_flagsheet()
+
+    orig_worksheet = gsheet.worksheet(template_name)
+
+    # Abbrev. name b/c it hits the charac. limit
+    # projcode_mjd_ebid
+    abbrev_tname = "_".join([trackname.split('.')[0],
+                             trackname.split('.')[3],
+                             trackname.split('.')[2][2:]])
+    new_sheet_name = f"{target}_{config}_{abbrev}_{data_type}"
+
+    # Check if it exists:
+    if new_sheet_name in [sheet.title for sheet in gsheet.worksheets()]:
+        print(f"A worksheet with the name {new_sheet_name} already exists.")
+
+    worksheet = orig_worksheet.duplicate(new_sheet_name=new_sheet_name,
+                                         insert_sheet_index=2)
+
+    # Insert new metadata
+    worksheet.update_cell(1, 5, trackname)
+    worksheet.update_cell(2, 5, datetime_from_msname(trackname))
+    worksheet.update_cell(3, 5, target)
+    worksheet.update_cell(4, 5, config)
+
+    worksheet.update_cell(1, 10, data_type.upper())
+
+    return worksheet
