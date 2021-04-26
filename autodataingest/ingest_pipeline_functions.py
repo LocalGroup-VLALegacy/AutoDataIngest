@@ -70,18 +70,17 @@ class AutoPipeline(object):
         config = return_cell(self.ebid, column=9)
         track_name = return_cell(self.ebid, column=3)
 
-        print(target)
-        if len(target) > 0:
+        if target is not "None":
             self.target = target
         else:
             self.target = None
 
-        if len(config):
+        if config is not "None":
             self.config = config
         else:
             self.config = None
 
-        if len(track_name):
+        if track_name is not "None":
             self.track_name = track_name
         else:
             self.track_name = None
