@@ -11,6 +11,8 @@ from pathlib import Path
 from glob import glob
 import asyncio
 import socket
+import subprocess
+import shutil
 
 # fabric handles ssh to cluster running jobs
 import fabric
@@ -776,10 +778,6 @@ class AutoPipeline(object):
         Create the QA products for the QA webserver.
         '''
 
-        import os
-        import subprocess
-        import shutil
-
         if not data_type in ['speclines', 'continuum']:
             raise ValueError(f"Data type must be 'speclines' or 'continuum'. Received {data_type}")
 
@@ -928,8 +926,11 @@ class AutoPipeline(object):
         (self.qa_track_path / 'speclines').mkdir(parents=True, exist_ok=True)
 
     async def get_flagging_files(self,
+                                 clustername='cc-cedar',
                                  data_type='continuum',
-                                 output_folder=os.path.expanduser('FlagRepository')):
+                                 output_folder=os.path.expanduser('FlagRepository'),
+                                 scripts_dir=Path('reduction_job_scripts/'),
+                                 ):
         '''
         1. Download the flagging file
         TODO:
@@ -939,7 +940,7 @@ class AutoPipeline(object):
         if not data_type in ['continuum', 'speclines']:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
 
-        from autodataingest.gsheet_track.gsheet_flagging import download_flagsheet_to_flagtxt
+        from autodataingest.gsheet_tracker.gsheet_flagging import download_flagsheet_to_flagtxt
 
         flag_repo_path = Path(output_folder) / self.project_code
         flag_repo_path.mkdir(parents=True, exist_ok=True)
@@ -947,14 +948,33 @@ class AutoPipeline(object):
         flag_repo_path_type = flag_repo_path / data_type
         flag_repo_path_type.mkdir(parents=True, exist_ok=True)
 
-        download_flagsheet_to_flagtxt(self.trackname,
-                                      self.target,
-                                      self.config,
-                                      flag_repo_path_type,
-                                      data_type=data_type,
-                                      raise_noflag_error=False,
-                                      debug=False,
-                                      test_against_previous=True)
+        filename = download_flagsheet_to_flagtxt(self.trackname,
+                                                self.target,
+                                                self.config,
+                                                flag_repo_path_type,
+                                                data_type=data_type,
+                                                raise_noflag_error=False,
+                                                debug=False,
+                                                test_against_previous=True)
+
+        # Copy to the same folder that job scripts are/will be in
+        track_scripts_dir = scripts_dir / self.track_folder_name
+
+        if not track_scripts_dir.exists():
+            track_scripts_dir.mkdir()
+
+        newfilename = tracks_scripts_dir / f'manual_flagging_{data_type}.txt'
+
+        task_command = ['cp', filename, newfilename]
+
+        task_copy = subprocess.run(task_command, capture_output=True)
+
+        print(f"Starting connection to {clustername}")
+
+        await self.setup_ssh_connection(clustername, **ssh_kwargs)
+
+        result = self.connect.put(newfilename,
+                                  remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
 
         # TODO: If changed, make git commit and push
 
