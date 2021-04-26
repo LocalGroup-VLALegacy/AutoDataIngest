@@ -68,8 +68,8 @@ async def consume(queue):
         await auto_pipe.setup_for_reduction_pipeline(clustername=CLUSTERNAME)
 
         print("Create the flagging sheets in the google sheet (if they exist)")
-        await auto_pipe.get_flagging_files(data_type='continuum'):
-        await auto_pipe.get_flagging_files(data_type='speclines'):
+        await auto_pipe.get_flagging_files(data_type='continuum')
+        await auto_pipe.get_flagging_files(data_type='speclines')
 
         print(f"Submitting pipeline jobs to {CLUSTERNAME}")
         await auto_pipe.initial_job_submission(
