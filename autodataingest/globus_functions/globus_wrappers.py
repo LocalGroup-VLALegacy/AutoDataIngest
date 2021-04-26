@@ -226,7 +226,7 @@ def transfer_general(filename, output_destination,
 
     task_check = subprocess.run(task_command, capture_output=True)
 
-    if filename is not in task_check.stdout.decode('utf-8'):
+    if filename not in task_check.stdout.decode('utf-8'):
         if skip_if_not_existing:
             print(f"The file {filename} does not exist at {input_cmd}. Skipping.")
             return None
