@@ -838,7 +838,7 @@ class AutoPipeline(object):
         import qaplotter
         if data_type == 'continuum':
             flagging_sheet_link = self.continuum_flagsheet_url
-        if data_type == 'continuum':
+        elif data_type == 'speclines':
             flagging_sheet_link = self.speclines_flagsheet_url
         else:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
