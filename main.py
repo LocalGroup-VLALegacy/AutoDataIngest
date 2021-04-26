@@ -184,6 +184,8 @@ if __name__ == "__main__":
     # tester = AutoPipeline(ebid)
     # asyncio.run(tester.archive_request_and_transfer())
     # asyncio.run(tester.setup_for_reduction_pipeline(clustername=CLUSTERNAME))
+    # asyncio.run(tester.get_flagging_files(data_type='continuum'))
+    # asyncio.run(tester.get_flagging_files(data_type='speclines'))
     # asyncio.run(tester.initial_job_submission(
     #                                 clustername=CLUSTERNAME,
     #                                 scripts_dir=Path('reduction_job_scripts/'),
@@ -197,3 +199,5 @@ if __name__ == "__main__":
     # asyncio.run(tester.get_job_notifications())
     # asyncio.run(tester.transfer_pipeline_products(data_type='speclines'))
     # asyncio.run(tester.transfer_pipeline_products(data_type='continuum'))
+    # tester.make_qa_products(data_type='speclines')
+    # tester.make_qa_products(data_type='continuum')
