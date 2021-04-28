@@ -22,12 +22,16 @@ from autodataingest.gsheet_tracker.gsheet_functions import (return_all_ebids)
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
 
-async def produce(queue, sleeptime=60, start_with_newest=False):
+async def produce(queue, sleeptime=60, start_with_newest=False,
+                  ebid_list=None):
     '''
     Check for new tracks from the google sheet.
     '''
 
-    all_ebids = return_all_ebids()
+    if ebid_list is None:
+        all_ebids = return_all_ebids()
+    else:
+        all_ebids = ebid_list
 
     if start_with_newest:
         all_ebids = all_ebids[::-1]
@@ -110,6 +114,9 @@ if __name__ == "__main__":
     # Specify a target to grab the QA products and process
     TARGETS = ['IC10', 'NGC6822']
 
+    MANUAL_EBID_LIST = [39591025]
+    # MANUAL_EBID_LIST = None
+
     start_with_newest = True
 
     while True:
@@ -121,7 +128,8 @@ if __name__ == "__main__":
         loop.set_debug(False)
         loop.slow_callback_duration = 0.001
 
-        loop.run_until_complete(run(start_with_newest=start_with_newest))
+        loop.run_until_complete(run(start_with_newest=start_with_newest,
+                                    ebid_list=MANUAL_EBID_LIST))
         loop.close()
 
         del loop
