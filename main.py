@@ -113,16 +113,28 @@ async def consume(queue):
         queue.task_done()
 
 
-async def run(**produce_kwargs):
+async def run(num_produce=1, num_consume=4,
+              **produce_kwargs):
+
     queue = asyncio.Queue()
-    # schedule the consumer
-    consumer = asyncio.ensure_future(consume(queue))
-    # run the producer and wait for completion
-    await produce(queue, **produce_kwargs)
-    # wait until the consumer has processed all items
+
+    # fire up the both producers and consumers
+    producers = [asyncio.create_task(produce(queue, **produce_kwargs))
+                 for _ in range(num_produce)]
+    consumers = [asyncio.create_task(consume(queue))
+                 for _ in range(num_consume)]
+
+    # with both producers and consumers running, wait for
+    # the producers to finish
+    await asyncio.gather(*producers)
+    print('---- done producing')
+
+    # wait for the remaining tasks to be processed
     await queue.join()
-    # the consumer is still awaiting for an item, cancel it
-    consumer.cancel()
+
+    # cancel the consumers, which are now idle
+    for c in consumers:
+        c.cancel()
 
 
 if __name__ == "__main__":
