@@ -87,11 +87,19 @@ class AutoPipeline(object):
         else:
             self.track_name = None
 
-    def _restart_flag(self):
+    def _qa_review_input(self, data_type='continuum'):
         '''
         Request a restart on the jobs.
         '''
-        return True if return_cell(self.ebid, column=28) == 'TRUE' else False
+
+        if data_type == 'continuum':
+            column = 28
+        elif data_type == 'speclines':
+            column = 29
+        else:
+            raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}.")
+
+        return return_cell(self.ebid, column=column)
 
     @property
     def track_folder_name(self):
@@ -297,6 +305,7 @@ class AutoPipeline(object):
     async def initial_job_submission(self,
                                     clustername='cc-cedar',
                                     scripts_dir=Path('reduction_job_scripts/'),
+                                    split_type='all',
                                     submit_continuum_pipeline=True,
                                     submit_line_pipeline=True,
                                     clusteracct=None,
@@ -338,7 +347,7 @@ class AutoPipeline(object):
         # Create 1. job to import and split.
         print(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
 
-        job_split_filename = f"{self.track_folder_name}_job_import_and_split.sh"
+        job_split_filename = f"{self.track_folder_name}_{split_type}_job_import_and_split.sh"
 
         if (track_scripts_dir / job_split_filename).exists():
             (track_scripts_dir / job_split_filename).unlink()
@@ -348,6 +357,7 @@ class AutoPipeline(object):
                 target_name=self.track_folder_name.split('_')[0],
                 config=self.track_folder_name.split('_')[1],
                 trackname=self.track_folder_name.split('_')[2],
+                split_type=split_type,
                 slurm_kwargs={},
                 setup_kwargs={}),
             file=open(track_scripts_dir / job_split_filename, 'a'))
@@ -983,7 +993,14 @@ class AutoPipeline(object):
 
         # TODO: If changed, make git commit and push
 
-    async def rerun_job_submission(self, parameter_list):
+    async def rerun_job_submission(self,
+                                   clustername='cc-cedar',
+                                   data_type='continuum',
+                                   clusteracct=None,
+                                   split_time=None,
+                                   pipeline_time=None,
+                                   scheduler_cmd=''):
+
         """
         Step 7.
 
@@ -991,27 +1008,100 @@ class AutoPipeline(object):
         calibration.
         """
 
-        restart_flag = self._restart_flag()
+        status_flag = self._qa_review_input(data_type=data_type)
 
-        if not restart_flag:
+        if status_flag != "RESTART":
             print("No restart requested. Exiting")
             return
 
+        update_track_status(self.ebid, message=f"Restarting pipeline for re-run {data_type}",
+                            sheetname='20A - OpLog Summary',
+                            status_col=1)
+
         # TODO: define what to clean-up from the first pipeline runs.
+        await self.cleanup_on_cluster(clustername=clustername)
 
         # Download manual flagging files from the google sheet.
-        await self.get_flagging_files()
+        await self.get_flagging_files(clustername=clustername,
+                                      data_type=data_type)
 
-        # TODO: add transfer to the cluster
+        await self.setup_for_reduction_pipeline(clustername=clustername)
 
-        pass
+        await self.initial_job_submission(clustername=clustername,
+                                        scripts_dir=Path('reduction_job_scripts/'),
+                                        split_type=data_type,
+                                        submit_continuum_pipeline=True if data_type == 'continuum' else False,
+                                        submit_line_pipeline=True if data_type == 'speclines' else False,
+                                        clusteracct=clusteracct,
+                                        split_time=split_time,
+                                        continuum_time=pipeline_time,
+                                        line_time=pipeline_time,
+                                        scheduler_cmd=scheduler_cmd)
+
+        update_track_status(self.ebid, message=f"Ready for QA after re-run of {data_type}",
+                            sheetname='20A - OpLog Summary',
+                            status_col=1)
+
+    async def cleanup_on_cluster(self, clustername='cc-cedar', data_type='continuum',
+                                 **ssh_kwargs):
+        '''
+        Remove a previous run to setup for a new split and new pipeline reduction.
+        '''
+
+        print(f"Starting connection to {clustername} for cleanup of {data_type}")
+
+        await self.setup_ssh_connection(clustername, **ssh_kwargs)
+
+        # Grab the repo; this is where we can also specify a version number, too
+
+        cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
+
+        print(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
+
+        rm_command = f"rm -rf {self.track_folder_name}_{data_type}"
+
+        full_command = f'{cd_command} ; {rm_command}'
+        result = run_command(self.connect, full_command)
+
+        if self.connect.is_connected:
+            self.connect.close()
 
 
-    async def export_track_for_imaging(parameter_list):
+    async def export_track_for_imaging(self,
+                                    clustername='cc-cedar',
+                                    data_type='continuum'):
         """
         Step 8.
 
         Move calibrated MSs to a persistent storage location for imaging.
         Clean-up scratch space.
         """
-        pass
+
+        raise NotImplementedError("")
+
+        status_flag = self._qa_review_input(data_type=data_type)
+
+        if status_flag != "COMPLETE":
+            print("No restart requested. Exiting")
+            return
+
+        update_track_status(self.ebid, message=f"Ready for QA after re-run of {data_type}",
+                            sheetname='20A - OpLog Summary',
+                            status_col=1)
+
+
+    async def label_qa_failures(self, data_type='continuum'):
+        """
+        Note failing tracks or those that require manual reduction attempts.
+        """
+
+        status_flag = self._qa_review_input(data_type=data_type)
+
+        if status_flag != "MANUAL REVIEW":
+            print("No restart requested. Exiting")
+            return
+
+        update_track_status(self.ebid,
+                        message=f"FAILED QA: Requires manual review.",
+                        sheetname='20A - OpLog Summary',
+                        status_col=1)
