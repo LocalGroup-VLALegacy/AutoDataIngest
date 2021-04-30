@@ -63,6 +63,31 @@ def find_new_tracks(sheetname='20A - OpLog Summary', status_check=''):
     return new_tracks
 
 
+def find_rerun_status_tracks(sheetname='20A - OpLog Summary'):
+    """
+    Find new tracks where the sheet has not recorded the data being staged from the archive on AOC.
+    """
+
+    full_sheet = read_tracksheet()
+
+    # Find the right sheet according to sheetname
+
+    worksheet = full_sheet.worksheet(sheetname)
+
+    # Grab the track info.
+    tracks_info = worksheet.get_all_records()
+
+    new_tracks = []
+
+    for track in tracks_info:
+        # Check if the status is equal to `status_check`
+        if len(track['Re-run\ncontinuum']) > 0 or len(track['Re-run\nspeclines']) > 0:
+
+            new_tracks.append(track['Exec. Block ID\n(EBID)'])
+
+    return new_tracks
+
+
 def return_all_ebids(sheetname='20A - OpLog Summary'):
 
     # Find the right sheet according to sheetname

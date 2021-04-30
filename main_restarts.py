@@ -12,7 +12,7 @@ import asyncio
 import time
 from pathlib import Path
 
-from autodataingest.gsheet_tracker.gsheet_functions import (return_all_ebids)
+from autodataingest.gsheet_tracker.gsheet_functions import (find_rerun_status_tracks)
 
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
@@ -20,11 +20,11 @@ from autodataingest.ingest_pipeline_functions import AutoPipeline
 async def produce(queue, sleeptime=60, start_with_newest=False,
                   ebid_list=None):
     '''
-    Check for new tracks from the google sheet.
+    Check for tracks with an updated re-run status from the google sheet.
     '''
 
     if ebid_list is None:
-        all_ebids = return_all_ebids()
+        all_ebids = find_rerun_status_tracks()
     else:
         all_ebids = ebid_list
 
@@ -33,7 +33,7 @@ async def produce(queue, sleeptime=60, start_with_newest=False,
 
     for ebid in all_ebids:
         # produce an item
-        print(f'Found new track with ID {ebid}')
+        print(f'Found track with updated status and ID {ebid}')
 
         # Put a small gap between starting to consume processes
         await asyncio.sleep(sleeptime)
@@ -90,6 +90,8 @@ async def consume(queue):
 
                 # Create the final QA products and move to the webserver
                 auto_pipe.make_qa_products(data_type=data_type)
+
+        print('Completed {}...'.format(auto_pipe.ebid))
 
         # Notify the queue that the item has been processed
         queue.task_done()
@@ -174,7 +176,7 @@ if __name__ == "__main__":
         del loop
 
         if test_case_run_newest:
-            print('Completed test case. Stoping.')
+            print('Completed test case. Stopping.')
             break
 
         # In production, comment out "break" and uncomment the sleep
