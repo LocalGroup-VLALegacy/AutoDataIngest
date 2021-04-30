@@ -509,6 +509,7 @@ class AutoPipeline(object):
 
     async def get_job_notifications(self,
                             importsplit_jobid=None,
+                            check_split_job=True,
                             check_continuum_job=True,
                             continuum_jobid=None,
                             check_line_job=True,
@@ -528,7 +529,7 @@ class AutoPipeline(object):
 
         print(f"Checking for job notifications on {self.ebid} or {self.track_folder_name}")
 
-        if importsplit_jobid is None:
+        if importsplit_jobid is None and check_split_job:
             importsplit_jobid = self.importsplit_jobid
 
             # If still None, pull from the spreadsheet
@@ -550,12 +551,17 @@ class AutoPipeline(object):
                 line_jobid = return_cell(self.ebid, column=20).split(":")[-1]
 
         # If the split job ID is still not defined, something has gone wrong.
-        if importsplit_jobid is None or importsplit_jobid == "":
-            raise ValueError(f"Unable to identify split job ID for EB: {self.ebid}")
+        if check_split_job:
+            if importsplit_jobid is None or importsplit_jobid == "":
+                raise ValueError(f"Unable to identify split job ID for EB: {self.ebid}")
 
         print(f"Waiting for job notifications on {self.ebid} or {self.track_folder_name}")
 
         while True:
+            if not check_split_job:
+                is_done_split = True
+                break
+
             # Check for a job completion email and check the final status
             job_check = check_for_job_notification(importsplit_jobid)
             # If None, it isn't done yet!
@@ -578,7 +584,7 @@ class AutoPipeline(object):
         # Continuum check
         while True:
             if not check_continuum_job:
-                is_done_continuum = False
+                is_done_continuum = True
                 break
 
             job_check = check_for_job_notification(continuum_jobid)
@@ -604,7 +610,7 @@ class AutoPipeline(object):
         # Line check
         while True:
             if not check_line_job:
-                is_done_line = False
+                is_done_line = True
                 break
 
             job_check = check_for_job_notification(line_jobid)
@@ -641,8 +647,16 @@ class AutoPipeline(object):
 
             # TODO: handle timeout and restart jobs to get the total wall time
 
+            job_statuses = []
 
-            job_statuses = [job_status_split, job_status_continuum, job_status_line]
+            if check_split_job:
+                job_statuses.append(job_status_split)
+
+            if check_continuum_job:
+                job_statuses.append(job_status_continuum)
+
+            if check_line_job:
+                job_statuses.append(job_status_line)
 
             # Good! It worked! Move on to QA.
             if all([job_status == 'COMPLETED' for job_status in job_statuses]):
@@ -655,29 +669,31 @@ class AutoPipeline(object):
 
             # If the split failed, the other two will not have completed.
             # Trigger resubmitting all three:
-            if job_status_split == 'TIMEOUT':
-                # Re-add all to submission queue
-                print(f"Timeout for split. Needs resubmitting of all jobs")
+            if check_split_job:
+                if job_status_split == 'TIMEOUT':
+                    # Re-add all to submission queue
+                    print(f"Timeout for split. Needs resubmitting of all jobs")
 
-                restarts['IMPORT_SPLIT'] = True
-                restarts['CONTINUUM_PIPE'] = True
-                restarts['LINE_PIPE'] = True
+                    restarts['IMPORT_SPLIT'] = True
+                    restarts['CONTINUUM_PIPE'] = True
+                    restarts['LINE_PIPE'] = True
 
             # Trigger resubmitting the continuum
-            if job_status_continuum == 'TIMEOUT':
-                # Add to resubmission queue
-                print(f"Timeout for continuum pipeline. Needs resubmitting of continuum job.")
-                restarts['CONTINUUM_PIPE'] = True
+            if check_continuum_job:
+                if job_status_continuum == 'TIMEOUT':
+                    # Add to resubmission queue
+                    print(f"Timeout for continuum pipeline. Needs resubmitting of continuum job.")
+                    restarts['CONTINUUM_PIPE'] = True
 
             # Trigger resubmitting the lines
-            if job_status_line == 'TIMEOUT':
-                # Add to resubmission queue
-                print(f"Timeout for line pipeline. Needs resubmitting of line job.")
-                restarts['LINE_PIPE'] = True
+            if check_line_job:
+                if job_status_line == 'TIMEOUT':
+                    # Add to resubmission queue
+                    print(f"Timeout for line pipeline. Needs resubmitting of line job.")
+                    restarts['LINE_PIPE'] = True
 
             # Otherwise assume something else went wrong and request a manual review
             if any([job_status not in ['COMPLETED', 'TIMEOUT'] for job_status in job_statuses]):
-
 
                 print(f"An unhandled issue occured in a job. Needs manual review for {self.ebid}")
 
