@@ -95,14 +95,14 @@ async def consume(queue):
         queue.task_done()
 
 
-async def run(num_produce=2, num_consume=4,
+async def run(num_consume=4,
               **produce_kwargs):
 
     queue = asyncio.Queue()
 
     # fire up the both producers and consumers
     producers = [asyncio.create_task(produce(queue, **produce_kwargs))
-                 for _ in range(num_produce)]
+                 for _ in range(1)]
     consumers = [asyncio.create_task(consume(queue))
                  for _ in range(num_consume)]
 
