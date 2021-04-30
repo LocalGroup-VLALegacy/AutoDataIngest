@@ -1018,7 +1018,8 @@ class AutoPipeline(object):
                             sheetname='20A - OpLog Summary',
                             status_col=1)
 
-        # TODO: define what to clean-up from the first pipeline runs.
+        # TODO: Need to reset the "RESTART" in the track spreadsheet to avoid multiple re-runs
+
         await self.cleanup_on_cluster(clustername=clustername,
                                       data_type=data_type)
 
