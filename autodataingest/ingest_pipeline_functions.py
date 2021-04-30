@@ -1036,7 +1036,7 @@ class AutoPipeline(object):
 
         # Need to reset the "RESTART" in the track spreadsheet to avoid multiple re-runs
         update_cell(self.ebid, "",
-                    name_col=28 if self.data_type == 'continuum' else 29,
+                    name_col=28 if data_type == 'continuum' else 29,
                     sheetname='20A - OpLog Summary')
 
         await self.cleanup_on_cluster(clustername=clustername,
