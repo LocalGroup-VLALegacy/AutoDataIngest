@@ -43,7 +43,7 @@ async def produce(queue, sleeptime=10, test_case_run_newest=False,
         await asyncio.sleep(sleeptime)
 
         # put the item in the queue
-        await queue.put(AutoPipeline(ebid))
+        await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
 
 
 async def consume(queue):
@@ -157,6 +157,8 @@ if __name__ == "__main__":
     EMAILADDR = f"{uname}@{sname}"
 
     NRAODATAPATH = "/lustre/aoc/projects/20A-346/data_staged/"
+
+    SHEETNAME = '20A - OpLog Summary'
 
     # Ask for password that will be used for ssh connections where the key connection
     # is not working.

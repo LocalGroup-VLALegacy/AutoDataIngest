@@ -53,8 +53,10 @@ class AutoPipeline(object):
     Each stage is its own function and is meant to run asynchronously.
     """
 
-    def __init__(self, ebid):
+    def __init__(self, ebid, sheetname='20A - OpLog Summary'):
         self.ebid = ebid
+
+        self.sheetname = sheetname
 
         self._grab_sheetdata()
 
@@ -180,7 +182,7 @@ class AutoPipeline(object):
             print(f"Found recent archive request for {ebid}.")
 
         update_track_status(ebid, message="Archive download staged",
-                            sheetname='20A - OpLog Summary',
+                            sheetname=self.sheetname,
                             status_col=1)
 
         # Wait for the notification email that the data is ready for transfer
@@ -198,13 +200,13 @@ class AutoPipeline(object):
         # Update track name in sheet:
         update_cell(ebid, track_name,
                     name_col=3,
-                    sheetname='20A - OpLog Summary')
+                    sheetname=self.sheetname)
 
         # Scrap the VLA archive for target and config w/ astroquery
         # This will query the archive for the list of targets until the output has a matching EBID.
         target, datasize = match_ebid_to_source(ebid,
                                                 targets=['M31', 'M33', 'NGC6822', 'IC10', 'IC1613', 'WLM'],
-                                                project_code='20A-346',
+                                                project_code=self.project_code,
                                                 verbose=False)
 
         self.target = target
@@ -213,11 +215,11 @@ class AutoPipeline(object):
 
         # Add track target to the sheet
         update_cell(ebid, target, name_col=4,
-                    sheetname='20A - OpLog Summary')
+                    sheetname=self.sheetname)
 
         # And the data size
         update_cell(ebid, datasize.rstrip('GB'), name_col=14,
-                    sheetname='20A - OpLog Summary')
+                    sheetname=self.sheetname)
 
         # We want to easily track (1) target, (2) config, and (3) track name
         # We'll combine these for our folder names where the data will get placed
@@ -242,7 +244,7 @@ class AutoPipeline(object):
 
         update_track_status(ebid,
                             message=f"Data transferred to {clustername}",
-                            sheetname='20A - OpLog Summary',
+                            sheetname=self.sheetname,
                             status_col=1)
 
         print(f"Waiting for globus transfer to {clustername} to complete.")
@@ -250,7 +252,7 @@ class AutoPipeline(object):
         print(f"Globus transfer {transfer_taskid} completed!")
 
         update_cell(ebid, "TRUE", name_col=18,
-                    sheetname='20A - OpLog Summary')
+                    sheetname=self.sheetname)
 
         # Remove the data staged at NRAO to avoid exceeding our storage quota
         if do_cleanup:
@@ -394,7 +396,7 @@ class AutoPipeline(object):
         print(f"Submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
 
         update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}", name_col=20,
-                    sheetname='20A - OpLog Summary')
+                    sheetname=self.sheetname)
 
 
         # Move on to 2. and 3.
@@ -444,7 +446,7 @@ class AutoPipeline(object):
             print(f"Submitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
 
             update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}", name_col=22,
-                        sheetname='20A - OpLog Summary')
+                        sheetname=self.sheetname)
 
         else:
             self.continuum_jobid = None
@@ -493,7 +495,7 @@ class AutoPipeline(object):
             print(f"Submitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
 
             update_cell(self.ebid, f"{clustername}:{self.line_jobid}", name_col=24,
-                        sheetname='20A - OpLog Summary')
+                        sheetname=self.sheetname)
 
         else:
             self.line_jobid = None
@@ -503,7 +505,7 @@ class AutoPipeline(object):
 
         update_track_status(self.ebid,
                             message=f"Reduction running on {clustername}",
-                            sheetname='20A - OpLog Summary',
+                            sheetname=self.sheetname,
                             status_col=1)
 
 
@@ -575,9 +577,9 @@ class AutoPipeline(object):
             print(f"Found import/split notification for {importsplit_jobid} with status {job_status_split}")
 
             update_cell(self.ebid, job_status_split, name_col=19,
-                        sheetname='20A - OpLog Summary')
+                        sheetname=self.sheetname)
             update_cell(self.ebid, job_runtime, name_col=25,
-                        sheetname='20A - OpLog Summary')
+                        sheetname=self.sheetname)
 
             break
 
@@ -601,9 +603,9 @@ class AutoPipeline(object):
             print(f"Found continuum notification for {continuum_jobid} with status {job_status_continuum}")
 
             update_cell(self.ebid, job_status_continuum, name_col=21,
-                        sheetname='20A - OpLog Summary')
+                        sheetname=self.sheetname)
             update_cell(self.ebid, job_runtime, name_col=26,
-                        sheetname='20A - OpLog Summary')
+                        sheetname=self.sheetname)
 
             break
 
@@ -625,9 +627,9 @@ class AutoPipeline(object):
             print(f"Found line notification for {line_jobid} with status {job_status_line}")
 
             update_cell(self.ebid, job_status_line, name_col=23,
-                        sheetname='20A - OpLog Summary')
+                        sheetname=self.sheetname)
             update_cell(self.ebid, job_runtime, name_col=27,
-                        sheetname='20A - OpLog Summary')
+                        sheetname=self.sheetname)
 
             break
 
@@ -664,7 +666,7 @@ class AutoPipeline(object):
                 print(f"Processing complete for {self.ebid}! Ready for QA.")
 
                 update_track_status(self.ebid, message=f"Ready for QA",
-                                    sheetname='20A - OpLog Summary',
+                                    sheetname=self.sheetname,
                                     status_col=1)
 
             # If the split failed, the other two will not have completed.
@@ -699,7 +701,7 @@ class AutoPipeline(object):
 
                 update_track_status(self.ebid,
                                     message=f"ISSUE: Needs manual check of job status",
-                                    sheetname='20A - OpLog Summary',
+                                    sheetname=self.sheetname,
                                     status_col=1)
 
         else:
@@ -707,7 +709,7 @@ class AutoPipeline(object):
 
             update_track_status(self.ebid,
                                 message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
-                                sheetname='20A - OpLog Summary',
+                                sheetname=self.sheetname,
                                 status_col=1)
 
         # TODO: These need to be handled below.
@@ -1031,13 +1033,13 @@ class AutoPipeline(object):
             return
 
         update_track_status(self.ebid, message=f"Restarting pipeline for re-run {data_type}",
-                            sheetname='20A - OpLog Summary',
+                            sheetname=self.sheetname,
                             status_col=1)
 
         # Need to reset the "RESTART" in the track spreadsheet to avoid multiple re-runs
         update_cell(self.ebid, "",
                     name_col=28 if data_type == 'continuum' else 29,
-                    sheetname='20A - OpLog Summary')
+                    sheetname=self.sheetname)
 
         await self.cleanup_on_cluster(clustername=clustername,
                                       data_type=data_type)
@@ -1060,12 +1062,12 @@ class AutoPipeline(object):
                                         scheduler_cmd=scheduler_cmd)
 
         # update_track_status(self.ebid, message=f"Ready for QA after re-run of {data_type}",
-        #                     sheetname='20A - OpLog Summary',
+        #                     sheetname=self.sheetname,
         #                     status_col=1)
 
         update_track_status(self.ebid,
                             message=f"Reduction running on {clustername} after QA check",
-                            sheetname='20A - OpLog Summary',
+                            sheetname=self.sheetname,
                             status_col=1)
 
     async def cleanup_on_cluster(self, clustername='cc-cedar', data_type='continuum',
@@ -1112,7 +1114,7 @@ class AutoPipeline(object):
             return
 
         update_track_status(self.ebid, message=f"Ready for QA after re-run of {data_type}",
-                            sheetname='20A - OpLog Summary',
+                            sheetname=self.sheetname,
                             status_col=1)
 
 
@@ -1129,5 +1131,5 @@ class AutoPipeline(object):
 
         update_track_status(self.ebid,
                         message=f"FAILED QA: Requires manual review.",
-                        sheetname='20A - OpLog Summary',
+                        sheetname=self.sheetname,
                         status_col=1)
