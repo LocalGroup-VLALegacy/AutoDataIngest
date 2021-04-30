@@ -1019,7 +1019,8 @@ class AutoPipeline(object):
                             status_col=1)
 
         # TODO: define what to clean-up from the first pipeline runs.
-        await self.cleanup_on_cluster(clustername=clustername)
+        await self.cleanup_on_cluster(clustername=clustername,
+                                      data_type=data_type)
 
         # Download manual flagging files from the google sheet.
         await self.get_flagging_files(clustername=clustername,
