@@ -70,9 +70,9 @@ class AutoPipeline(object):
         different stages.
         '''
 
-        target = return_cell(self.ebid, column=4)
-        config = return_cell(self.ebid, column=9)
-        track_name = return_cell(self.ebid, column=3)
+        target = return_cell(self.ebid, column=4, sheetname=self.sheetname)
+        config = return_cell(self.ebid, column=9, sheetname=self.sheetname)
+        track_name = return_cell(self.ebid, column=3, sheetname=self.sheetname)
 
         if target is not "None":
             self.target = target
@@ -101,7 +101,7 @@ class AutoPipeline(object):
         else:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}.")
 
-        return return_cell(self.ebid, column=column)
+        return return_cell(self.ebid, column=column, sheetname=self.sheetname)
 
     @property
     def track_folder_name(self):
@@ -224,7 +224,7 @@ class AutoPipeline(object):
         # We want to easily track (1) target, (2) config, and (3) track name
         # We'll combine these for our folder names where the data will get placed
         # after transfer from the archive.
-        config = return_cell(self.ebid, column=9)
+        config = return_cell(self.ebid, column=9, sheetname=self.sheetname)
         self.config = config
 
         print(f"This track was taken in {config} configuration.")
@@ -536,21 +536,24 @@ class AutoPipeline(object):
 
             # If still None, pull from the spreadsheet
             if importsplit_jobid is None:
-                importsplit_jobid = return_cell(self.ebid, column=20).split(":")[-1]
+                importsplit_jobid = return_cell(self.ebid, column=20,
+                                                sheetname=self.sheetname).split(":")[-1]
 
         if continuum_jobid is None and check_continuum_job:
             continuum_jobid = self.continuum_jobid
 
             # If still None, pull from the spreadsheet
             if continuum_jobid is None:
-                continuum_jobid = return_cell(self.ebid, column=22).split(":")[-1]
+                continuum_jobid = return_cell(self.ebid, column=22,
+                                              sheetname=self.sheetname).split(":")[-1]
 
         if line_jobid is None and check_line_job:
             line_jobid = self.line_jobid
 
             # If still None, pull from the spreadsheet
             if line_jobid is None:
-                line_jobid = return_cell(self.ebid, column=20).split(":")[-1]
+                line_jobid = return_cell(self.ebid, column=20,
+                                         sheetname=self.sheetname).split(":")[-1]
 
         # If the split job ID is still not defined, something has gone wrong.
         if check_split_job:
