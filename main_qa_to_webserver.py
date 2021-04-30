@@ -59,31 +59,23 @@ async def consume(queue, sleeptime=60):
 
         if auto_pipe.target in TARGETS:
 
-        # Move pipeline products to QA webserver
-            await auto_pipe.transfer_pipeline_products(data_type='speclines',
-                                                    startnode=CLUSTERNAME,
-                                                    endnode='ingester')
+            for data_type in ['speclines', 'continuum']:
 
-            await asyncio.sleep(sleeptime)
+            # Move pipeline products to QA webserver
+                await auto_pipe.transfer_pipeline_products(data_type=data_type,
+                                                        startnode=CLUSTERNAME,
+                                                        endnode='ingester')
 
-            await auto_pipe.transfer_pipeline_products(data_type='continuum',
-                                                    startnode=CLUSTERNAME,
-                                                    endnode='ingester')
+                await asyncio.sleep(sleeptime)
 
-            await asyncio.sleep(sleeptime)
+                # Create the flagging sheets in the google sheet
+                # await auto_pipe.make_flagging_sheet(data_type='continuum')
+                await auto_pipe.make_flagging_sheet(data_type=data_type)
 
-            # Create the flagging sheets in the google sheet
-            await auto_pipe.make_flagging_sheet(data_type='continuum')
-            await auto_pipe.make_flagging_sheet(data_type='speclines')
+                # Create the final QA products and move to the webserver
+                auto_pipe.make_qa_products(data_type=data_type)
 
-            # Create the final QA products and move to the webserver
-            auto_pipe.make_qa_products(data_type='speclines')
-
-            await asyncio.sleep(sleeptime)
-
-            auto_pipe.make_qa_products(data_type='continuum')
-
-            await asyncio.sleep(sleeptime)
+                await asyncio.sleep(sleeptime)
 
         # Notify the queue that the item has been processed
         queue.task_done()
@@ -116,7 +108,7 @@ if __name__ == "__main__":
     # Specify a target to grab the QA products and process
     TARGETS = ['IC10', 'NGC6822']
 
-    MANUAL_EBID_LIST = [39591025]
+    MANUAL_EBID_LIST = [39549030]
     # MANUAL_EBID_LIST = None
 
     start_with_newest = True
