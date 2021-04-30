@@ -29,7 +29,7 @@ async def produce(queue, sleeptime=60, start_with_newest=False,
     '''
 
     if ebid_list is None:
-        all_ebids = return_all_ebids()
+        all_ebids = return_all_ebids(sheetname=SHEETNAME)
     else:
         all_ebids = ebid_list
 
@@ -44,7 +44,7 @@ async def produce(queue, sleeptime=60, start_with_newest=False,
         await asyncio.sleep(sleeptime)
 
         # put the item in the queue
-        await queue.put(AutoPipeline(ebid))
+        await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
 
 
 async def consume(queue, sleeptime=60):
@@ -110,6 +110,8 @@ if __name__ == "__main__":
     RUN_LINES = True
 
     uname = 'ekoch'
+
+    SHEETNAME = '20A - OpLog Summary'
 
     # Specify a target to grab the QA products and process
     TARGETS = ['IC10', 'NGC6822']

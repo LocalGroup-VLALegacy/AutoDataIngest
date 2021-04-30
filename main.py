@@ -23,7 +23,7 @@ async def produce(queue, sleeptime=10, test_case_run_newest=False,
     Check for new tracks from the google sheet.
     '''
 
-    new_ebids = find_new_tracks()
+    new_ebids = find_new_tracks(sheetname=SHEETNAME)
 
     # Switch order if running newest first.
     if run_newest_first:

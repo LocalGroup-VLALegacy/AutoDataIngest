@@ -8,6 +8,7 @@ REQUIRE python>=3.7 for asyncio.
 
 '''
 
+from AutoDataIngest.main import SHEETNAME
 import asyncio
 import time
 from pathlib import Path
@@ -24,7 +25,7 @@ async def produce(queue, sleeptime=60, start_with_newest=False,
     '''
 
     if ebid_list is None:
-        all_ebids = find_rerun_status_tracks()
+        all_ebids = find_rerun_status_tracks(sheetname=SHEETNAME)
     else:
         all_ebids = ebid_list
 
@@ -39,7 +40,7 @@ async def produce(queue, sleeptime=60, start_with_newest=False,
         await asyncio.sleep(sleeptime)
 
         # put the item in the queue
-        await queue.put(AutoPipeline(ebid))
+        await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
 
 
 async def consume(queue):
@@ -141,6 +142,8 @@ if __name__ == "__main__":
     EMAILADDR = f"{uname}@{sname}"
 
     NRAODATAPATH = "/lustre/aoc/projects/20A-346/data_staged/"
+
+    SHEETNAME = '20A - OpLog Summary'
 
     # Ask for password that will be used for ssh connections where the key connection
     # is not working.
