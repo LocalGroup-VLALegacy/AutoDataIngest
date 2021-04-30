@@ -153,8 +153,10 @@ if __name__ == "__main__":
     # Specify a target to grab the QA products and process
     TARGETS = ['IC10', 'NGC6822']
 
-    MANUAL_EBID_LIST = [39591025]
-    # MANUAL_EBID_LIST = None
+    # MANUAL_EBID_LIST = [39591025]
+    MANUAL_EBID_LIST = None
+
+    start_with_newest = True
 
     while True:
 
@@ -165,8 +167,8 @@ if __name__ == "__main__":
         loop.set_debug(False)
         loop.slow_callback_duration = 0.001
 
-        loop.run_until_complete(run(test_case_run_newest=test_case_run_newest,
-                                    run_newest_first=run_newest_first))
+        loop.run_until_complete(run(start_with_newest=start_with_newest,
+                                    ebid_list=MANUAL_EBID_LIST))
         loop.close()
 
         del loop
