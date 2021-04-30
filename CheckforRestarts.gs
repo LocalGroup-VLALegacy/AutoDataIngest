@@ -47,11 +47,15 @@ function CheckFlaggingforRestart() {
           if (sheetname.includes('speclines')) {
 
             thiscell = sheet.getRange(j+2, 29)
-            thiscell.setValue(restart_type)
 
-            ss_flag_all_sheets[i].getRange('M1').setValue('')
+            if (thiscell.length > 0) {
+              thiscell.setValue(restart_type)
 
-            ss_flag_all_sheets[i].getRange('M2').setValue('Status imported into sheet tracker.')
+              ss_flag_all_sheets[i].getRange('M1').setValue('')
+
+              ss_flag_all_sheets[i].getRange('M2').setValue('Status imported into sheet tracker.')
+
+            }
 
           }
 
@@ -59,11 +63,17 @@ function CheckFlaggingforRestart() {
           if (sheetname.includes('continuum')) {
 
             thiscell = sheet.getRange(j+2, 28)
-            thiscell.setValue(restart_type)
 
-            ss_flag_all_sheets[i].getRange('M1').setValue('')
+            if (thiscell.length > 0) {
+              thiscell.setValue(restart_type)
 
-            ss_flag_all_sheets[i].getRange('M2').setValue('Status imported into sheet tracker.')
+              Logger.log(thiscell.length)
+
+              ss_flag_all_sheets[i].getRange('M1').setValue('')
+
+              ss_flag_all_sheets[i].getRange('M2').setValue('Status imported into sheet tracker.')
+
+            }
 
           }
 
