@@ -15,7 +15,8 @@ def cedar_submission_script(target_name="M31",
                             slurm_kwargs={},
                             setup_kwargs={},
                             conditional_on_jobnum=None,
-                            run_casa6=True):
+                            run_casa6=True,
+                            run_qaplotter=False):
     '''
     Runs the default VLA pipeline.
 
@@ -30,7 +31,11 @@ def cedar_submission_script(target_name="M31",
 
     slurm_str = cedar_slurm_setup(**slurm_kwargs)
     setup_str = cedar_job_setup(**setup_kwargs)
-    plots_str = cedar_qa_plots()
+
+    if run_qaplotter:
+        plots_str = cedar_qa_plots()
+    else:
+        plots_str = ""
 
     startup_filename = cedar_casa_startupfile(casa6=run_casa6)
 
