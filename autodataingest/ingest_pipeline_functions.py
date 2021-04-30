@@ -1059,7 +1059,12 @@ class AutoPipeline(object):
                                         line_time=pipeline_time,
                                         scheduler_cmd=scheduler_cmd)
 
-        update_track_status(self.ebid, message=f"Ready for QA after re-run of {data_type}",
+        # update_track_status(self.ebid, message=f"Ready for QA after re-run of {data_type}",
+        #                     sheetname='20A - OpLog Summary',
+        #                     status_col=1)
+
+        update_track_status(self.ebid,
+                            message=f"Reduction running on {clustername} after QA check",
                             sheetname='20A - OpLog Summary',
                             status_col=1)
 
