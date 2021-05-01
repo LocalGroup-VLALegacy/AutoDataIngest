@@ -156,10 +156,11 @@ class AutoPipeline(object):
         return self._connect
 
     async def archive_request_and_transfer(self, archive_kwargs={},
-                                     notification_kwargs={'timewindow': 48 * 3600},
+                                     timewindow=48 * 3600.,
                                      sleeptime=600,
                                      clustername='cc-cedar',
-                                     do_cleanup=True):
+                                     do_cleanup=True,
+                                     default_project_code='20A-346'):
         """
         Step 1.
 
@@ -168,9 +169,16 @@ class AutoPipeline(object):
 
         ebid = self.ebid
 
+        if self.track_name is not None:
+            project_code = self.project_code
+        else:
+            # Otherwise default to the XL code
+            project_code = default_project_code
+
         # First check for an archive notification within the last
         # 48 hr. If one is found, don't re-request the track.
-        out = check_for_archive_notification(ebid, **notification_kwargs)
+        out = check_for_archive_notification(ebid, timewindow=timewindow,
+                                             project_id=project_code)
 
         if out is None:
 
@@ -187,7 +195,8 @@ class AutoPipeline(object):
 
         # Wait for the notification email that the data is ready for transfer
         while out is None:
-            out = check_for_archive_notification(ebid, **notification_kwargs)
+            out = check_for_archive_notification(ebid, timewindow=timewindow,
+                                                 project_id=project_code)
 
             await asyncio.sleep(sleeptime)
 
@@ -849,6 +858,12 @@ class AutoPipeline(object):
         task_command = ['tar', '--strip-components=1', '-C',
                         f"{temp_path}", '-xf', f"{product_file}",
                         "products/finalBPcal_txt"]
+
+        task_caltxt = subprocess.run(task_command, capture_output=True)
+
+        task_command = ['tar', '--strip-components=1', '-C',
+                        f"{temp_path}", '-xf', f"{product_file}",
+                        "products/final_caltable_txt"]
 
         task_caltxt = subprocess.run(task_command, capture_output=True)
 
