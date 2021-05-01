@@ -62,7 +62,7 @@ def check_for_archive_notification(ebid,
 
             # Grab and return the full MS name from the archive email:
             path_to_data, ms_name = extract_path_and_name(message.originalBody,
-                                                          project_id=project_id)
+                                                          project_id)
 
             if markasread:
                 message.markAsRead()
@@ -72,7 +72,7 @@ def check_for_archive_notification(ebid,
     return None
 
 
-def extract_path_and_name(message, project_id=PROJECTID):
+def extract_path_and_name(message, project_id):
     """
     docstring
     """
