@@ -42,7 +42,7 @@ def cedar_submission_script(target_name="M31",
     job_str = \
         f'''{slurm_str}\n{setup_str}
 
-export TRACK_FOLDER="{target_name}_{config.upper()}_{trackname}"
+export TRACK_FOLDER="{target_name}_{config}_{trackname}"
 
 cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
