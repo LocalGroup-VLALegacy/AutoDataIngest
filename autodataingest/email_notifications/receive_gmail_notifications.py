@@ -79,7 +79,7 @@ def extract_path_and_name(message, project_id=PROJECTID):
 
     path_to_data = message.split("ftp://ftp.aoc.nrao.edu/")[-1].strip("\n").strip("\r")
 
-    ms_name = f"{project_id}{path_to_data.split(PROJECTID)[-1].rstrip('.tar')}"
+    ms_name = f"{project_id}{path_to_data.split(project_id)[-1].rstrip('.tar')}"
 
     return path_to_data, ms_name
 
