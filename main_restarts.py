@@ -8,7 +8,6 @@ REQUIRE python>=3.7 for asyncio.
 
 '''
 
-from AutoDataIngest.main import SHEETNAME
 import asyncio
 import time
 from pathlib import Path
