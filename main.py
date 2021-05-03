@@ -48,7 +48,7 @@ async def produce(queue, sleeptime=10, test_case_run_newest=False,
             # put the item in the queue
             await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
 
-        if run_newest_first:
+        if test_case_run_newest:
             break
 
         await asyncio.sleep(long_sleep)
