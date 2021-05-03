@@ -82,8 +82,8 @@ async def consume(queue):
                                                     scheduler_cmd=CLUSTER_SCHEDCMD,)
 
             # Wait for job completion
-            await auto_pipe.get_job_notifications(check_continuum_job=True,
-                                                  check_line_job=True,
+            await auto_pipe.get_job_notifications(check_continuum_job=restart_continuum,
+                                                  check_line_job=restart_speclines,
                                                   sleeptime=1800)
 
             # Move pipeline products to QA webserver
