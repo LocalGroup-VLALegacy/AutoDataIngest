@@ -18,32 +18,40 @@ from autodataingest.ingest_pipeline_functions import AutoPipeline
 
 
 async def produce(queue, sleeptime=10, test_case_run_newest=False,
-                  run_newest_first=False):
+                  run_newest_first=False,
+                  long_sleep=7200):
     '''
     Check for new tracks from the google sheet.
     '''
 
-    new_ebids = find_new_tracks(sheetname=SHEETNAME)
+    while True:
 
-    # Switch order if running newest first.
-    if run_newest_first:
-        new_ebids = new_ebids[::-1]
+        new_ebids = find_new_tracks(sheetname=SHEETNAME)
 
-    # Test case enabled will only queue two jobs.
-    # This is a test of running >1 tracks concurrently.
-    if test_case_run_newest:
-        print("Test case of 2 run only has been enabled.")
-        new_ebids = new_ebids[-2:]
+        # Switch order if running newest first.
+        if run_newest_first:
+            new_ebids = new_ebids[::-1]
 
-    for ebid in new_ebids:
-        # produce an item
-        print(f'Found new track with ID {ebid}')
+        # Test case enabled will only queue two jobs.
+        # This is a test of running >1 tracks concurrently.
+        if test_case_run_newest:
+            print("Test case of 2 run only has been enabled.")
+            new_ebids = new_ebids[-2:]
 
-        # Put a small gap between starting to consume processes
-        await asyncio.sleep(sleeptime)
+        for ebid in new_ebids:
+            # produce an item
+            print(f'Found new track with ID {ebid}')
 
-        # put the item in the queue
-        await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
+            # Put a small gap between starting to consume processes
+            await asyncio.sleep(sleeptime)
+
+            # put the item in the queue
+            await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
+
+        if run_newest_first:
+            break
+
+        await asyncio.sleep(long_sleep)
 
 
 async def consume(queue):
@@ -170,28 +178,18 @@ if __name__ == "__main__":
 
     run_newest_first = True
 
-    while True:
+    print("Starting new event loop")
 
-        print("Starting new event loop")
+    loop = asyncio.new_event_loop()
 
-        loop = asyncio.new_event_loop()
+    loop.set_debug(False)
+    loop.slow_callback_duration = 0.001
 
-        loop.set_debug(False)
-        loop.slow_callback_duration = 0.001
+    loop.run_until_complete(run(test_case_run_newest=test_case_run_newest,
+                                run_newest_first=run_newest_first))
+    loop.close()
 
-        loop.run_until_complete(run(test_case_run_newest=test_case_run_newest,
-                                    run_newest_first=run_newest_first))
-        loop.close()
-
-        del loop
-
-        if test_case_run_newest:
-            print('Completed test case. Stoping.')
-            break
-
-        # In production, comment out "break" and uncomment the sleep
-        print("Completed current event loop.")
-        time.sleep(3600)
+    del loop
 
     # Run purely a test
     # ebid = 38730505
