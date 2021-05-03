@@ -1,11 +1,11 @@
-function CheckFlaggingforRestart() {
+function CheckFlaggingforRestart_Archival() {
   // Transfer input from the QA reviewer into the main spreadsheet.
   // This enables triggering re-runs of the pipeline and completion of the QA process.
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // This should be split to ensure the correct sheet is used.
-  var sheet = ss.getSheetByName("20A - OpLog Summary");
+  var sheet = ss.getSheetByName("Archival Track Summary");
 
   var ss_flag = SpreadsheetApp.openById('1ROuailtqnaCJVI_ek_perxN8ki9siSUrV_N-bLC3Dqg')
 
