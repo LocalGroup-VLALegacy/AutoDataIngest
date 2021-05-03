@@ -18,29 +18,37 @@ from autodataingest.gsheet_tracker.gsheet_functions import (find_rerun_status_tr
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
 
-async def produce(queue, sleeptime=60, start_with_newest=False,
-                  ebid_list=None):
+async def produce(queue, sleeptime=10, start_with_newest=False,
+                  ebid_list=None,
+                  long_sleep=7200):
     '''
-    Check for tracks with an updated re-run status from the google sheet.
+    Check for new tracks from the google sheet.
     '''
 
-    if ebid_list is None:
-        all_ebids = find_rerun_status_tracks(sheetname=SHEETNAME)
-    else:
-        all_ebids = ebid_list
+    while True:
 
-    if start_with_newest:
-        all_ebids = all_ebids[::-1]
+        if ebid_list is None:
+            all_ebids = find_rerun_status_tracks(sheetname=SHEETNAME)
+        else:
+            all_ebids = ebid_list
 
-    for ebid in all_ebids:
-        # produce an item
-        print(f'Found track with updated status and ID {ebid}')
+        if start_with_newest:
+            all_ebids = all_ebids[::-1]
 
-        # Put a small gap between starting to consume processes
-        await asyncio.sleep(sleeptime)
+        for ebid in all_ebids:
+            # produce an item
+            print(f'Found new track with ID {ebid}')
 
-        # put the item in the queue
-        await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
+            # Put a small gap between starting to consume processes
+            await asyncio.sleep(sleeptime)
+
+            # put the item in the queue
+            await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
+
+        if test_case_run_newest:
+            break
+
+        await asyncio.sleep(long_sleep)
 
 
 async def consume(queue):
@@ -163,28 +171,19 @@ if __name__ == "__main__":
 
     start_with_newest = True
 
-    while True:
+    print("Starting new event loop")
 
-        print("Starting new event loop")
+    loop = asyncio.new_event_loop()
 
-        loop = asyncio.new_event_loop()
+    loop.set_debug(False)
+    loop.slow_callback_duration = 0.001
 
-        loop.set_debug(False)
-        loop.slow_callback_duration = 0.001
+    loop.run_until_complete(run(start_with_newest=start_with_newest,
+                                ebid_list=MANUAL_EBID_LIST))
+    loop.close()
 
-        loop.run_until_complete(run(start_with_newest=start_with_newest,
-                                    ebid_list=MANUAL_EBID_LIST))
-        loop.close()
+    del loop
 
-        del loop
-
-        if test_case_run_newest:
-            print('Completed test case. Stopping.')
-            break
-
-        # In production, comment out "break" and uncomment the sleep
-        print("Completed current event loop.")
-        time.sleep(3600)
 
     # Run purely a test
     # ebid = 38730505
