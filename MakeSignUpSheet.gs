@@ -19,14 +19,14 @@ function addtoQASignUp() {
 
     var ebid_match = ebid_in_signupsheet.includes(this_ebid)
 
-    // If not in the list, append a new row:
-    if (!ebid_match) {
+    var this_status = sheet_newdata.getRange(i+2,1).getValue()
 
-      this_status = sheet_newdata.getRange(i+2,1).getValue()
+    // Skip adding until a status is available. Otherwise, some info will be missing until the pipeline starts
 
-      // Skip adding until a status is available. Otherwise, some info will be missing until the pipeline starts
+    if (this_status.length > 0) {
 
-      if (this_status.length > 0) {
+      // If not in the list, append a new row:
+      if (!ebid_match) {
 
         this_date = sheet_newdata.getRange(i+2,2).getValue()
 
@@ -38,13 +38,23 @@ function addtoQASignUp() {
 
         sheet_signup.appendRow([this_date, this_trackname, this_ebid, this_target, this_config, this_status]);
 
+      } else {
+
+        // Find the right row number and update the status
+
+        for (var j = 0; j < ebid_in_signupsheet.length; j++) {
+
+          var this_ebid_match = ebid_in_signupsheet[j].includes(this_ebid)
+
+          if (this_ebid_match) {
+
+            var update_status = sheet_signup.getRange(j+2, 6).setValue(this_status)
+
+          }
+        }
       }
 
     }
-
-
-
-
 
   }
 
@@ -57,14 +67,14 @@ function addtoQASignUp() {
 
     var ebid_match = ebid_in_signupsheet.includes(this_ebid)
 
-    // If not in the list, append a new row:
-    if (!ebid_match) {
+    var this_status = sheet_archivedata.getRange(i+2,1).getValue()
 
-      this_status = sheet_archivedata.getRange(i+2,1).getValue()
+    // Skip adding until a status is available. Otherwise, some info will be missing until the pipeline starts
 
-      // Skip adding until a status is available. Otherwise, some info will be missing until the pipeline starts
+    if (this_status.length > 0) {
 
-      if (this_status.length > 0) {
+      // If not in the list, append a new row:
+      if (!ebid_match) {
 
         this_date = sheet_archivedata.getRange(i+2,2).getValue()
 
@@ -76,6 +86,20 @@ function addtoQASignUp() {
 
         sheet_signup.appendRow([this_date, this_trackname, this_ebid, this_target, this_config, this_status]);
 
+      } else {
+
+        // Find the right row number and update the status
+
+        for (var j = 0; j < ebid_in_signupsheet.length; j++) {
+
+          var this_ebid_match = ebid_in_signupsheet[j].includes(this_ebid)
+
+          if (this_ebid_match) {
+
+            var update_status = sheet_signup.getRange(j+2, 6).setValue(this_status)
+
+          }
+        }
       }
 
     }
