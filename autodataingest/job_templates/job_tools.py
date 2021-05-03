@@ -42,6 +42,7 @@ def cedar_job_setup():
         '''
 
 module load nixpkgs/16.09
+module load imagemagick/7.0.8-53
 module load StdEnv
 
 module load qt/4.8.7
