@@ -229,7 +229,7 @@ def transfer_general(filename, output_destination,
     if use_endnode_datapath:
         output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{output_destination}/{output_filename}"
     else:
-        output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{output_filename}"
+        output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{output_destination}/{output_filename}"
 
     # Check if the input file/folder exists:
     task_command = ['globus', 'ls', "/".join(input_cmd.split("/")[:-1])]
