@@ -1130,7 +1130,7 @@ class AutoPipeline(object):
     async def export_track_for_imaging(self,
                                        clustername='cc-cedar',
                                        data_type='continuum',
-                                       project_dir="/projects/rrg-eros-ab/ekoch/VLAXL/calibrated/"):
+                                       project_dir="/project/rrg-eros-ab/ekoch/VLAXL/calibrated/"):
         """
         Step 8.
 

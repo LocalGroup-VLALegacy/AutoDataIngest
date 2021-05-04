@@ -182,7 +182,7 @@ if __name__ == "__main__":
 
     NRAODATAPATH = "/lustre/aoc/projects/20A-346/data_staged/"
 
-    COMPLETEDDATAPATH = "/projects/rrg-eros-ab/ekoch/VLAXL/calibrated/"
+    COMPLETEDDATAPATH = "/project/rrg-eros-ab/ekoch/VLAXL/calibrated/"
 
     SHEETNAME = '20A - OpLog Summary'
 
