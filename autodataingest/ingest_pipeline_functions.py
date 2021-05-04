@@ -1089,24 +1089,38 @@ class AutoPipeline(object):
                             status_col=1)
 
     async def cleanup_on_cluster(self, clustername='cc-cedar', data_type='continuum',
+                                 do_remove_whole_track=False,
                                  **ssh_kwargs):
         '''
         Remove a previous run to setup for a new split and new pipeline reduction.
+
+        NOTE: `do_remove_whole_track` deletes the whole track from scratch space!
+        Use only when QA is finished.
+
         '''
 
         print(f"Starting connection to {clustername} for cleanup of {data_type}")
 
         await self.setup_ssh_connection(clustername, **ssh_kwargs)
 
-        # Grab the repo; this is where we can also specify a version number, too
+        if not do_remove_whole_track:
+            # Change to the track directory, then delete the request data type folder
+            # (continuum or speclines)
 
-        cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
+            cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
 
-        print(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
+            print(f"Cleaning up {data_type} on {clustername} at {cd_command}")
 
-        rm_command = f"rm -rf {self.track_folder_name}_{data_type}"
+            rm_command = f"rm -rf {self.track_folder_name}_{data_type}"
+        else:
 
-        full_command = f'{cd_command} ; {rm_command}'
+            cd_command = f'cd scratch/VLAXL_reduction/'
+
+            print(f"Final clean up on {clustername} for track {cd_command}")
+
+            rm_command = f"rm -rf {self.track_folder_name}"
+
+        full_command = f'{cd_command} && {rm_command}'
         result = run_command(self.connect, full_command)
 
         if self.connect.is_connected:
@@ -1114,8 +1128,9 @@ class AutoPipeline(object):
 
 
     async def export_track_for_imaging(self,
-                                    clustername='cc-cedar',
-                                    data_type='continuum'):
+                                       clustername='cc-cedar',
+                                       data_type='continuum',
+                                       project_dir="/projects/rrg-eros-ab/ekoch/VLAXL/calibrated/"):
         """
         Step 8.
 
@@ -1123,17 +1138,74 @@ class AutoPipeline(object):
         Clean-up scratch space.
         """
 
-        raise NotImplementedError("")
+        # Status check.
 
         status_flag = self._qa_review_input(data_type=data_type)
 
+        # Skip if completion is not indicated
         if status_flag != "COMPLETE":
-            print("No restart requested. Exiting")
+            print("No completion step requested. Exiting")
             return
 
-        update_track_status(self.ebid, message=f"Ready for QA after re-run of {data_type}",
+        # Transfer the MS with globus to its place on project space.
+        print(f"Transferring {self.track_folder_name} {data_type} calibrated MS to project space.")
+
+        path_to_products = f'{self.track_folder_name}/{self.track_folder_name}_{data_type}/'
+
+        filename = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.tar'
+
+        # Going to the ingester instance. Doesn't need an extra path.
+        output_destination = project_dir
+
+        transfer_taskid = transfer_general(filename, output_destination,
+                                           startnode=clustername,
+                                           endnode=clustername,
+                                           wait_for_completion=False,
+                                           skip_if_not_existing=True)
+
+        if transfer_taskid is None:
+            print(f"No transfer task ID returned. Check existence of {filename}."
+                  " Exiting completion process.")
+            return
+
+        self.transfer_taskid = transfer_taskid
+
+        print(f"The globus transfer ID is: {transfer_taskid}")
+
+        print(f"Waiting for globus transfer to {clustername} to complete.")
+        await globus_wait_for_completion(transfer_taskid, sleeptime=180)
+        print(f"Globus transfer {transfer_taskid} completed!")
+
+
+        # Update track status. Append both data types if one has already finished
+        current_status = return_cell(self.ebid, column=1, sheetname=self.sheetname)
+
+        if "Ready for imaging" in current_status:
+            finished_str = current_status.split(":")[1].strip() + ", "
+        else:
+            finished_str = ""
+
+        update_track_status(self.ebid,
+                            message=f"Ready for imaging: {finished_str}{data_type}",
                             sheetname=self.sheetname,
                             status_col=1)
+
+        # Clean up scratch space.
+        # Need to check if both components are finished to clean up entire space.
+
+        # If the other component is finished already, we can clean up the whole track from scratch
+        do_remove_whole_track = False if len(finished_str) == 0 else True
+
+        await self.cleanup_on_cluster(clustername=clustername, data_type=data_type,
+                                      do_remove_whole_track=do_remove_whole_track)
+
+        # Last, make sure we have cleaned up the SDM on AOC:
+        cleanup_source(self.track_name, node='nrao-aoc')
+
+        # Remove completion flag to avoid re-runs
+        update_cell(self.ebid, "",
+                    name_col=28 if data_type == 'continuum' else 29,
+                    sheetname=self.sheetname)
 
 
     async def label_qa_failures(self, data_type='continuum'):
