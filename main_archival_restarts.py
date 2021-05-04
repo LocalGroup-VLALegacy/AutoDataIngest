@@ -99,6 +99,38 @@ async def consume(queue):
                 # Create the final QA products and move to the webserver
                 auto_pipe.make_qa_products(data_type=data_type)
 
+        # Check for completions:
+        complete_continuum = auto_pipe._qa_review_input(data_type='continuum') == "COMPLETE"
+        complete_speclines = auto_pipe._qa_review_input(data_type='speclines') == "COMPLETE"
+
+        if complete_continuum or complete_speclines:
+
+            data_types = []
+            if complete_continuum:
+                data_types.append('continuum')
+            if complete_speclines:
+                data_types.append('speclines')
+
+            for data_type in data_types:
+                auto_pipe.export_track_for_imaging(data_type=data_type,
+                                                   clustername=CLUSTERNAME,
+                                                   project_dir=COMPLETEDDATAPATH)
+
+        # Check for QA failures needing a full manual reduction/review:
+        manualcheck_continuum = auto_pipe._qa_review_input(data_type='continuum') == "MANUAL REVIEW"
+        manualcheck_speclines = auto_pipe._qa_review_input(data_type='speclines') == "MANUAL REVIEW"
+
+        if manualcheck_continuum or manualcheck_speclines:
+
+            data_types = []
+            if manualcheck_continuum:
+                data_types.append('continuum')
+            if manualcheck_speclines:
+                data_types.append('speclines')
+
+            for data_type in data_types:
+                auto_pipe.label_qa_failures(data_type=data_type)
+
         print('Completed {}...'.format(auto_pipe.ebid))
 
         # Notify the queue that the item has been processed
