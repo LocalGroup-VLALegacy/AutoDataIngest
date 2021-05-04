@@ -1181,7 +1181,7 @@ class AutoPipeline(object):
         current_status = return_cell(self.ebid, column=1, sheetname=self.sheetname)
 
         if "Ready for imaging" in current_status:
-            finished_str = current_status.split(":")[1].strip() + ", "
+            finished_str = current_status.split(":")[-1].strip() + ", "
         else:
             finished_str = ""
 
@@ -1219,7 +1219,15 @@ class AutoPipeline(object):
             print("No restart requested. Exiting")
             return
 
+        # Update track status. Append both data types if one has already finished
+        current_status = return_cell(self.ebid, column=1, sheetname=self.sheetname)
+
+        if "FAILED QA" in current_status:
+            finished_str = current_status.split("for")[-1].strip() + ", "
+        else:
+            finished_str = ""
+
         update_track_status(self.ebid,
-                        message=f"FAILED QA: Requires manual review.",
+                        message=f"FAILED QA: Requires manual review for {finished_str}{data_type}.",
                         sheetname=self.sheetname,
                         status_col=1)
