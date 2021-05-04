@@ -1161,7 +1161,9 @@ class AutoPipeline(object):
                                            startnode=clustername,
                                            endnode=clustername,
                                            wait_for_completion=False,
-                                           skip_if_not_existing=True)
+                                           skip_if_not_existing=True,
+                                           use_startnode_datapath=True,
+                                           use_endnode_datapath=False)
 
         if transfer_taskid is None:
             print(f"No transfer task ID returned. Check existence of {filename}."

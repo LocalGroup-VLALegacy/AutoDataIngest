@@ -198,7 +198,10 @@ def transfer_general(filename, output_destination,
                     endnode='ingester',
                     wait_for_completion=False,
                     use_rootname=True,
-                    skip_if_not_existing=True):
+                    skip_if_not_existing=True,
+                    use_startnode_datapath=True,
+                    use_endnode_datapath=True):
+
     """
     Start a globus transfer from `startnode` to `endnode`.
     """
@@ -218,8 +221,15 @@ def transfer_general(filename, output_destination,
         output_filename = filename
 
     # Want to return the task_id in the command line output.
-    input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode]['data_path']}/{filename}"
-    output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{output_destination}/{output_filename}"
+    if use_startnode_datapath:
+        input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode]['data_path']}/{filename}"
+    else:
+        input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{filename}"
+
+    if use_endnode_datapath:
+        output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{output_destination}/{output_filename}"
+    else:
+        output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{output_filename}"
 
     # Check if the input file/folder exists:
     task_command = ['globus', 'ls', "/".join(input_cmd.split("/")[:-1])]
