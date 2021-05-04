@@ -1231,3 +1231,8 @@ class AutoPipeline(object):
                         message=f"FAILED QA: Requires manual review for {finished_str}{data_type}.",
                         sheetname=self.sheetname,
                         status_col=1)
+
+        # Remove review flag to avoid re-runs
+        update_cell(self.ebid, "",
+                    name_col=28 if data_type == 'continuum' else 29,
+                    sheetname=self.sheetname)
