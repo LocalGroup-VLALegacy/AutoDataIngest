@@ -112,9 +112,9 @@ async def consume(queue):
                 data_types.append('speclines')
 
             for data_type in data_types:
-                auto_pipe.export_track_for_imaging(data_type=data_type,
-                                                   clustername=CLUSTERNAME,
-                                                   project_dir=COMPLETEDDATAPATH)
+                await auto_pipe.export_track_for_imaging(data_type=data_type,
+                                                        clustername=CLUSTERNAME,
+                                                        project_dir=COMPLETEDDATAPATH)
 
         # Check for QA failures needing a full manual reduction/review:
         manualcheck_continuum = auto_pipe._qa_review_input(data_type='continuum') == "MANUAL REVIEW"
@@ -129,7 +129,7 @@ async def consume(queue):
                 data_types.append('speclines')
 
             for data_type in data_types:
-                auto_pipe.label_qa_failures(data_type=data_type)
+                await auto_pipe.label_qa_failures(data_type=data_type)
 
         print('Completed {}...'.format(auto_pipe.ebid))
 
@@ -181,6 +181,8 @@ if __name__ == "__main__":
     EMAILADDR = f"{uname}@{sname}"
 
     NRAODATAPATH = "/lustre/aoc/projects/20A-346/data_staged/"
+
+    COMPLETEDDATAPATH = "/projects/rrg-eros-ab/ekoch/VLAXL/calibrated/"
 
     SHEETNAME = 'Archival Track Summary'
 
