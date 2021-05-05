@@ -76,7 +76,7 @@ class AutoPipeline(object):
                              sheetname=self.sheetname)
         config = return_cell(self.ebid,
                             #  column=9,
-                             name_col="Exec. Block ID\n(EBID)",
+                             name_col="EBID",
                              sheetname=self.sheetname)
         track_name = return_cell(self.ebid,
                                 #  column=3,
@@ -220,7 +220,7 @@ class AutoPipeline(object):
         # Update track name in sheet:
         update_cell(ebid, track_name,
                     # num_col=3,
-                    name_col=self.track_name,
+                    name_col="Trackname",
                     sheetname=self.sheetname)
 
         # Scrap the VLA archive for target and config w/ astroquery
@@ -237,7 +237,7 @@ class AutoPipeline(object):
         # Add track target to the sheet
         update_cell(ebid, target,
                     # num_col=4,
-                    name_col=self.target,
+                    name_col="Target",
                     sheetname=self.sheetname)
 
         # And the data size
