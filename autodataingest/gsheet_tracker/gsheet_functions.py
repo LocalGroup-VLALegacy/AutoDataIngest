@@ -58,7 +58,7 @@ def find_new_tracks(sheetname='20A - OpLog Summary', status_check=''):
         if track['Status'] != status_check:
             continue
 
-        new_tracks.append(track['Exec. Block ID\n(EBID)'])
+        new_tracks.append(track['EBID'])
 
     return new_tracks
 
@@ -83,7 +83,7 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary'):
         # Check if the status is equal to `status_check`
         if len(track['Re-run\ncontinuum']) > 0 or len(track['Re-run\nspeclines']) > 0:
 
-            new_tracks.append(track['Exec. Block ID\n(EBID)'])
+            new_tracks.append(track['EBID'])
 
     return new_tracks
 
