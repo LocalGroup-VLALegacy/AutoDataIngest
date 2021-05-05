@@ -108,7 +108,7 @@ class AutoPipeline(object):
         else:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}.")
 
-        name_col="Re-run\n{data_type}"
+        name_col=f"Re-run\n{data_type}"
 
         return return_cell(self.ebid, name_col=name_col, sheetname=self.sheetname)
 
