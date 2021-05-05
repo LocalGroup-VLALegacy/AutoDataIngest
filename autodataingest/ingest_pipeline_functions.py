@@ -1171,7 +1171,7 @@ class AutoPipeline(object):
             print("No restart requested. Exiting")
             return
 
-        update_track_status(self.ebid, message=f"Restarting pipeline for re-run {data_type}",
+        update_track_status(self.ebid, message=f"Restarting pipeline for re-run",
                             sheetname=self.sheetname,
                             status_col=1 if data_type == 'continuum' else 2)
 
