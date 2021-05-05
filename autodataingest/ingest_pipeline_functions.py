@@ -70,9 +70,18 @@ class AutoPipeline(object):
         different stages.
         '''
 
-        target = return_cell(self.ebid, column=4, sheetname=self.sheetname)
-        config = return_cell(self.ebid, column=9, sheetname=self.sheetname)
-        track_name = return_cell(self.ebid, column=3, sheetname=self.sheetname)
+        target = return_cell(self.ebid,
+                            #  column=4,
+                             name_col="Target",
+                             sheetname=self.sheetname)
+        config = return_cell(self.ebid,
+                            #  column=9,
+                             name_col="Exec. Block ID\n(EBID)",
+                             sheetname=self.sheetname)
+        track_name = return_cell(self.ebid,
+                                #  column=3,
+                                 name_col='Trackname',
+                                 sheetname=self.sheetname)
 
         if target is not "None":
             self.target = target
@@ -95,13 +104,15 @@ class AutoPipeline(object):
         '''
 
         if data_type == 'continuum':
-            column = 28
+            # column = 28
+            name_col="Re-run\ncontinuum"
         elif data_type == 'speclines':
-            column = 29
+            # column = 29
+            name_col="Re-run\nspeclines"
         else:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}.")
 
-        return return_cell(self.ebid, column=column, sheetname=self.sheetname)
+        return return_cell(self.ebid, name_col=name_col, sheetname=self.sheetname)
 
     @property
     def track_folder_name(self):
@@ -238,7 +249,10 @@ class AutoPipeline(object):
         # We want to easily track (1) target, (2) config, and (3) track name
         # We'll combine these for our folder names where the data will get placed
         # after transfer from the archive.
-        config = return_cell(self.ebid, column=9, sheetname=self.sheetname)
+        config = return_cell(self.ebid,
+                            #  column=9,
+                             name_col="Configuration",
+                             sheetname=self.sheetname)
         self.config = config
 
         print(f"This track was taken in {config} configuration.")
@@ -558,7 +572,8 @@ class AutoPipeline(object):
 
             # If still None, pull from the spreadsheet
             if importsplit_jobid is None:
-                importsplit_jobid = return_cell(self.ebid, column=20,
+                importsplit_jobid = return_cell(self.ebid, # column=20,
+                                                name_col="Split Job ID",
                                                 sheetname=self.sheetname).split(":")[-1]
 
         if continuum_jobid is None and check_continuum_job:
@@ -566,7 +581,8 @@ class AutoPipeline(object):
 
             # If still None, pull from the spreadsheet
             if continuum_jobid is None:
-                continuum_jobid = return_cell(self.ebid, column=22,
+                continuum_jobid = return_cell(self.ebid, # column=22,
+                                              name_col='Continuum job ID',
                                               sheetname=self.sheetname).split(":")[-1]
 
         if line_jobid is None and check_line_job:
@@ -574,7 +590,8 @@ class AutoPipeline(object):
 
             # If still None, pull from the spreadsheet
             if line_jobid is None:
-                line_jobid = return_cell(self.ebid, column=20,
+                line_jobid = return_cell(self.ebid, # column=24,
+                                         name_col='Line job ID',
                                          sheetname=self.sheetname).split(":")[-1]
 
         # If the split job ID is still not defined, something has gone wrong.
@@ -1210,7 +1227,10 @@ class AutoPipeline(object):
 
 
         # Update track status. Append both data types if one has already finished
-        current_status = return_cell(self.ebid, column=1, sheetname=self.sheetname)
+        current_status = return_cell(self.ebid,
+                                    #  column=1,
+                                     name_col='Status',
+                                     sheetname=self.sheetname)
 
         if "Ready for imaging" in current_status:
             finished_str = current_status.split(":")[-1].strip() + ", "
@@ -1253,7 +1273,10 @@ class AutoPipeline(object):
             return
 
         # Update track status. Append both data types if one has already finished
-        current_status = return_cell(self.ebid, column=1, sheetname=self.sheetname)
+        current_status = return_cell(self.ebid,
+                                    #  column=1,
+                                     name_col='Status',
+                                     sheetname=self.sheetname)
 
         if "FAILED QA" in current_status:
             finished_str = current_status.split("for")[-1].strip() + ", "
