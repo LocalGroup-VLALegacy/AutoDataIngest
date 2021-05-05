@@ -208,7 +208,7 @@ class AutoPipeline(object):
 
         # Update track name in sheet:
         update_cell(ebid, track_name,
-                    name_col=3,
+                    num_col=3,
                     sheetname=self.sheetname)
 
         # Scrap the VLA archive for target and config w/ astroquery
@@ -223,11 +223,11 @@ class AutoPipeline(object):
         print(f"Found target {target} with size {datasize} for {ebid}")
 
         # Add track target to the sheet
-        update_cell(ebid, target, name_col=4,
+        update_cell(ebid, target, num_col=4,
                     sheetname=self.sheetname)
 
         # And the data size
-        update_cell(ebid, datasize.rstrip('GB'), name_col=14,
+        update_cell(ebid, datasize.rstrip('GB'), num_col=14,
                     sheetname=self.sheetname)
 
         # We want to easily track (1) target, (2) config, and (3) track name
@@ -260,7 +260,7 @@ class AutoPipeline(object):
         await globus_wait_for_completion(transfer_taskid)
         print(f"Globus transfer {transfer_taskid} completed!")
 
-        update_cell(ebid, "TRUE", name_col=18,
+        update_cell(ebid, "TRUE", num_col=18,
                     sheetname=self.sheetname)
 
         # Remove the data staged at NRAO to avoid exceeding our storage quota
@@ -404,7 +404,7 @@ class AutoPipeline(object):
 
         print(f"Submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
 
-        update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}", name_col=20,
+        update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}", num_col=20,
                     sheetname=self.sheetname)
 
 
@@ -454,7 +454,7 @@ class AutoPipeline(object):
 
             print(f"Submitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
 
-            update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}", name_col=22,
+            update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}", num_col=22,
                         sheetname=self.sheetname)
 
         else:
@@ -503,7 +503,7 @@ class AutoPipeline(object):
 
             print(f"Submitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
 
-            update_cell(self.ebid, f"{clustername}:{self.line_jobid}", name_col=24,
+            update_cell(self.ebid, f"{clustername}:{self.line_jobid}", num_col=24,
                         sheetname=self.sheetname)
 
         else:
@@ -588,9 +588,9 @@ class AutoPipeline(object):
 
             print(f"Found import/split notification for {importsplit_jobid} with status {job_status_split}")
 
-            update_cell(self.ebid, job_status_split, name_col=19,
+            update_cell(self.ebid, job_status_split, num_col=19,
                         sheetname=self.sheetname)
-            update_cell(self.ebid, job_runtime, name_col=25,
+            update_cell(self.ebid, job_runtime, num_col=25,
                         sheetname=self.sheetname)
 
             break
@@ -614,9 +614,9 @@ class AutoPipeline(object):
 
             print(f"Found continuum notification for {continuum_jobid} with status {job_status_continuum}")
 
-            update_cell(self.ebid, job_status_continuum, name_col=21,
+            update_cell(self.ebid, job_status_continuum, num_col=21,
                         sheetname=self.sheetname)
-            update_cell(self.ebid, job_runtime, name_col=26,
+            update_cell(self.ebid, job_runtime, num_col=26,
                         sheetname=self.sheetname)
 
             break
@@ -638,9 +638,9 @@ class AutoPipeline(object):
 
             print(f"Found line notification for {line_jobid} with status {job_status_line}")
 
-            update_cell(self.ebid, job_status_line, name_col=23,
+            update_cell(self.ebid, job_status_line, num_col=23,
                         sheetname=self.sheetname)
-            update_cell(self.ebid, job_runtime, name_col=27,
+            update_cell(self.ebid, job_runtime, num_col=27,
                         sheetname=self.sheetname)
 
             break
@@ -1056,7 +1056,7 @@ class AutoPipeline(object):
 
         # Need to reset the "RESTART" in the track spreadsheet to avoid multiple re-runs
         update_cell(self.ebid, "",
-                    name_col=28 if data_type == 'continuum' else 29,
+                    num_col=28 if data_type == 'continuum' else 29,
                     sheetname=self.sheetname)
 
         await self.cleanup_on_cluster(clustername=clustername,
@@ -1210,7 +1210,7 @@ class AutoPipeline(object):
 
         # Remove completion flag to avoid re-runs
         update_cell(self.ebid, "",
-                    name_col=28 if data_type == 'continuum' else 29,
+                    num_col=28 if data_type == 'continuum' else 29,
                     sheetname=self.sheetname)
 
 
@@ -1240,5 +1240,5 @@ class AutoPipeline(object):
 
         # Remove review flag to avoid re-runs
         update_cell(self.ebid, "",
-                    name_col=28 if data_type == 'continuum' else 29,
+                    num_col=28 if data_type == 'continuum' else 29,
                     sheetname=self.sheetname)

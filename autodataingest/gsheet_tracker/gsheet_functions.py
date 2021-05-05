@@ -197,7 +197,7 @@ def update_track_status(ebid, message="Archive download staged",
     format_cell_range(worksheet, f'{cell.row}', fmt)
 
 
-def update_cell(ebid, value, name_col=3,
+def update_cell(ebid, value, num_col=3,
                 sheetname='20A - OpLog Summary'):
     '''
     Update cell given an execution block ID and column for the output.
@@ -209,7 +209,7 @@ def update_cell(ebid, value, name_col=3,
 
     cell = worksheet.find(str(ebid))
 
-    worksheet.update_cell(cell.row, name_col, value)
+    worksheet.update_cell(cell.row, num_col, value)
 
 
 def return_cell(ebid, column=9,
