@@ -103,14 +103,12 @@ class AutoPipeline(object):
         Request a restart on the jobs.
         '''
 
-        if data_type == 'continuum':
-            # column = 28
-            name_col="Re-run\ncontinuum"
-        elif data_type == 'speclines':
-            # column = 29
-            name_col="Re-run\nspeclines"
+        if data_type == 'continuum' or data_type == 'speclines':
+            pass
         else:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}.")
+
+        name_col="Re-run\n{data_type}"
 
         return return_cell(self.ebid, name_col=name_col, sheetname=self.sheetname)
 
