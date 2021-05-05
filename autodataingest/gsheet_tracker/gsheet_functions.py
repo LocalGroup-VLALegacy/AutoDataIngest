@@ -197,15 +197,37 @@ def update_track_status(ebid, message="Archive download staged",
     format_cell_range(worksheet, f'{cell.row}', fmt)
 
 
-def update_cell(ebid, value, num_col=3,
+def update_cell(ebid, value,
+                name_col=None,
+                num_col=3,
                 sheetname='20A - OpLog Summary'):
     '''
     Update cell given an execution block ID and column for the output.
 
+    Parameters
+    ----------
+    ebid : str
+        EB ID number of the track.
+    name_col : str, optional
+        Name of column in the google sheet. When given, overrides `num_col`.
+    num_col : int, optional
+        Integer number of the column starting at 1(!).
+    sheetname : str, optional
+        Name of tab sheet name.
 
     '''
+    if name_col is None and num_col is None:
+        raise ValueError("Either name_col or num_col must be provided.")
+
     full_sheet = read_tracksheet()
     worksheet = full_sheet.worksheet(sheetname)
+
+    if name_col is not None:
+        try:
+            thiscolcell = worksheet.find(name_col)
+            num_col = thiscolcell.col
+        except gspread.CellNotFound:
+            print(f"Unable to find column name {name_col}. Defaulting to `num_col`")
 
     cell = worksheet.find(str(ebid))
 
