@@ -55,7 +55,10 @@ def find_new_tracks(sheetname='20A - OpLog Summary', status_check=''):
 
     for track in tracks_info:
         # Check if the status is equal to `status_check`
-        if track['Status'] != status_check:
+        if track['Status: continuum'] != status_check:
+            continue
+
+        if track['Status: speclines'] != status_check:
             continue
 
         new_tracks.append(track['EBID'])

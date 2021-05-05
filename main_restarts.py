@@ -50,7 +50,7 @@ async def produce(queue, sleeptime=10, start_with_newest=False,
         await asyncio.sleep(long_sleep)
 
 
-async def consume(queue):
+async def consume(queue, sleeptime=1800, sleeptime_finish=600):
     while True:
         # wait for an item from the producer
         auto_pipe = await queue.get()
@@ -80,6 +80,8 @@ async def consume(queue):
                                                     split_time=CLUSTER_SPLIT_JOBTIME,
                                                     pipeline_time=CLUSTER_LINE_JOBTIME,
                                                     scheduler_cmd=CLUSTER_SCHEDCMD,)
+
+                await asyncio.sleep(sleeptime)
 
             # Wait for job completion
             await auto_pipe.get_job_notifications(check_continuum_job=restart_continuum,
@@ -115,6 +117,8 @@ async def consume(queue):
                 await auto_pipe.export_track_for_imaging(data_type=data_type,
                                                         clustername=CLUSTERNAME,
                                                         project_dir=COMPLETEDDATAPATH)
+
+                await asyncio.sleep(sleeptime_finish)
 
         # Check for QA failures needing a full manual reduction/review:
         manualcheck_continuum = auto_pipe._qa_review_input(data_type='continuum') == "MANUAL REVIEW"
