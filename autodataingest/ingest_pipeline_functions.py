@@ -198,9 +198,14 @@ class AutoPipeline(object):
         else:
             print(f"Found recent archive request for {ebid}.")
 
+        # Continuum
         update_track_status(ebid, message="Archive download staged",
                             sheetname=self.sheetname,
                             status_col=1)
+        # Lines
+        update_track_status(ebid, message="Archive download staged",
+                            sheetname=self.sheetname,
+                            status_col=2)
 
         # Wait for the notification email that the data is ready for transfer
         while out is None:
@@ -268,10 +273,16 @@ class AutoPipeline(object):
 
         print(f"The globus transfer ID is: {transfer_taskid}")
 
+        # Continuum
         update_track_status(ebid,
                             message=f"Data transferred to {clustername}",
                             sheetname=self.sheetname,
                             status_col=1)
+        # Lines
+        update_track_status(ebid,
+                            message=f"Data transferred to {clustername}",
+                            sheetname=self.sheetname,
+                            status_col=2)
 
         print(f"Waiting for globus transfer to {clustername} to complete.")
         await globus_wait_for_completion(transfer_taskid)
@@ -480,6 +491,12 @@ class AutoPipeline(object):
                         name_col="Continuum job ID",
                         sheetname=self.sheetname)
 
+            # Continuum
+            update_track_status(self.ebid,
+                                message=f"Reduction running on {clustername}",
+                                sheetname=self.sheetname,
+                                status_col=1)
+
         else:
             self.continuum_jobid = None
 
@@ -516,6 +533,12 @@ class AutoPipeline(object):
 
             print(f"Submitting command: {submit_cmd}")
 
+            # Lines
+            update_track_status(self.ebid,
+                                message=f"Reduction running on {clustername}",
+                                sheetname=self.sheetname,
+                                status_col=2)
+
             try:
                 result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
             except ValueError as exc:
@@ -536,11 +559,6 @@ class AutoPipeline(object):
 
         if self.connect.is_connected:
             self.connect.close()
-
-        update_track_status(self.ebid,
-                            message=f"Reduction running on {clustername}",
-                            sheetname=self.sheetname,
-                            status_col=1)
 
 
     async def get_job_notifications(self,
@@ -721,6 +739,10 @@ class AutoPipeline(object):
                                     sheetname=self.sheetname,
                                     status_col=1)
 
+                update_track_status(self.ebid, message=f"Ready for QA",
+                                    sheetname=self.sheetname,
+                                    status_col=2)
+
             # If the split failed, the other two will not have completed.
             # Trigger resubmitting all three:
             if check_split_job:
@@ -732,12 +754,52 @@ class AutoPipeline(object):
                     restarts['CONTINUUM_PIPE'] = True
                     restarts['LINE_PIPE'] = True
 
+                    update_track_status(self.ebid,
+                                        message=f"ISSUE: job timed out",
+                                        sheetname=self.sheetname,
+                                        status_col=1)
+                    update_track_status(self.ebid,
+                                        message=f"ISSUE: job timed out",
+                                        sheetname=self.sheetname,
+                                        status_col=2)
+
+                if job_status_split == 'FAILED':
+
+                    restarts['IMPORT_SPLIT'] = True
+                    restarts['CONTINUUM_PIPE'] = True
+                    restarts['LINE_PIPE'] = True
+
+                    update_track_status(self.ebid,
+                                        message=f"ISSUE: Needs manual check of job status",
+                                        sheetname=self.sheetname,
+                                        status_col=1)
+
+                    update_track_status(self.ebid,
+                                        message=f"ISSUE: Needs manual check of job status",
+                                        sheetname=self.sheetname,
+                                        status_col=2)
+
             # Trigger resubmitting the continuum
             if check_continuum_job:
                 if job_status_continuum == 'TIMEOUT':
                     # Add to resubmission queue
                     print(f"Timeout for continuum pipeline. Needs resubmitting of continuum job.")
                     restarts['CONTINUUM_PIPE'] = True
+
+                    update_track_status(self.ebid,
+                                        message=f"ISSUE: job timed out",
+                                        sheetname=self.sheetname,
+                                        status_col=1)
+
+                if job_status_continuum == "FAILED":
+
+                    restarts['CONTINUUM_PIPE'] = True
+
+                    update_track_status(self.ebid,
+                                        message=f"ISSUE: Needs manual check of job status",
+                                        sheetname=self.sheetname,
+                                        status_col=1)
+
 
             # Trigger resubmitting the lines
             if check_line_job:
@@ -746,15 +808,30 @@ class AutoPipeline(object):
                     print(f"Timeout for line pipeline. Needs resubmitting of line job.")
                     restarts['LINE_PIPE'] = True
 
+                    update_track_status(self.ebid,
+                                        message=f"ISSUE: job timed out",
+                                        sheetname=self.sheetname,
+                                        status_col=2)
+
+                if job_status_line == "FAILED":
+
+                    restarts['LINE_PIPE'] = True
+
+                    update_track_status(self.ebid,
+                                        message=f"ISSUE: Needs manual check of job status",
+                                        sheetname=self.sheetname,
+                                        status_col=2)
+
+
             # Otherwise assume something else went wrong and request a manual review
-            if any([job_status not in ['COMPLETED', 'TIMEOUT'] for job_status in job_statuses]):
+            # if any([job_status not in ['COMPLETED', 'TIMEOUT'] for job_status in job_statuses]):
 
-                print(f"An unhandled issue occured in a job. Needs manual review for {self.ebid}")
+            #     print(f"An unhandled issue occured in a job. Needs manual review for {self.ebid}")
 
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Needs manual check of job status",
-                                    sheetname=self.sheetname,
-                                    status_col=1)
+            #     update_track_status(self.ebid,
+            #                         message=f"ISSUE: Needs manual check of job status",
+            #                         sheetname=self.sheetname,
+            #                         status_col=1)
 
         else:
             print(f"Not all jobs were run. Needs manual review for {self.ebid}")
@@ -763,6 +840,10 @@ class AutoPipeline(object):
                                 message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
                                 sheetname=self.sheetname,
                                 status_col=1)
+            update_track_status(self.ebid,
+                                message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
+                                sheetname=self.sheetname,
+                                status_col=2)
 
         # TODO: These need to be handled below.
         self.restarts = restarts
@@ -1092,7 +1173,7 @@ class AutoPipeline(object):
 
         update_track_status(self.ebid, message=f"Restarting pipeline for re-run {data_type}",
                             sheetname=self.sheetname,
-                            status_col=1)
+                            status_col=1 if data_type == 'continuum' else 2)
 
         # Need to reset the "RESTART" in the track spreadsheet to avoid multiple re-runs
         update_cell(self.ebid, "",
@@ -1120,14 +1201,10 @@ class AutoPipeline(object):
                                         line_time=pipeline_time,
                                         scheduler_cmd=scheduler_cmd)
 
-        # update_track_status(self.ebid, message=f"Ready for QA after re-run of {data_type}",
-        #                     sheetname=self.sheetname,
-        #                     status_col=1)
-
         update_track_status(self.ebid,
                             message=f"Reduction running on {clustername} after QA check",
                             sheetname=self.sheetname,
-                            status_col=1)
+                            status_col=1 if data_type == 'continuum' else 2)
 
     async def cleanup_on_cluster(self, clustername='cc-cedar', data_type='continuum',
                                  do_remove_whole_track=False,
@@ -1225,26 +1302,27 @@ class AutoPipeline(object):
 
 
         # Update track status. Append both data types if one has already finished
+        other_data_type = "speclines" if data_type == 'continuum' else 'continuum'
         current_status = return_cell(self.ebid,
                                     #  column=1,
-                                     name_col='Status',
+                                     name_col=f'Status: {other_data_type}',
                                      sheetname=self.sheetname)
 
         if "Ready for imaging" in current_status:
-            finished_str = current_status.split(":")[-1].strip() + ", "
+            other_part_finished = True
         else:
-            finished_str = ""
+            other_part_finished = False
 
         update_track_status(self.ebid,
-                            message=f"Ready for imaging: {finished_str}{data_type}",
+                            message=f"Ready for imaging",
                             sheetname=self.sheetname,
-                            status_col=1)
+                            status_col=1 if data_type == 'continuum' else 2)
 
         # Clean up scratch space.
         # Need to check if both components are finished to clean up entire space.
 
         # If the other component is finished already, we can clean up the whole track from scratch
-        do_remove_whole_track = False if len(finished_str) == 0 else True
+        do_remove_whole_track = other_part_finished
 
         await self.cleanup_on_cluster(clustername=clustername, data_type=data_type,
                                       do_remove_whole_track=do_remove_whole_track)
@@ -1270,21 +1348,10 @@ class AutoPipeline(object):
             print("No restart requested. Exiting")
             return
 
-        # Update track status. Append both data types if one has already finished
-        current_status = return_cell(self.ebid,
-                                    #  column=1,
-                                     name_col='Status',
-                                     sheetname=self.sheetname)
-
-        if "FAILED QA" in current_status:
-            finished_str = current_status.split("for")[-1].strip() + ", "
-        else:
-            finished_str = ""
-
         update_track_status(self.ebid,
-                        message=f"FAILED QA: Requires manual review for {finished_str}{data_type}.",
+                        message=f"FAILED QA: Requires manual review.",
                         sheetname=self.sheetname,
-                        status_col=1)
+                        status_col=1 if data_type == 'continuum' else 2)
 
         # Remove review flag to avoid re-runs
         update_cell(self.ebid, "",
