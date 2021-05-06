@@ -76,7 +76,7 @@ class AutoPipeline(object):
                              sheetname=self.sheetname)
         config = return_cell(self.ebid,
                             #  column=9,
-                             name_col="EBID",
+                             name_col="Configuration",
                              sheetname=self.sheetname)
         track_name = return_cell(self.ebid,
                                 #  column=3,
