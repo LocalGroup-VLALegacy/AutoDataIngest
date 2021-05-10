@@ -26,7 +26,13 @@ async def produce(queue, sleeptime=10, test_case_run_newest=False,
 
     while True:
 
-        new_ebids = find_new_tracks(sheetname=SHEETNAME)
+        # If we get an API error for too many requests, just wait a bit and
+        # try again:
+        try:
+            new_ebids = find_new_tracks(sheetname=SHEETNAME)
+        except:
+            await asyncio.sleep(sleeptime * 10)
+            continue
 
         # Switch order if running newest first.
         if run_newest_first:
