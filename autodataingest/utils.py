@@ -1,5 +1,6 @@
 
 import os
+from copy import copy
 
 def uniquify(path):
     filename, extension = os.path.splitext(path)
@@ -16,8 +17,9 @@ def uniquify_folder(path):
 
     counter = 1
 
+    orig_path = copy(path)
     while os.path.exists(path):
-        path = f"{path}_{str(counter)}"
+        path = f"{orig_path}_{str(counter)}"
         counter += 1
 
     return path
