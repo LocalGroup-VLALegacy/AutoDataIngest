@@ -27,7 +27,13 @@ async def produce(queue, sleeptime=10, start_with_newest=False,
     while True:
 
         if ebid_list is None:
-            all_ebids = find_rerun_status_tracks(sheetname=SHEETNAME)
+            # If we get an API error for too many requests, just wait a bit and
+            # try again:
+            try:
+                all_ebids = find_rerun_status_tracks(sheetname=SHEETNAME)
+            except:
+                await asyncio.sleep(sleeptime * 10)
+                continue
         else:
             all_ebids = ebid_list
 
