@@ -24,7 +24,7 @@ function TrackJobRuns() {
 
 
   // Grab all of the log names already in the sheet. Will skip if already recorded.
-  var existing_jobnames = sheet.getRange('B2:B').getDisplayValues().toString().split(",");
+  var existing_jobids = sheet.getRange('D2:D').getDisplayValues().toString().split(",");
 
   //  Logger.log(lognames)
 
@@ -43,15 +43,16 @@ function TrackJobRuns() {
         var tmp;
         // e.g. 2020-01-27_1315_19B-037
         // \d{4}-\d{2}-d{2}_
-        tmp = subject.match(/Name=(.\S+)/);
-        var job_name = (tmp && tmp[1]) ? tmp[1] : 'No job name';
 
-        var log_match = existing_jobnames.includes(job_name);
+        tmp = subject.match(/Job_id=(.\S+)/);
+        var job_id = (tmp && tmp[1]) ? tmp[1] : 'No Job ID';
+
+        var log_match = existing_jobids.includes(job_id);
 
         if (!log_match) {
 
-          tmp = subject.match(/Job_id=(.\S+)/);
-          var job_id = (tmp && tmp[1]) ? tmp[1] : 'No Job ID';
+          tmp = subject.match(/Name=(.\S+)/);
+          var job_name = (tmp && tmp[1]) ? tmp[1] : 'No job name';
 
           // Get the job type:
           var job_type = null
@@ -71,7 +72,7 @@ function TrackJobRuns() {
           job_status = comma_splits.split(",")[1]
           exit_code = comma_splits.split(",")[2]
 
-          // Logger.log(run_date)
+          Logger.log(run_date)
           // Logger.log(job_name)
           // Logger.log(job_type)
           // Logger.log(job_id)
