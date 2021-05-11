@@ -32,7 +32,7 @@ async def produce(queue, sleeptime=10, start_with_newest=False,
             try:
                 all_ebids = find_rerun_status_tracks(sheetname=SHEETNAME)
             except:
-                await asyncio.sleep(sleeptime * 10)
+                await asyncio.sleep(long_sleep)
                 continue
         else:
             all_ebids = ebid_list
