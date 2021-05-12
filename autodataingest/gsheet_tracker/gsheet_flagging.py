@@ -16,6 +16,11 @@ import filecmp
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
 
+import logging
+LOGGER_FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
+log = logging.getLogger()
+
 
 def read_flagsheet():
     """
@@ -84,7 +89,7 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
         if raise_nosheet_exists:
             raise ValueError(f"The worksheet {sheet_name} does not exist.")
         else:
-            print(f"The worksheet {sheet_name} does not exist. Skipping")
+            log.info(f"The worksheet {sheet_name} does not exist. Skipping")
             return None
 
     worksheet = read_track_flagsheet(sheet_name)
@@ -129,8 +134,7 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
 
         for row in rownumbers_with_flags:
 
-            if debug:
-                print(f"On {row}")
+            log.debug(f"On {row}")
 
             # Note that the counting starts at 1. So we want: row + head_nrow + 1
             # row_values = worksheet.row_values(row + head_nrow + 1)
@@ -210,7 +214,7 @@ def make_new_flagsheet(trackname, target, config,
 
     # Check if it exists:
     if new_sheet_name in [sheet.title for sheet in gsheet.worksheets()]:
-        print(f"A worksheet with the name {new_sheet_name} already exists.")
+        log.info(f"A worksheet with the name {new_sheet_name} already exists.")
         return gsheet.worksheet(new_sheet_name)
 
     worksheet = orig_worksheet.duplicate(new_sheet_name=new_sheet_name,

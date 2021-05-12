@@ -9,6 +9,11 @@ import time
 import asyncio
 import async_timeout
 
+import logging
+LOGGER_FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
+log = logging.getLogger()
+
 from ..cluster_configs import ENDPOINT_INFO
 
 USERNAME = "ekoch"
@@ -54,8 +59,7 @@ def do_manual_login(nodename, verbose=True):
     if 'is activated' in out.stdout.decode('utf-8'):
         return True
 
-    if verbose:
-        print(f"Require manual login to {nodename}")
+    log.info(f"Require manual login to {nodename}")
 
     username = input("Username:")
     password = unix_getpass()
@@ -104,7 +108,7 @@ def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
     try:
         do_authenticate_globus()
     except ValueError:
-        print(f"Auto authentication of {endnode} failed. Try manual login.")
+        log.exception(f"Auto authentication of {endnode} failed. Try manual login.")
         do_manual_login(endnode)
 
     # May have to change this ordering for both nodes in general.
@@ -129,8 +133,8 @@ def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
     task_transfer_stdout = task_transfer.stdout.decode('utf-8').replace("\n", " ")
 
     if not 'accepted' in task_transfer_stdout:
-        print(task_transfer_stdout)
-        print(task_transfer.stderr.decode('utf-8'))
+        log.warning(task_transfer_stdout)
+        log.warning(task_transfer.stderr.decode('utf-8'))
 
         raise ValueError("Transfer was not accepted Check the above messages.")
 
@@ -209,7 +213,7 @@ def transfer_general(filename, output_destination,
     try:
         do_authenticate_globus()
     except ValueError:
-        print(f"Auto authentication of {endnode} failed. Try manual login.")
+        log.exception(f"Auto authentication of {endnode} failed. Try manual login.")
         do_manual_login(endnode)
 
     # May have to change this ordering for both nodes in general.
@@ -240,7 +244,7 @@ def transfer_general(filename, output_destination,
 
     if base_filename not in task_check.stdout.decode('utf-8'):
         if skip_if_not_existing:
-            print(f"The file {base_filename} does not exist at {input_cmd}. Skipping.")
+            log.warning(f"The file {base_filename} does not exist at {input_cmd}. Skipping.")
             return None
 
         raise ValueError(f"The file {base_filename} does not exist at {input_cmd}.")
@@ -254,8 +258,8 @@ def transfer_general(filename, output_destination,
     task_transfer_stdout = task_transfer.stdout.decode('utf-8').replace("\n", " ")
 
     if not 'accepted' in task_transfer_stdout:
-        print(task_transfer_stdout)
-        print(task_transfer.stderr.decode('utf-8'))
+        log.warning(task_transfer_stdout)
+        log.warning(task_transfer.stderr.decode('utf-8'))
 
         raise ValueError("Transfer was not accepted Check the above messages.")
 

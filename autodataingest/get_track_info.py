@@ -9,6 +9,12 @@ from astroquery.nrao import Nrao
 from astroquery.ned import Ned
 from astropy.coordinates import SkyCoord
 
+import logging
+LOGGER_FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
+log = logging.getLogger()
+log.setLevel(logging.INFO)
+
 
 def match_ebid_to_source(ebid,
                          targets=['M31', 'M33', 'NGC6822', 'IC10', 'IC1613', 'WLM'],
@@ -25,7 +31,7 @@ def match_ebid_to_source(ebid,
     for target in targets:
 
         if verbose:
-            print(f"Searching for target match {target}")
+            log.info(f"Searching for target match {target}")
 
         # Lookup location in Ned b/c I'm encountering failures for the name resolve
         out = Ned.query_object(target)
@@ -49,8 +55,7 @@ def match_ebid_to_source(ebid,
                                                 cache=False,
                                                 retry=1)
             except Exception as e:
-                if verbose:
-                    print(f"Query failed with {e}. Waiting then trying again.")
+                log.warning(f"Query failed with {e}. Waiting then trying again.")
                 # Wait some time before trying the query again
                 time.sleep(30)
 
@@ -62,16 +67,14 @@ def match_ebid_to_source(ebid,
         if result_table is None:
             raise ValueError("Archive query failed.")
 
+        log.debug(f"Found table {result_table}")
 
-        if verbose:
-            print(f"Found table {result_table}")
-
-        print(f"Result table length {len(result_table)}")
+        log.info(f"Result table length {len(result_table)}")
 
         # Skip if empty
         if len(result_table) == 0 or "Archive File" not in result_table.colnames:
             if verbose:
-                print("No tracks found for this target.")
+                log.info("No tracks found for this target.")
             continue
 
         # Loop through MS names

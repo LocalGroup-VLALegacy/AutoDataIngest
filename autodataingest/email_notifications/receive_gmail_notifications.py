@@ -2,6 +2,11 @@
 import ezgmail
 from datetime import datetime
 
+import logging
+LOGGER_FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
+log = logging.getLogger()
+
 PROJECTID = "20A-346"
 
 USERNAME = "ekoch"
@@ -57,7 +62,7 @@ def check_for_archive_notification(ebid,
 
             if (datetime.now() - message.timestamp).total_seconds() > timewindow:
                 if verbose:
-                    print(f"Found notification older than {timewindow / 3600.} hr. Skipping.")
+                    log.info(f"Found notification older than {timewindow / 3600.} hr. Skipping.")
                 continue
 
             # Grab and return the full MS name from the archive email:

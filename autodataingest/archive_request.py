@@ -10,6 +10,12 @@ from selenium.common.exceptions import TimeoutException
 import os
 import time
 
+import logging
+LOGGER_FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
+log = logging.getLogger()
+log.setLevel(logging.INFO)
+
 
 def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
                      lustre_path="/lustre/aoc/projects/20A-346/data_staged/",
@@ -75,7 +81,7 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
 
             # Give access code if needed
             if access_code is not None:
-                print(f"Giving access code: {access_code}")
+                log.info(f"Giving access code: {access_code}")
                 elem = driver.find_element_by_name('PASSWD')
                 elem.send_keys(access_code)
 
@@ -85,7 +91,7 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
             elem = WebDriverWait(driver, 300, poll_frequency=2).until(lambda x: x.find_element_by_name('EMAILADDR'))
             elem.send_keys(emailaddr)
 
-            print("Made it to archive result page")
+            log.info("Made it to archive result page")
 
             # Select SDM
             elem = driver.find_element_by_xpath("//input[@name='CONVERT2FORMAT' and @value='SDM']")
@@ -121,7 +127,7 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
             elem = WebDriverWait(driver, 300, poll_frequency=2).until(lambda x: x.find_element_by_xpath("//input[@name='DOWNLOADFTPCHK' and @value='Retrieve over internet']"))
             elem.click()
 
-            print("Made it to archive download page")
+            log.info("Made it to archive download page")
 
             if save_screenshot:
                 driver.save_screenshot('{}.archive_request.png'.format(eb))

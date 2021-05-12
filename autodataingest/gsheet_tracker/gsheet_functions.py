@@ -12,6 +12,12 @@ import requests
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
 
+import logging
+LOGGER_FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
+log = logging.getLogger()
+log.setLevel(logging.INFO)
+
 
 def do_authentication_gspread():
     """
@@ -185,7 +191,7 @@ def update_track_status(ebid, message="Archive download staged",
     # Check if we have a color to update for the row at this stage:
     key_match_status = [key for key in stage_colors if key in message]
     if len(key_match_status) > 1:
-        print("Found multiple matching statuses: {key_match_status}. Going with the first one")
+        log.info("Found multiple matching statuses: {key_match_status}. Going with the first one")
 
     if len(key_match_status) > 0:
         key = key_match_status[0]
@@ -230,7 +236,7 @@ def update_cell(ebid, value,
             thiscolcell = worksheet.find(name_col)
             num_col = thiscolcell.col
         except gspread.CellNotFound:
-            print(f"Unable to find column name {name_col}. Defaulting to `num_col`")
+            log.exception(f"Unable to find column name {name_col}. Defaulting to `num_col`")
 
     cell = worksheet.find(str(ebid))
 
@@ -267,7 +273,7 @@ def return_cell(ebid,
             thiscolcell = worksheet.find(name_col)
             column = thiscolcell.col
         except gspread.CellNotFound:
-            print(f"Unable to find column name {name_col}. Defaulting to `column`")
+            log.exception(f"Unable to find column name {name_col}. Defaulting to `column`")
 
     ebid_cell = worksheet.find(str(ebid))
 
