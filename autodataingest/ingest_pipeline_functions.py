@@ -18,6 +18,12 @@ import shutil
 import fabric
 import paramiko
 
+import logging
+LOGGER_FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
+log = logging.getLogger()
+log.setLevel(logging.INFO)
+
 
 from autodataingest.email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification, add_jobtimes)
 
@@ -143,8 +149,8 @@ class AutoPipeline(object):
                 break
 
             except socket.gaierror as e:
-                print("Encountering DNS issue with exception {e}")
-                print("Waiting to retry connection")
+                log.info("Encountering DNS issue with exception {e}")
+                log.info("Waiting to retry connection")
                 await asyncio.sleep(reconnect_waittime)
 
                 retry_times += 1
@@ -193,12 +199,12 @@ class AutoPipeline(object):
 
         if out is None:
 
-            print(f'Sending archive request for {ebid}')
+            log.info(f'Sending archive request for {ebid}')
 
             archive_copy_SDM(ebid, **archive_kwargs)
 
         else:
-            print(f"Found recent archive request for {ebid}.")
+            log.info(f"Found recent archive request for {ebid}.")
 
         # Continuum
         update_track_status(ebid, message="Archive download staged",
@@ -237,7 +243,7 @@ class AutoPipeline(object):
 
         self.target = target
 
-        print(f"Found target {target} with size {datasize} for {ebid}")
+        log.info(f"Found target {target} with size {datasize} for {ebid}")
 
         # Add track target to the sheet
         update_cell(ebid, target,
@@ -260,12 +266,12 @@ class AutoPipeline(object):
                              sheetname=self.sheetname)
         self.config = config
 
-        print(f"This track was taken in {config} configuration.")
-        print(f"This track can be found in the folder with name {self.track_folder_name}")
+        log.info(f"This track was taken in {config} configuration.")
+        log.info(f"This track can be found in the folder with name {self.track_folder_name}")
 
         # Do globus transfer:
 
-        print(f"Transferring {self.track_folder_name} to {clustername}.")
+        log.info(f"Transferring {self.track_folder_name} to {clustername}.")
         transfer_taskid = transfer_file(track_name, self.track_folder_name,
                                         startnode='nrao-aoc',
                                         endnode=clustername,
@@ -273,7 +279,7 @@ class AutoPipeline(object):
 
         self.transfer_taskid = transfer_taskid
 
-        print(f"The globus transfer ID is: {transfer_taskid}")
+        log.info(f"The globus transfer ID is: {transfer_taskid}")
 
         # Continuum
         update_track_status(ebid,
@@ -286,9 +292,9 @@ class AutoPipeline(object):
                             sheetname=self.sheetname,
                             status_col=2)
 
-        print(f"Waiting for globus transfer to {clustername} to complete.")
+        log.info(f"Waiting for globus transfer to {clustername} to complete.")
         await globus_wait_for_completion(transfer_taskid)
-        print(f"Globus transfer {transfer_taskid} completed!")
+        log.info(f"Globus transfer {transfer_taskid} completed!")
 
         update_cell(ebid, "TRUE",
                     # num_col=18,
@@ -297,7 +303,7 @@ class AutoPipeline(object):
 
         # Remove the data staged at NRAO to avoid exceeding our storage quota
         if do_cleanup:
-            print(f"Cleaning up {ebid} on nrao-aoc")
+            log.info(f"Cleaning up {ebid} on nrao-aoc")
             cleanup_source(track_name, node='nrao-aoc')
 
 
@@ -317,14 +323,14 @@ class AutoPipeline(object):
         """
 
 
-        print(f"Starting connection to {clustername}")
+        log.info(f"Starting connection to {clustername}")
 
         await self.setup_ssh_connection(clustername, **ssh_kwargs)
 
         # Grab the repo; this is where we can also specify a version number, too
         cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
 
-        print(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
+        log.info(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
 
         git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
         full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}'
@@ -332,11 +338,11 @@ class AutoPipeline(object):
 
         # Before running any reduction, update the antenna correction files
         # and copy that folder to each folder where the pipeline is run
-        print("Downloading updates of antenna corrections to 'VLA_antcorr_tables'")
+        log.info("Downloading updates of antenna corrections to 'VLA_antcorr_tables'")
         download_vla_antcorr(data_folder="VLA_antcorr_tables")
 
         # Move the antenna correction folder over:
-        print(f"Copying antenna corrections to {clustername}")
+        log.info(f"Copying antenna corrections to {clustername}")
         result = self.connect.run(f"{cd_command}/VLA_antcorr_tables || mkdir scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables")
         for file in glob("VLA_antcorr_tables/*.txt"):
             result = self.connect.put(file, remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables/")
@@ -374,7 +380,7 @@ class AutoPipeline(object):
 
         """
 
-        print(f"Starting job submission of {self.ebid} on {clustername}.")
+        log.info(f"Starting job submission of {self.ebid} on {clustername}.")
 
         # Create local folder where our job submission scripts will be saved to prior to
         # transfer
@@ -384,11 +390,11 @@ class AutoPipeline(object):
             track_scripts_dir.mkdir()
 
         # Setup connection:
-        print(f"Starting connection to {clustername}")
+        log.info(f"Starting connection to {clustername}")
         await self.setup_ssh_connection(clustername, **ssh_kwargs)
 
         # Create 1. job to import and split.
-        print(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
+        log.info(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
 
         job_split_filename = f"{self.track_folder_name}_{split_type}_job_import_and_split.sh"
 
@@ -406,7 +412,7 @@ class AutoPipeline(object):
             file=open(track_scripts_dir / job_split_filename, 'a'))
 
         # Move the job script to the cluster:
-        print(f"Moving import/split job file for {self.ebid} to {clustername}")
+        log.info(f"Moving import/split job file for {self.ebid} to {clustername}")
         result = self.connect.put(track_scripts_dir / job_split_filename,
                                   remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
@@ -424,7 +430,7 @@ class AutoPipeline(object):
 
         submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_split_filename}"
 
-        print(f"Submitting command: {submit_cmd}")
+        log.info(f"Submitting command: {submit_cmd}")
 
         try:
             result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
@@ -434,7 +440,7 @@ class AutoPipeline(object):
         # Record the job ID so we can check for completion.
         self.importsplit_jobid = result.stdout.replace("\n", '').split(" ")[-1]
 
-        print(f"Submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
+        log.info(f"Submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
 
         update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}",
                     # num_col=20,
@@ -447,7 +453,7 @@ class AutoPipeline(object):
 
         if submit_continuum_pipeline:
 
-            print(f"Making continuum pipeline job file for {self.ebid} or {self.track_folder_name}")
+            log.info(f"Making continuum pipeline job file for {self.ebid} or {self.track_folder_name}")
 
             job_continuum_filename = f"{self.track_folder_name}_job_continuum.sh"
 
@@ -465,7 +471,7 @@ class AutoPipeline(object):
                 file=open(track_scripts_dir / job_continuum_filename, 'a'))
 
             # Move the job script to the cluster:
-            print(f"Moving continuum pipeline job file for {self.ebid} to {clustername}")
+            log.info(f"Moving continuum pipeline job file for {self.ebid} to {clustername}")
             result = self.connect.put(track_scripts_dir / job_continuum_filename,
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
@@ -476,7 +482,7 @@ class AutoPipeline(object):
 
             submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_continuum_filename}"
 
-            print(f"Submitting command: {submit_cmd}")
+            log.info(f"Submitting command: {submit_cmd}")
 
             try:
                 result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
@@ -486,7 +492,7 @@ class AutoPipeline(object):
             # Record the job ID so we can check for completion.
             self.continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
 
-            print(f"Submitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
+            log.info(f"Submitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
 
             update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}",
                         # num_col=22,
@@ -504,7 +510,7 @@ class AutoPipeline(object):
 
         if submit_line_pipeline:
 
-            print(f"Making line pipeline job file for {self.ebid} or {self.track_folder_name}")
+            log.info(f"Making line pipeline job file for {self.ebid} or {self.track_folder_name}")
 
             job_line_filename = f"{self.track_folder_name}_job_line.sh"
 
@@ -522,7 +528,7 @@ class AutoPipeline(object):
                 file=open(track_scripts_dir / job_line_filename, 'a'))
 
             # Move the job script to the cluster:
-            print(f"Moving line pipeline job file for {self.ebid} to {clustername}")
+            log.info(f"Moving line pipeline job file for {self.ebid} to {clustername}")
             result = self.connect.put(track_scripts_dir / job_line_filename,
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
@@ -533,7 +539,7 @@ class AutoPipeline(object):
 
             submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_line_filename}"
 
-            print(f"Submitting command: {submit_cmd}")
+            log.info(f"Submitting command: {submit_cmd}")
 
             # Lines
             update_track_status(self.ebid,
@@ -549,7 +555,7 @@ class AutoPipeline(object):
             # Record the job ID so we can check for completion.
             self.line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
 
-            print(f"Submitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
+            log.info(f"Submitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
 
             update_cell(self.ebid, f"{clustername}:{self.line_jobid}",
                         # num_col=24,
@@ -583,7 +589,7 @@ class AutoPipeline(object):
         # if IDs are not available, try getting from the gsheet.
         # otherwise, skip checking for those jobs to finish.
 
-        print(f"Checking for job notifications on {self.ebid} or {self.track_folder_name}")
+        log.info(f"Checking for job notifications on {self.ebid} or {self.track_folder_name}")
 
         if importsplit_jobid is None and check_split_job:
             importsplit_jobid = self.importsplit_jobid
@@ -617,7 +623,7 @@ class AutoPipeline(object):
             if importsplit_jobid is None or importsplit_jobid == "":
                 raise ValueError(f"Unable to identify split job ID for EB: {self.ebid}")
 
-        print(f"Waiting for job notifications on {self.ebid} or {self.track_folder_name}")
+        log.info(f"Waiting for job notifications on {self.ebid} or {self.track_folder_name}")
 
         while True:
             if not check_split_job:
@@ -634,7 +640,7 @@ class AutoPipeline(object):
             job_status_split, job_runtime =  job_check
             is_done_split = True
 
-            print(f"Found import/split notification for {importsplit_jobid} with status {job_status_split}")
+            log.info(f"Found import/split notification for {importsplit_jobid} with status {job_status_split}")
 
             update_cell(self.ebid, job_status_split,
                         # num_col=19,
@@ -664,7 +670,7 @@ class AutoPipeline(object):
 
             job_status_continuum, job_runtime =  job_check
 
-            print(f"Found continuum notification for {continuum_jobid} with status {job_status_continuum}")
+            log.info(f"Found continuum notification for {continuum_jobid} with status {job_status_continuum}")
 
             update_cell(self.ebid, job_status_continuum,
                         # num_col=21,
@@ -692,7 +698,7 @@ class AutoPipeline(object):
 
             job_status_line, job_runtime = job_check
 
-            print(f"Found line notification for {line_jobid} with status {job_status_line}")
+            log.info(f"Found line notification for {line_jobid} with status {job_status_line}")
 
             update_cell(self.ebid, job_status_line,
                         # num_col=23,
@@ -735,7 +741,7 @@ class AutoPipeline(object):
             # Good! It worked! Move on to QA.
             if all([job_status == 'COMPLETED' for job_status in job_statuses]):
 
-                print(f"Processing complete for {self.ebid}! Ready for QA.")
+                log.info(f"Processing complete for {self.ebid}! Ready for QA.")
 
                 update_track_status(self.ebid, message=f"Ready for QA",
                                     sheetname=self.sheetname,
@@ -750,7 +756,7 @@ class AutoPipeline(object):
             if check_split_job:
                 if job_status_split == 'TIMEOUT':
                     # Re-add all to submission queue
-                    print(f"Timeout for split. Needs resubmitting of all jobs")
+                    log.info(f"Timeout for split. Needs resubmitting of all jobs")
 
                     restarts['IMPORT_SPLIT'] = True
                     restarts['CONTINUUM_PIPE'] = True
@@ -785,7 +791,7 @@ class AutoPipeline(object):
             if check_continuum_job:
                 if job_status_continuum == 'TIMEOUT':
                     # Add to resubmission queue
-                    print(f"Timeout for continuum pipeline. Needs resubmitting of continuum job.")
+                    log.info(f"Timeout for continuum pipeline. Needs resubmitting of continuum job.")
                     restarts['CONTINUUM_PIPE'] = True
 
                     update_track_status(self.ebid,
@@ -807,7 +813,7 @@ class AutoPipeline(object):
             if check_line_job:
                 if job_status_line == 'TIMEOUT':
                     # Add to resubmission queue
-                    print(f"Timeout for line pipeline. Needs resubmitting of line job.")
+                    log.info(f"Timeout for line pipeline. Needs resubmitting of line job.")
                     restarts['LINE_PIPE'] = True
 
                     update_track_status(self.ebid,
@@ -824,19 +830,8 @@ class AutoPipeline(object):
                                         sheetname=self.sheetname,
                                         status_col=2)
 
-
-            # Otherwise assume something else went wrong and request a manual review
-            # if any([job_status not in ['COMPLETED', 'TIMEOUT'] for job_status in job_statuses]):
-
-            #     print(f"An unhandled issue occured in a job. Needs manual review for {self.ebid}")
-
-            #     update_track_status(self.ebid,
-            #                         message=f"ISSUE: Needs manual check of job status",
-            #                         sheetname=self.sheetname,
-            #                         status_col=1)
-
         else:
-            print(f"Not all jobs were run. Needs manual review for {self.ebid}")
+            log.info(f"Not all jobs were run. Needs manual review for {self.ebid}")
 
             update_track_status(self.ebid,
                                 message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
@@ -879,7 +874,7 @@ class AutoPipeline(object):
         if self.target is None or self.track_name is None:
             raise ValueError(f"Cannot find target or trackname in {self.ebid}")
 
-        print(f"Transferring {self.track_folder_name} {data_type} products from {startnode} to {endnode}.")
+        log.info(f"Transferring {self.track_folder_name} {data_type} products from {startnode} to {endnode}.")
 
         path_to_products = f'{self.track_folder_name}/{self.track_folder_name}_{data_type}/'
 
@@ -899,11 +894,11 @@ class AutoPipeline(object):
 
         self.transfer_taskid = transfer_taskid
 
-        print(f"The globus transfer ID is: {transfer_taskid}")
+        log.info(f"The globus transfer ID is: {transfer_taskid}")
 
-        print(f"Waiting for globus transfer to {endnode} to complete.")
+        log.info(f"Waiting for globus transfer to {endnode} to complete.")
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
-        print(f"Globus transfer {transfer_taskid} completed!")
+        log.info(f"Globus transfer {transfer_taskid} completed!")
 
     async def make_flagging_sheet(self, data_type='continuum'):
         '''
@@ -959,7 +954,7 @@ class AutoPipeline(object):
         product_file = data_path / product_tarname
 
         if not os.path.exists(product_file):
-            print(f"Unable to find products file at {product_file}")
+            log.warning(f"Unable to find products file at {product_file}")
             return
 
         # Make a temp folder to extract into:
@@ -1010,7 +1005,7 @@ class AutoPipeline(object):
         task_weblog2 = subprocess.run(task_command, capture_output=True)
 
         if verbose:
-            print(f"The extracted files are: {os.listdir()}")
+            log.info(f"The extracted files are: {os.listdir()}")
 
         if os.path.exists('weblog'):
             os.remove('weblog.tgz')
@@ -1038,23 +1033,21 @@ class AutoPipeline(object):
         task_command = ['chmod', '-R', 'o+rx', temp_path]
 
         task_chmod = subprocess.run(task_command, capture_output=True)
-        if verbose:
-            print(f"The task was: {task_command}")
-            task_chmod_stdout = task_chmod.stdout.decode('utf-8').replace("\n", " ")
-            print(f"Stdout: {task_chmod_stdout}")
-            task_chmod_stderr = task_chmod.stderr.decode('utf-8').replace("\n", " ")
-            print(f"Stderr: {task_chmod_stderr}")
+        log.debug(f"The task was: {task_command}")
+        task_chmod_stdout = task_chmod.stdout.decode('utf-8').replace("\n", " ")
+        log.debug(f"Stdout: {task_chmod_stdout}")
+        task_chmod_stderr = task_chmod.stderr.decode('utf-8').replace("\n", " ")
+        log.debug(f"Stderr: {task_chmod_stderr}")
 
         # Move to the directory of the webserver:
         task_command = ['mv', temp_path, new_qa_path]
 
         task_move = subprocess.run(task_command, capture_output=True)
-        if verbose:
-            print(f"The task was: {task_command}")
-            task_move_stdout = task_move.stdout.decode('utf-8').replace("\n", " ")
-            print(f"Stdout: {task_move_stdout}")
-            task_move_stderr = task_move.stderr.decode('utf-8').replace("\n", " ")
-            print(f"Stderr: {task_move_stderr}")
+        log.debug(f"The task was: {task_command}")
+        task_move_stdout = task_move.stdout.decode('utf-8').replace("\n", " ")
+        log.debug(f"Stdout: {task_move_stdout}")
+        task_move_stderr = task_move.stderr.decode('utf-8').replace("\n", " ")
+        log.debug(f"Stderr: {task_move_stderr}")
 
         # Now move the tar file to "processed" folder:
         proced_folder = data_path / "processed"
@@ -1065,12 +1058,11 @@ class AutoPipeline(object):
         task_command = ['mv', product_file, proced_file]
 
         task_move = subprocess.run(task_command, capture_output=True)
-        if verbose:
-            print(f"The task was: {task_command}")
-            task_move_stdout = task_move.stdout.decode('utf-8').replace("\n", " ")
-            print(f"Stdout: {task_move_stdout}")
-            task_move_stderr = task_move.stderr.decode('utf-8').replace("\n", " ")
-            print(f"Stderr: {task_move_stderr}")
+        log.debug(f"The task was: {task_command}")
+        task_move_stdout = task_move.stdout.decode('utf-8').replace("\n", " ")
+        log.debug(f"Stdout: {task_move_stdout}")
+        task_move_stderr = task_move.stderr.decode('utf-8').replace("\n", " ")
+        log.debug(f"Stderr: {task_move_stderr}")
 
     @property
     def qa_track_path(self):
@@ -1128,7 +1120,7 @@ class AutoPipeline(object):
                                                 test_against_previous=True)
 
         if filename is None:
-            print(f"Unable to find a manual flagging sheet for {self.track_name}")
+            log.info(f"Unable to find a manual flagging sheet for {self.track_name}")
             return
 
         # Copy to the same folder that job scripts are/will be in
@@ -1143,7 +1135,7 @@ class AutoPipeline(object):
 
         task_copy = subprocess.run(task_command, capture_output=True)
 
-        print(f"Starting connection to {clustername}")
+        log.info(f"Starting connection to {clustername}")
 
         await self.setup_ssh_connection(clustername, **ssh_kwargs)
 
@@ -1170,7 +1162,7 @@ class AutoPipeline(object):
         status_flag = self._qa_review_input(data_type=data_type)
 
         if status_flag != "RESTART":
-            print("No restart requested. Exiting")
+            log.debug("No restart requested. Exiting")
             return
 
         update_track_status(self.ebid, message=f"Restarting pipeline for re-run",
@@ -1219,7 +1211,7 @@ class AutoPipeline(object):
 
         '''
 
-        print(f"Starting connection to {clustername} for cleanup of {data_type}")
+        log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
 
         await self.setup_ssh_connection(clustername, **ssh_kwargs)
 
@@ -1229,14 +1221,14 @@ class AutoPipeline(object):
 
             cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
 
-            print(f"Cleaning up {data_type} on {clustername} at {cd_command}")
+            log.info(f"Cleaning up {data_type} on {clustername} at {cd_command}")
 
             rm_command = f"rm -rf {self.track_folder_name}_{data_type}"
         else:
 
             cd_command = f'cd scratch/VLAXL_reduction/'
 
-            print(f"Final clean up on {clustername} for track {cd_command}")
+            log.info(f"Final clean up on {clustername} for track {cd_command}")
 
             rm_command = f"rm -rf {self.track_folder_name}"
 
@@ -1264,11 +1256,11 @@ class AutoPipeline(object):
 
         # Skip if completion is not indicated
         if status_flag != "COMPLETE":
-            print("No completion step requested. Exiting")
+            log.debug("No completion step requested. Exiting")
             return
 
         # Transfer the MS with globus to its place on project space.
-        print(f"Transferring {self.track_folder_name} {data_type} calibrated MS to project space.")
+        log.info(f"Transferring {self.track_folder_name} {data_type} calibrated MS to project space.")
 
         path_to_products = f'{self.track_folder_name}/{self.track_folder_name}_{data_type}/'
 
@@ -1277,8 +1269,8 @@ class AutoPipeline(object):
         # Going to the ingester instance. Doesn't need an extra path.
         output_destination = project_dir
 
-        print(f"Filename to transfer is: {filename}")
-        print(f"Transferring to: {output_destination}")
+        log.info(f"Filename to transfer is: {filename}")
+        log.info(f"Transferring to: {output_destination}")
 
         transfer_taskid = transfer_general(filename, output_destination,
                                            startnode=clustername,
@@ -1290,17 +1282,17 @@ class AutoPipeline(object):
                                            use_rootname=True)
 
         if transfer_taskid is None:
-            print(f"No transfer task ID returned. Check existence of {filename}."
+            log.debug(f"No transfer task ID returned. Check existence of {filename}."
                   " Exiting completion process.")
             return
 
         self.transfer_taskid = transfer_taskid
 
-        print(f"The globus transfer ID is: {transfer_taskid}")
+        log.info(f"The globus transfer ID is: {transfer_taskid}")
 
-        print(f"Waiting for globus transfer to {clustername} to complete.")
+        log.info(f"Waiting for globus transfer to {clustername} to complete.")
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
-        print(f"Globus transfer {transfer_taskid} completed!")
+        log.info(f"Globus transfer {transfer_taskid} completed!")
 
 
         # Update track status. Append both data types if one has already finished
@@ -1347,7 +1339,7 @@ class AutoPipeline(object):
         status_flag = self._qa_review_input(data_type=data_type)
 
         if status_flag != "MANUAL REVIEW":
-            print("No restart requested. Exiting")
+            log.debug("No restart requested. Exiting")
             return
 
         update_track_status(self.ebid,
