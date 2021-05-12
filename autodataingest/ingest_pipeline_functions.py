@@ -169,7 +169,9 @@ class AutoPipeline(object):
                                      sleeptime=600,
                                      clustername='cc-cedar',
                                      do_cleanup=True,
-                                     default_project_code='20A-346'):
+                                     default_project_code='20A-346',
+                                     targets_to_check=['M31', 'M33', 'NGC6822', 'IC10', 'IC1613', 'WLM',
+                                                       'NGC604', 'M33_Sarm', 'NGC300']):
         """
         Step 1.
 
@@ -229,7 +231,7 @@ class AutoPipeline(object):
         # Scrap the VLA archive for target and config w/ astroquery
         # This will query the archive for the list of targets until the output has a matching EBID.
         target, datasize = match_ebid_to_source(ebid,
-                                                targets=['M31', 'M33', 'NGC6822', 'IC10', 'IC1613', 'WLM'],
+                                                targets=targets_to_check,
                                                 project_code=self.project_code,
                                                 verbose=False)
 
