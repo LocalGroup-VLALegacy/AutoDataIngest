@@ -140,11 +140,11 @@ cp -r ../VLA_antcorr_tables .
 
 echo 'Start casa default continuum pipeline'
 
-~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+xvfb-run -a ~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
 
 # Trigger an immediate re-run attempt: This will skip completed parts and QA txt files.
 # It's here because repeated plotms calls seem to stop working after awhile.
-~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+xvfb-run -a ~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
