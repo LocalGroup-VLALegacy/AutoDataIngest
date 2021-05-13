@@ -138,9 +138,9 @@ async def run(num_produce=1, num_consume=4,
     queue = asyncio.Queue()
 
     # fire up the both producers and consumers
-    producers = [asyncio.create_task(asyncio.ensure_future(produce(queue, **produce_kwargs)))
+    producers = [asyncio.create_task(produce(queue, **produce_kwargs))
                  for _ in range(num_produce)]
-    consumers = [asyncio.create_task(asyncio.ensure_future(consume(queue)))
+    consumers = [asyncio.create_task(consume(queue))
                  for _ in range(num_consume)]
 
     # with both producers and consumers running, wait for
@@ -159,8 +159,12 @@ async def run(num_produce=1, num_consume=4,
 if __name__ == "__main__":
 
     LOGGER_FORMAT = '%(asctime)s %(message)s'
-    logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]',
-                        filename=f'logs/main_archive_log_{datetime.now().strftime("%Y_%m_%d_%H_%M")}')
+    logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
+
+    log = logging.getLogger()
+
+    handler = logging.FileHandler(filename=f'logs/main_archive_log_{datetime.now().strftime("%Y_%m_%d_%H_%M")}')
+    log.addHandler(handler)
 
     # Configuration parameters:
     CLUSTERNAME = 'cc-cedar'
