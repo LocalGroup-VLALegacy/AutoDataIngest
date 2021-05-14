@@ -161,11 +161,14 @@ if __name__ == "__main__":
     import logging
 
     LOGGER_FORMAT = '%(asctime)s %(message)s'
-    logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%Y-%m-%d %H:%M:%S]')
+    DATE_FORMAT = '[%Y-%m-%d %H:%M:%S]'
+    logging.basicConfig(format=LOGGER_FORMAT, datefmt=DATE_FORMAT)
 
     log = logging.getLogger()
 
     handler = logging.FileHandler(filename=f'logs/main_archive.log')
+    file_formatter = logging.Formatter(fmt=LOGGER_FORMAT, datefmt=DATE_FORMAT)
+    handler.setFormatter(file_formatter)
     log.addHandler(handler)
 
     log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
