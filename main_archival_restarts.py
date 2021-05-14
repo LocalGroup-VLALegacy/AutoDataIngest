@@ -16,6 +16,9 @@ from autodataingest.gsheet_tracker.gsheet_functions import (find_rerun_status_tr
 
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
+from autodataingest.logging import setup_logging
+log = setup_logging()
+
 
 async def produce(queue, sleeptime=10, start_with_newest=False,
                   ebid_list=None,
@@ -42,7 +45,7 @@ async def produce(queue, sleeptime=10, start_with_newest=False,
 
         for ebid in all_ebids:
             # produce an item
-            print(f'Found new track with ID {ebid}')
+            log.info(f'Found new track with ID {ebid}')
 
             # Put a small gap between starting to consume processes
             await asyncio.sleep(sleeptime)
@@ -62,7 +65,7 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
         auto_pipe = await queue.get()
 
         # process the item
-        print('Processing {}...'.format(auto_pipe.ebid))
+        log.info('Processing {}...'.format(auto_pipe.ebid))
         # simulate i/o operation using sleep
         # await asyncio.sleep(1)
 
@@ -70,6 +73,8 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
         restart_speclines = auto_pipe._qa_review_input(data_type='speclines') == "RESTART"
 
         if restart_continuum or restart_speclines:
+
+            log.info("Found a restart job")
 
             data_types = []
             if restart_continuum:
@@ -94,6 +99,8 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                                                   check_line_job=restart_speclines,
                                                   sleeptime=1800)
 
+            log.info("Received job notifications")
+
             # Move pipeline products to QA webserver
             for data_type in data_types:
 
@@ -112,6 +119,7 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
         complete_speclines = auto_pipe._qa_review_input(data_type='speclines') == "COMPLETE"
 
         if complete_continuum or complete_speclines:
+            log.info("Found a completion job")
 
             data_types = []
             if complete_continuum:
@@ -132,6 +140,8 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
 
         if manualcheck_continuum or manualcheck_speclines:
 
+            log.info("Found a manual review job")
+
             data_types = []
             if manualcheck_continuum:
                 data_types.append('continuum')
@@ -141,9 +151,9 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
             for data_type in data_types:
                 await auto_pipe.label_qa_failures(data_type=data_type)
 
-        print('Completed {}...'.format(auto_pipe.ebid))
 
         # Notify the queue that the item has been processed
+        log.info('Completed {}...'.format(auto_pipe.ebid))
         queue.task_done()
 
 
@@ -172,6 +182,23 @@ async def run(num_consume=4,
 
 
 if __name__ == "__main__":
+
+    import logging
+    from datetime import datetime
+
+    LOGGER_FORMAT = '%(asctime)s %(message)s'
+    DATE_FORMAT = '[%Y-%m-%d %H:%M:%S]'
+    logging.basicConfig(format=LOGGER_FORMAT, datefmt=DATE_FORMAT)
+
+    log = logging.getLogger()
+
+    handler = logging.FileHandler(filename=f'logs/main_archive_restarts.log')
+    file_formatter = logging.Formatter(fmt=LOGGER_FORMAT, datefmt=DATE_FORMAT)
+    handler.setFormatter(file_formatter)
+    log.addHandler(handler)
+
+    log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
+
 
     # Configuration parameters:
     CLUSTERNAME = 'cc-cedar'

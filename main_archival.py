@@ -109,6 +109,7 @@ async def consume(queue):
         # TODO: Add job restarting when timeouts occur.
 
         # Move pipeline products to QA webserver
+        log.info("Transferring pipeline products")
         await auto_pipe.transfer_pipeline_products(data_type='speclines',
                                                    startnode='cc-cedar',
                                                    endnode='ingester')
@@ -118,16 +119,18 @@ async def consume(queue):
                                                    endnode='ingester')
 
         # Create the flagging sheets in the google sheet
+        log.info("Creating flagging sheets")
         await auto_pipe.make_flagging_sheet(data_type='continuum')
         await auto_pipe.make_flagging_sheet(data_type='speclines')
 
 
         # Create the final QA products and move to the webserver
+        log.info("Transferring QA products to webserver")
         auto_pipe.make_qa_products(data_type='speclines')
         auto_pipe.make_qa_products(data_type='continuum')
 
         # Notify the queue that the item has been processed
-        log.info('Now finished {}...'.format(auto_pipe.ebid))
+        log.info('Completed {}...'.format(auto_pipe.ebid))
 
         queue.task_done()
 

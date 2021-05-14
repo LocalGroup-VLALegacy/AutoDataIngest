@@ -16,6 +16,9 @@ from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks)
 
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
+from autodataingest.logging import setup_logging
+log = setup_logging()
+
 
 async def produce(queue, sleeptime=10, test_case_run_newest=False,
                   run_newest_first=False,
@@ -41,12 +44,12 @@ async def produce(queue, sleeptime=10, test_case_run_newest=False,
         # Test case enabled will only queue two jobs.
         # This is a test of running >1 tracks concurrently.
         if test_case_run_newest:
-            print("Test case of 2 run only has been enabled.")
+            log.info("Test case of 2 run only has been enabled.")
             new_ebids = new_ebids[-2:]
 
         for ebid in new_ebids:
             # produce an item
-            print(f'Found new track with ID {ebid}')
+            log.info(f'Found new track with ID {ebid}')
 
             # Put a small gap between starting to consume processes
             await asyncio.sleep(sleeptime)
@@ -66,11 +69,11 @@ async def consume(queue):
         auto_pipe = await queue.get()
 
         # process the item
-        print('Processing {}...'.format(auto_pipe.ebid))
+        log.info('Processing {}...'.format(auto_pipe.ebid))
         # simulate i/o operation using sleep
         # await asyncio.sleep(1)
 
-        print(f'Starting archive request for {auto_pipe.ebid}')
+        log.info(f'Starting archive request for {auto_pipe.ebid}')
         # 1.
         await auto_pipe.archive_request_and_transfer(archive_kwargs={'emailaddr': EMAILADDR,
                                                                      'lustre_path': NRAODATAPATH},
@@ -78,14 +81,14 @@ async def consume(queue):
                                                     clustername=CLUSTERNAME,
                                                     do_cleanup=False)
 
-        print(f"Setting up scripts for reduction.")
+        log.info(f"Setting up scripts for reduction.")
         await auto_pipe.setup_for_reduction_pipeline(clustername=CLUSTERNAME)
 
-        print("Create the flagging sheets in the google sheet (if they exist)")
+        log.info("Create the flagging sheets in the google sheet (if they exist)")
         await auto_pipe.get_flagging_files(data_type='continuum')
         await auto_pipe.get_flagging_files(data_type='speclines')
 
-        print(f"Submitting pipeline jobs to {CLUSTERNAME}")
+        log.info(f"Submitting pipeline jobs to {CLUSTERNAME}")
         await auto_pipe.initial_job_submission(
                                 clustername=CLUSTERNAME,
                                 scripts_dir=Path('reduction_job_scripts/'),
@@ -97,7 +100,7 @@ async def consume(queue):
                                 line_time=CLUSTER_LINE_JOBTIME,
                                 scheduler_cmd=CLUSTER_SCHEDCMD,)
 
-        print("Checking and waiting for job completion")
+        log.info("Checking and waiting for job completion")
         # Return dictionary of jobs to restart.
         await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
                                               check_line_job=RUN_LINES,
@@ -105,6 +108,7 @@ async def consume(queue):
 
         # TODO: Add job restarting when timeouts occur.
 
+        log.info("Transferring pipeline products")
         # Move pipeline products to QA webserver
         await auto_pipe.transfer_pipeline_products(data_type='speclines',
                                                    startnode='cc-cedar',
@@ -115,15 +119,18 @@ async def consume(queue):
                                                    endnode='ingester')
 
         # Create the flagging sheets in the google sheet
+        log.info("Creating flagging sheets")
         await auto_pipe.make_flagging_sheet(data_type='continuum')
         await auto_pipe.make_flagging_sheet(data_type='speclines')
 
 
         # Create the final QA products and move to the webserver
+        log.info("Transferring QA products to webserver")
         auto_pipe.make_qa_products(data_type='speclines')
         auto_pipe.make_qa_products(data_type='continuum')
 
         # Notify the queue that the item has been processed
+        log.info('Completed {}...'.format(auto_pipe.ebid))
         queue.task_done()
 
 
@@ -152,6 +159,21 @@ async def run(num_produce=1, num_consume=4,
 
 
 if __name__ == "__main__":
+
+    import logging
+
+    LOGGER_FORMAT = '%(asctime)s %(message)s'
+    DATE_FORMAT = '[%Y-%m-%d %H:%M:%S]'
+    logging.basicConfig(format=LOGGER_FORMAT, datefmt=DATE_FORMAT)
+
+    log = logging.getLogger()
+
+    handler = logging.FileHandler(filename=f'logs/main.log')
+    file_formatter = logging.Formatter(fmt=LOGGER_FORMAT, datefmt=DATE_FORMAT)
+    handler.setFormatter(file_formatter)
+    log.addHandler(handler)
+
+    log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
 
     # Configuration parameters:
     CLUSTERNAME = 'cc-cedar'
