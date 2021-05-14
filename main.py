@@ -161,13 +161,14 @@ async def run(num_produce=1, num_consume=4,
 if __name__ == "__main__":
 
     import logging
-    import datetime
+    from datetime import datetime
 
     LOGGER_FORMAT = '%(asctime)s %(message)s'
     DATE_FORMAT = '[%Y-%m-%d %H:%M:%S]'
     logging.basicConfig(format=LOGGER_FORMAT, datefmt=DATE_FORMAT)
 
     log = logging.getLogger()
+    log.setLevel(logging.INFO)
 
     # Add file logger
     handler = logging.FileHandler(filename=f'logs/main.log')

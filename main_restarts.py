@@ -190,6 +190,7 @@ if __name__ == "__main__":
     logging.basicConfig(format=LOGGER_FORMAT, datefmt=DATE_FORMAT)
 
     log = logging.getLogger()
+    log.setLevel(logging.INFO)
 
     handler = logging.FileHandler(filename=f'logs/main_restarts.log')
     file_formatter = logging.Formatter(fmt=LOGGER_FORMAT, datefmt=DATE_FORMAT)
