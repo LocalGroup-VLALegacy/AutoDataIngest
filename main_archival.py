@@ -158,6 +158,8 @@ async def run(num_produce=1, num_consume=4,
 
 if __name__ == "__main__":
 
+    import logging
+
     LOGGER_FORMAT = '%(asctime)s %(message)s'
     logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%Y-%m-%d %H:%M:%S]')
 
