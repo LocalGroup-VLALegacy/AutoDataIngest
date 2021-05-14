@@ -169,10 +169,19 @@ if __name__ == "__main__":
 
     log = logging.getLogger()
 
+    # Add file logger
     handler = logging.FileHandler(filename=f'logs/main.log')
     file_formatter = logging.Formatter(fmt=LOGGER_FORMAT, datefmt=DATE_FORMAT)
     handler.setFormatter(file_formatter)
     log.addHandler(handler)
+
+    # Add stream logger
+    stream = logging.StreamHandler()
+    streamformat = logging.Formatter(fmt=LOGGER_FORMAT, datefmt=DATE_FORMAT)
+    stream.setLevel(logging.DEBUG)
+    stream.setFormatter(streamformat)
+
+    log.addHandler(stream)
 
     log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
 
