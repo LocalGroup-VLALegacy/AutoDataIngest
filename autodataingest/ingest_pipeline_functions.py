@@ -18,11 +18,8 @@ import shutil
 import fabric
 import paramiko
 
-import logging
-LOGGER_FORMAT = '%(asctime)s %(message)s'
-logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
-log = logging.getLogger()
-log.setLevel(logging.INFO)
+from autodataingest.logging import setup_logging
+log = setup_logging()
 
 
 from autodataingest.email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification, add_jobtimes)

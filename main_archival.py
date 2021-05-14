@@ -16,11 +16,9 @@ from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks)
 
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
+from autodataingest.logging import setup_logging
+log = setup_logging()
 
-import logging
-
-log = logging.getLogger()
-log.setLevel(logging.INFO)
 
 async def produce(queue, sleeptime=10, test_case_run_newest=False,
                   run_newest_first=False,
@@ -129,6 +127,8 @@ async def consume(queue):
         auto_pipe.make_qa_products(data_type='continuum')
 
         # Notify the queue that the item has been processed
+        log.info('Now finished {}...'.format(auto_pipe.ebid))
+
         queue.task_done()
 
 
@@ -159,12 +159,14 @@ async def run(num_produce=1, num_consume=4,
 if __name__ == "__main__":
 
     LOGGER_FORMAT = '%(asctime)s %(message)s'
-    logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
+    logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%Y-%m-%d %H:%M:%S]')
 
     log = logging.getLogger()
 
-    handler = logging.FileHandler(filename=f'logs/main_archive_log_{datetime.now().strftime("%Y_%m_%d_%H_%M")}')
+    handler = logging.FileHandler(filename=f'logs/main_archive.log')
     log.addHandler(handler)
+
+    log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
 
     # Configuration parameters:
     CLUSTERNAME = 'cc-cedar'

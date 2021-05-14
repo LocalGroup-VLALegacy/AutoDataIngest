@@ -12,11 +12,8 @@ import requests
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
 
-import logging
-LOGGER_FORMAT = '%(asctime)s %(message)s'
-logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
-log = logging.getLogger()
-log.setLevel(logging.INFO)
+from ..logging import setup_logging
+log = setup_logging()
 
 
 def do_authentication_gspread():

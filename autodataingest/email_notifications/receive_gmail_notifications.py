@@ -2,10 +2,8 @@
 import ezgmail
 from datetime import datetime
 
-import logging
-LOGGER_FORMAT = '%(asctime)s %(message)s'
-logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
-log = logging.getLogger()
+from ..logging import setup_logging
+log = setup_logging()
 
 PROJECTID = "20A-346"
 

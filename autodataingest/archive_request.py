@@ -10,11 +10,8 @@ from selenium.common.exceptions import TimeoutException
 import os
 import time
 
-import logging
-LOGGER_FORMAT = '%(asctime)s %(message)s'
-logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
-log = logging.getLogger()
-log.setLevel(logging.INFO)
+from .logging import setup_logging
+log = setup_logging()
 
 
 def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",

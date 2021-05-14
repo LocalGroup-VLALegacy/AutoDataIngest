@@ -63,8 +63,8 @@ export CASALD_LIBRARY_PATH=$LD_LIBRARY_PATH
 #ln -s $NIXDIR/libXcursor.so.1 $HOME/usr/
 #ln -s $NIXDIR/libXinerama.so.1 $HOME/usr/
 
-Xvfb :1 &
-export DISPLAY=:1
+#Xvfb :1 &
+#export DISPLAY=:1
 
         '''
 

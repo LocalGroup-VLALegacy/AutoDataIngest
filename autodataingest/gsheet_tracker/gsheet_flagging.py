@@ -16,10 +16,8 @@ import filecmp
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
 
-import logging
-LOGGER_FORMAT = '%(asctime)s %(message)s'
-logging.basicConfig(format=LOGGER_FORMAT, datefmt='[%H:%M:%S]')
-log = logging.getLogger()
+from ..logging import setup_logging
+log = setup_logging()
 
 
 def read_flagsheet():
