@@ -44,6 +44,12 @@ echo 'Start casa'
 
 ~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} {split_type}
 
+export exitcode=$?
+if [ $exitcode -ge 1 ]; then
+    echo "Non-zero exit code from CASA. Exiting"
+    exit 1
+fi
+
 # Copy manual flag files if they're present:
 if [ -f manual_flagging_speclines.txt ]; then
     cp manual_flagging_speclines.txt $TRACK_FOLDER"_speclines"/manual_flagging.txt
