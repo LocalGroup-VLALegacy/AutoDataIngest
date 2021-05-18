@@ -52,9 +52,42 @@ function addtoQASignUp() {
             var this_target = sheet_newdata.getRange(i+2,5).getValue()
             var update_target = sheet_signup.getRange(j+2,4).setValue(this_target)
 
+            var this_trackname = sheet_newdata.getRange(i+2,4).getValue()
+            var update_trackname = sheet_signup.getRange(j+2,2).setValue(this_trackname)
+
+            var old_status_cont = sheet_signup.getRange(j+2,6).getValue()
+            var old_status_lines = sheet_signup.getRange(j+2,7).getValue()
+
             var update_status = sheet_signup.getRange(j+2,6).setValue(this_status_cont)
             var update_status = sheet_signup.getRange(j+2,7).setValue(this_status_lines)
 
+
+            // Did the status change to "ready for QA"? If so, ping the reviewer
+            var exp_qa_status = "Ready for QA"
+            var in_previously_qa_cont = old_status_cont.includes(exp_qa_status)
+            var in_previously_qa_lines = old_status_lines.includes(exp_qa_status)
+
+            var new_qa_cont = this_status_cont.includes(exp_qa_status)
+            var new_qa_lines = this_status_lines.includes(exp_qa_status)
+
+
+            var do_send_email = false
+            // Check if things have changes:
+            if (!in_previously_qa_cont && new_qa_cont){
+              do_send_email = true
+            }
+
+            if (!in_previously_qa_lines && new_qa_lines){
+              do_send_email = true
+            }
+
+            if (do_send_email) {
+              var emailAddress = sheet_signup.getRange(j+2,9).getValue()
+              var subject = sheet_signup.getRange(j+2,12).getValue()
+              var message = sheet_signup.getRange(j+2,13).getValue()
+
+              MailApp.sendEmail(emailAddress, subject, message)
+            }
 
           }
         }
@@ -106,8 +139,42 @@ function addtoQASignUp() {
             var this_target = sheet_archivedata.getRange(i+2,5).getValue()
             var update_target = sheet_signup.getRange(j+2,4).setValue(this_target)
 
+            var this_trackname = sheet_archivedata.getRange(i+2,4).getValue()
+            var update_trackname = sheet_signup.getRange(j+2,2).setValue(this_trackname)
+
+            var old_status_cont = sheet_signup.getRange(j+2,6).getValue()
+            var old_status_lines = sheet_signup.getRange(j+2,7).getValue()
+
             var update_status = sheet_signup.getRange(j+2,6).setValue(this_status_cont)
             var update_status = sheet_signup.getRange(j+2,7).setValue(this_status_lines)
+
+
+            // Did the status change to "ready for QA"? If so, ping the reviewer
+            var exp_qa_status = "Ready for QA"
+            var in_previously_qa_cont = old_status_cont.includes(exp_qa_status)
+            var in_previously_qa_lines = old_status_lines.includes(exp_qa_status)
+
+            var new_qa_cont = this_status_cont.includes(exp_qa_status)
+            var new_qa_lines = this_status_lines.includes(exp_qa_status)
+
+
+            var do_send_email = false
+            // Check if things have changes:
+            if (!in_previously_qa_cont && new_qa_cont){
+              do_send_email = true
+            }
+
+            if (!in_previously_qa_lines && new_qa_lines){
+              do_send_email = true
+            }
+
+            if (do_send_email) {
+              var emailAddress = sheet_signup.getRange(j+2,9).getValue()
+              var subject = sheet_signup.getRange(j+2,12).getValue()
+              var message = sheet_signup.getRange(j+2,13).getValue()
+
+              MailApp.sendEmail(emailAddress, subject, message)
+            }
 
           }
         }
