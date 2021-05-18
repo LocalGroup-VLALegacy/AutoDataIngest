@@ -809,6 +809,12 @@ class AutoPipeline(object):
                                         sheetname=self.sheetname,
                                         status_col=1)
 
+                if job_status_continuum == "COMPLETED":
+                    update_track_status(self.ebid, message=f"Ready for QA",
+                                        sheetname=self.sheetname,
+                                        status_col=1)
+
+
 
             # Trigger resubmitting the lines
             if check_line_job:
@@ -830,6 +836,12 @@ class AutoPipeline(object):
                                         message=f"ISSUE: Needs manual check of job status",
                                         sheetname=self.sheetname,
                                         status_col=2)
+
+                if job_status_line == "COMPLETED":
+                    update_track_status(self.ebid, message=f"Ready for QA",
+                                        sheetname=self.sheetname,
+                                        status_col=2)
+
 
         else:
             log.info(f"Not all jobs were run. Needs manual review for {self.ebid}")
