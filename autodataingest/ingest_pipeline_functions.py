@@ -101,6 +101,10 @@ class AutoPipeline(object):
         else:
             self.track_name = None
 
+        self._restart_split_count = 0
+        self._restart_lines_count = 0
+        self._restart_continuum_count = 0
+
     def _qa_review_input(self, data_type='continuum'):
         '''
         Request a restart on the jobs.
@@ -709,9 +713,9 @@ class AutoPipeline(object):
             break
 
         # Make dictionary for restarting jobs.
-        restarts = {'IMPORT_SPLIT': False,
-                    'CONTINUUM_PIPE': False,
-                    'LINE_PIPE': False,}
+        self.restarts = {'IMPORT_SPLIT': False,
+                         'CONTINUUM_PIPE': False,
+                         'LINE_PIPE': False,}
 
 
         if all([is_done_split, is_done_continuum, is_done_line]):
@@ -755,9 +759,9 @@ class AutoPipeline(object):
                     # Re-add all to submission queue
                     log.info(f"Timeout for split. Needs resubmitting of all jobs")
 
-                    restarts['IMPORT_SPLIT'] = True
-                    restarts['CONTINUUM_PIPE'] = True
-                    restarts['LINE_PIPE'] = True
+                    self.restarts['IMPORT_SPLIT'] = True
+                    self.restarts['CONTINUUM_PIPE'] = True
+                    self.restarts['LINE_PIPE'] = True
 
                     update_track_status(self.ebid,
                                         message=f"ISSUE: job timed out",
@@ -770,9 +774,9 @@ class AutoPipeline(object):
 
                 if job_status_split == 'FAILED':
 
-                    restarts['IMPORT_SPLIT'] = True
-                    restarts['CONTINUUM_PIPE'] = True
-                    restarts['LINE_PIPE'] = True
+                    self.restarts['IMPORT_SPLIT'] = True
+                    self.restarts['CONTINUUM_PIPE'] = True
+                    self.restarts['LINE_PIPE'] = True
 
                     update_track_status(self.ebid,
                                         message=f"ISSUE: Needs manual check of job status",
@@ -789,7 +793,7 @@ class AutoPipeline(object):
                 if job_status_continuum == 'TIMEOUT':
                     # Add to resubmission queue
                     log.info(f"Timeout for continuum pipeline. Needs resubmitting of continuum job.")
-                    restarts['CONTINUUM_PIPE'] = True
+                    self.restarts['CONTINUUM_PIPE'] = True
 
                     update_track_status(self.ebid,
                                         message=f"ISSUE: job timed out",
@@ -798,7 +802,7 @@ class AutoPipeline(object):
 
                 if job_status_continuum == "FAILED":
 
-                    restarts['CONTINUUM_PIPE'] = True
+                    self.restarts['CONTINUUM_PIPE'] = True
 
                     update_track_status(self.ebid,
                                         message=f"ISSUE: Needs manual check of job status",
@@ -811,7 +815,7 @@ class AutoPipeline(object):
                 if job_status_line == 'TIMEOUT':
                     # Add to resubmission queue
                     log.info(f"Timeout for line pipeline. Needs resubmitting of line job.")
-                    restarts['LINE_PIPE'] = True
+                    self.restarts['LINE_PIPE'] = True
 
                     update_track_status(self.ebid,
                                         message=f"ISSUE: job timed out",
@@ -820,7 +824,7 @@ class AutoPipeline(object):
 
                 if job_status_line == "FAILED":
 
-                    restarts['LINE_PIPE'] = True
+                    self.restarts['LINE_PIPE'] = True
 
                     update_track_status(self.ebid,
                                         message=f"ISSUE: Needs manual check of job status",
@@ -839,17 +843,178 @@ class AutoPipeline(object):
                                 sheetname=self.sheetname,
                                 status_col=2)
 
-        # TODO: These need to be handled below.
-        self.restarts = restarts
 
+    async def restart_job_submission(self, max_resubmission=1,                                     clustername='cc-cedar',
+                                     scripts_dir=Path('reduction_job_scripts/'),
+                                     split_type='all',
+                                     clusteracct=None,
+                                     split_time=None,
+                                     continuum_time=None,
+                                     line_time=None,
+                                     scheduler_cmd="",
+                                     **ssh_kwargs):
 
-    async def restart_job_submission(self, ebid, restart_dictionary):
         """
         Step 3b.
 
-        Resubmit an incomplete job.
+        Resubmit incomplete jobs.
         """
-        pass
+
+        # Check that the restart dictionary is defined
+        if not hasattr(self, 'restarts'):
+            raise ValueError("restarts is not defined. get_job_notifications must be run first.")
+
+        if clusteracct is not None:
+            acct_str = f"--account={clusteracct}"
+        else:
+            acct_str = ""
+
+        chdir_cmd = f"cd scratch/VLAXL_reduction/{self.track_folder_name}/"
+
+        # Setup connection:
+        log.info(f"Starting connection to {clustername}")
+        await self.setup_ssh_connection(clustername, **ssh_kwargs)
+
+        # Restart split submission
+        if self.restarts['IMPORT_SPLIT']:
+            self._restart_split_count += 1
+
+            if self._restart_split_count > max_resubmission:
+                log.info("Reached maximum resubmission attempts for split jobs.")
+                log.info(f"Manual review of failure is required for {self.ebid}")
+
+                update_track_status(self.ebid,
+                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
+                                    sheetname=self.sheetname,
+                                    status_col=1)
+                update_track_status(self.ebid,
+                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
+                                    sheetname=self.sheetname,
+                                    status_col=2)
+
+                return
+
+            # All files should already exist for restarts.
+
+            job_split_filename = f"{self.track_folder_name}_{split_type}_job_import_and_split.sh"
+
+            if split_time is not None:
+                time_str = f"--time={split_time}"
+            else:
+                time_str = ""
+
+            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_split_filename}"
+
+            log.info(f"Submitting command: {submit_cmd}")
+
+            try:
+                result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+            except ValueError as exc:
+                raise ValueError(f"Failed to submit split job! See stderr: {exc}")
+
+            # Record the job ID so we can check for completion.
+            self.importsplit_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+            log.info(f"Re-submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
+
+            update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}",
+                        name_col="Split Job ID",
+                        sheetname=self.sheetname)
+
+        # Restart continuum submission
+        if self.restarts['CONTINUUM_PIPE']:
+            self._restart_continuum_count += 1
+
+            if self._restart_continuum_count > max_resubmission:
+                log.info("Reached maximum resubmission attempts for continuum jobs.")
+                log.info(f"Manual review of failure is required for {self.ebid}")
+
+                update_track_status(self.ebid,
+                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
+                                    sheetname=self.sheetname,
+                                    status_col=1)
+
+            else:
+                job_continuum_filename = f"{self.track_folder_name}_job_continuum.sh"
+
+                if continuum_time is not None:
+                    time_str = f"--time={continuum_time}"
+                else:
+                    time_str = ""
+
+                submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_continuum_filename}"
+
+                log.info(f"Submitting command: {submit_cmd}")
+
+                try:
+                    result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                except ValueError as exc:
+                    raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
+
+                # Record the job ID so we can check for completion.
+                self.continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+                log.info(f"Resubmitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
+
+                update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}",
+                            name_col="Continuum job ID",
+                            sheetname=self.sheetname)
+
+                # Continuum
+                update_track_status(self.ebid,
+                                    message=f"Reduction running on {clustername}",
+                                    sheetname=self.sheetname,
+                                    status_col=1)
+
+        # Restart lines submission
+        if self.restarts['LINE_PIPE']:
+            self._restart_line_count += 1
+
+            if self._restart_line_count > max_resubmission:
+                log.info("Reached maximum resubmission attempts for line jobs.")
+                log.info(f"Manual review of failure is required for {self.ebid}")
+
+                update_track_status(self.ebid,
+                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
+                                    sheetname=self.sheetname,
+                                    status_col=2)
+
+            else:
+
+                job_line_filename = f"{self.track_folder_name}_job_line.sh"
+
+                if line_time is not None:
+                    time_str = f"--time={line_time}"
+                else:
+                    time_str = ""
+
+                submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_line_filename}"
+
+                log.info(f"Submitting command: {submit_cmd}")
+
+                try:
+                    result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                except ValueError as exc:
+                    raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
+
+                # Record the job ID so we can check for completion.
+                self.line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
+                log.info(f"Resubmitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
+
+                update_cell(self.ebid, f"{clustername}:{self.line_jobid}",
+                            # num_col=24,
+                            name_col='Line job ID',
+                            sheetname=self.sheetname)
+
+                # Lines
+                update_track_status(self.ebid,
+                                    message=f"Reduction running on {clustername}",
+                                    sheetname=self.sheetname,
+                                    status_col=2)
+
+        if self.connect.is_connected:
+            self.connect.close()
 
 
     async def transfer_pipeline_products(self, data_type='speclines',
