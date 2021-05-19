@@ -37,7 +37,8 @@ from autodataingest.get_track_info import match_ebid_to_source
 
 from autodataingest.download_vlaant_corrections import download_vla_antcorr
 
-from autodataingest.ssh_utils import try_run_command, run_command
+from autodataingest.ssh_utils import (try_run_command, run_command,
+                                      time_limit, TimeoutException)
 
 from autodataingest.archive_request import archive_copy_SDM
 
@@ -132,6 +133,7 @@ class AutoPipeline(object):
 
     async def setup_ssh_connection(self, clustername, user='ekoch',
                                    max_retry_connection=10,
+                                   connection_timeout=60,
                                    reconnect_waittime=900):
         '''
         Setup and test the ssh connection to the cluster.
@@ -140,24 +142,29 @@ class AutoPipeline(object):
         retry_times = 0
         while True:
             try:
-                connect = fabric.Connection(CLUSTERADDRS[clustername],
-                                            user=user,
-                                            connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""})
-                # I'm getting intermittent DNS issues on the CC cloud.
-                # This is to handle waiting until the DNS problem goes away
-                connect.open()
+                with time_limit(connection_timeout):
+                    connect = fabric.Connection(CLUSTERADDRS[clustername],
+                                                user=user,
+                                                connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""},
+                                                connect_timeout=20)
+                    # I'm getting intermittent DNS issues on the CC cloud.
+                    # This is to handle waiting until the DNS problem goes away
+                    connect.open()
 
                 break
 
-            except socket.gaierror as e:
-                log.info("Encountering DNS issue with exception {e}")
-                log.info("Waiting to retry connection")
-                await asyncio.sleep(reconnect_waittime)
+            except (socket.gaierror, TimeoutException) as e:
+                log.info(f"SSH connection reached exception {e}")
+                log.info("Waiting {reconnect_waittime} sec before trying again")
 
-                retry_times += 1
+            retry_times += 1
 
-                if retry_times >= max_retry_connection:
-                    raise Exception(f"Reached maximum retries to connect to {clustername}")
+            if retry_times >= max_retry_connection:
+                raise Exception(f"Reached maximum retries to connect to {clustername}")
+
+            log.info("Waiting to retry connection")
+            await asyncio.sleep(reconnect_waittime)
+
         # Test the connection:
         if not try_run_command(connect):
             raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
