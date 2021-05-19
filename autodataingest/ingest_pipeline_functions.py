@@ -896,6 +896,8 @@ class AutoPipeline(object):
 
         # Restart split submission
         if self.restarts['IMPORT_SPLIT']:
+            log.info("Attempting to restart the import/split job")
+
             self._restart_split_count += 1
 
             if self._restart_split_count > max_resubmission:
@@ -942,6 +944,8 @@ class AutoPipeline(object):
 
         # Restart continuum submission
         if self.restarts['CONTINUUM_PIPE']:
+            log.info("Attempting to restart the continuum pipeline job")
+
             self._restart_continuum_count += 1
 
             if self._restart_continuum_count > max_resubmission:
@@ -987,6 +991,8 @@ class AutoPipeline(object):
 
         # Restart lines submission
         if self.restarts['LINE_PIPE']:
+            log.info("Attempting to restart the line pipeline job")
+
             self._restart_line_count += 1
 
             if self._restart_line_count > max_resubmission:
@@ -1035,6 +1041,7 @@ class AutoPipeline(object):
         if self.connect.is_connected:
             self.connect.close()
 
+        log.info("Completed job resubmission")
 
     async def transfer_pipeline_products(self, data_type='speclines',
                                          startnode='cc-cedar',
