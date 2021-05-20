@@ -22,7 +22,7 @@ def try_run_command(connect, test_cmd='ls'):
         return False
 
 
-def run_command(connect, cmd, test_connection=False):
+def run_command(connect, cmd, test_connection=False, timeout_limit=240,):
     """
     Run a command on the given connection.
     """
@@ -31,10 +31,14 @@ def run_command(connect, cmd, test_connection=False):
         if try_run_command(connect) is False:
             raise ValueError("Connection requires a password.")
 
-    result = connect.run(cmd, hide=True)
+    try:
+        with time_limit(timeout_limit):
+            result = connect.run(cmd, hide=True)
+    except TimeoutError as e:
+        raise e
 
     if result.failed:
-        raise ValueError(f"Failed to clone pipeline! See stderr: {result.stderr}")
+        raise ValueError(f"Failed to run {cmd}! See stderr: {result.stderr}")
 
     return result
 
