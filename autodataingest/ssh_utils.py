@@ -9,20 +9,20 @@ import signal
 from contextlib import contextmanager
 
 
-def try_run_command(connect, test_cmd='ls'):
+def try_run_command(connect, test_cmd='ls', timeout=600):
     """
     Try running a command on the given connection as a test of whether a password is
     required.
     """
 
     try:
-        result = connect.run(test_cmd, hide=True)
+        result = connect.run(test_cmd, hide=True, timeout=timeout)
         return True
     except paramiko.PasswordRequiredException:
         return False
 
 
-def run_command(connect, cmd, test_connection=False, timeout_limit=240,):
+def run_command(connect, cmd, test_connection=False, timeout=600,):
     """
     Run a command on the given connection.
     """
@@ -31,11 +31,7 @@ def run_command(connect, cmd, test_connection=False, timeout_limit=240,):
         if try_run_command(connect) is False:
             raise ValueError("Connection requires a password.")
 
-    try:
-        with time_limit(timeout_limit):
-            result = connect.run(cmd, hide=True)
-    except TimeoutError as e:
-        raise e
+    result = connect.run(cmd, hide=True, timeout=timeout)
 
     if result.failed:
         raise ValueError(f"Failed to run {cmd}! See stderr: {result.stderr}")
