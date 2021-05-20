@@ -10,6 +10,10 @@ function addtoQASignUp() {
 
   var ebid_in_signupsheet = sheet_signup.getRange('C2:C').getDisplayValues().toString().split(",");
 
+  // Get the current number of rows
+  var num_rows = getFirstEmptyRowByColumnArray()
+  Logger.log(num_rows)
+
   // Loop through the new data and add a new line if the EBID is not found
   var ebids_newdata = sheet_newdata.getRange('H2:H').getDisplayValues().toString().split(",");
 
@@ -37,7 +41,17 @@ function addtoQASignUp() {
 
         this_config = sheet_newdata.getRange(i+2,10).getValue()
 
-        sheet_signup.appendRow([this_date, this_trackname, this_ebid, this_target, this_config, this_status_cont, this_status_lines]);
+        var update_vals = sheet_signup.getRange(num_rows + 1, 1).setValue(this_date)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 2).setValue(this_trackname)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 3).setValue(this_ebid)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 4).setValue(this_target)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 5).setValue(this_config)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 6).setValue(this_status_cont)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 7).setValue(this_status_lines)
+
+        var num_rows = num_rows + 1
+
+        // sheet_signup.appendRow([this_date, this_trackname, this_ebid, this_target, this_config, this_status_cont, this_status_lines]);
 
       } else {
 
@@ -113,8 +127,15 @@ function addtoQASignUp() {
 
     if (this_status_cont.length > 0) {
 
+      Logger.log(this_ebid)
+      Logger.log(ebid_match)
+      Logger.log(this_status_cont)
+      Logger.log(this_status_lines)
+
       // If not in the list, append a new row:
       if (!ebid_match) {
+
+        Logger.log("Found new track")
 
         this_date = sheet_archivedata.getRange(i+2,3).getValue()
 
@@ -124,7 +145,17 @@ function addtoQASignUp() {
 
         this_config = sheet_archivedata.getRange(i+2,10).getValue()
 
-        sheet_signup.appendRow([this_date, this_trackname, this_ebid, this_target, this_config, this_status_cont, this_status_lines]);
+        var update_vals = sheet_signup.getRange(num_rows + 1, 1).setValue(this_date)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 2).setValue(this_trackname)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 3).setValue(this_ebid)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 4).setValue(this_target)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 5).setValue(this_config)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 6).setValue(this_status_cont)
+        var update_vals = sheet_signup.getRange(num_rows + 1, 7).setValue(this_status_lines)
+
+        var num_rows = num_rows + 1
+
+        // sheet_signup.appendRow([this_date, this_trackname, this_ebid, this_target, this_config, this_status_cont, this_status_lines]);
 
       } else {
 
@@ -184,4 +215,17 @@ function addtoQASignUp() {
 
   }
 
+}
+
+function getFirstEmptyRowByColumnArray() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet_signup = ss.getSheetByName("QA Tracks Sign-up");
+  var ebids_signup = sheet_signup.getRange('C2:C')
+  //.getDisplayValues().toString().split(",");
+  var values = ebids_signup.getValues(); // get all data in one call
+  var ct = 0;
+  while ( values[ct] && values[ct][0] != "" ) {
+    ct++;
+  }
+  return (ct+1);
 }
