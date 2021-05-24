@@ -751,13 +751,15 @@ class AutoPipeline(object):
 
                 log.info(f"Processing complete for {self.ebid}! Ready for QA.")
 
-                update_track_status(self.ebid, message=f"Ready for QA",
-                                    sheetname=self.sheetname,
-                                    status_col=1)
+                if check_continuum_job:
+                    update_track_status(self.ebid, message=f"Ready for QA",
+                                        sheetname=self.sheetname,
+                                        status_col=1)
 
-                update_track_status(self.ebid, message=f"Ready for QA",
-                                    sheetname=self.sheetname,
-                                    status_col=2)
+                if check_line_job:
+                    update_track_status(self.ebid, message=f"Ready for QA",
+                                        sheetname=self.sheetname,
+                                        status_col=2)
 
             # If the split failed, the other two will not have completed.
             # Trigger resubmitting all three:
@@ -767,33 +769,38 @@ class AutoPipeline(object):
                     log.info(f"Timeout for split. Needs resubmitting of all jobs")
 
                     self.restarts['IMPORT_SPLIT'] = True
-                    self.restarts['CONTINUUM_PIPE'] = True
-                    self.restarts['LINE_PIPE'] = True
 
-                    update_track_status(self.ebid,
-                                        message=f"ISSUE: job timed out",
-                                        sheetname=self.sheetname,
-                                        status_col=1)
-                    update_track_status(self.ebid,
-                                        message=f"ISSUE: job timed out",
-                                        sheetname=self.sheetname,
-                                        status_col=2)
+                    if check_continuum_job:
+                        update_track_status(self.ebid,
+                                            message=f"ISSUE: job timed out",
+                                            sheetname=self.sheetname,
+                                            status_col=1)
+                        self.restarts['CONTINUUM_PIPE'] = True
+
+                    if check_line_job:
+                        update_track_status(self.ebid,
+                                            message=f"ISSUE: job timed out",
+                                            sheetname=self.sheetname,
+                                            status_col=2)
+                        self.restarts['LINE_PIPE'] = True
 
                 if job_status_split == 'FAILED':
 
                     self.restarts['IMPORT_SPLIT'] = True
-                    self.restarts['CONTINUUM_PIPE'] = True
-                    self.restarts['LINE_PIPE'] = True
 
-                    update_track_status(self.ebid,
-                                        message=f"ISSUE: Needs manual check of job status",
-                                        sheetname=self.sheetname,
-                                        status_col=1)
+                    if check_continuum_job:
+                        update_track_status(self.ebid,
+                                            message=f"ISSUE: Needs manual check of job status",
+                                            sheetname=self.sheetname,
+                                            status_col=1)
+                        self.restarts['CONTINUUM_PIPE'] = True
 
-                    update_track_status(self.ebid,
-                                        message=f"ISSUE: Needs manual check of job status",
-                                        sheetname=self.sheetname,
-                                        status_col=2)
+                    if check_line_job:
+                        update_track_status(self.ebid,
+                                            message=f"ISSUE: Needs manual check of job status",
+                                            sheetname=self.sheetname,
+                                            status_col=2)
+                        self.restarts['LINE_PIPE'] = True
 
             # Trigger resubmitting the continuum
             if check_continuum_job:
@@ -853,17 +860,20 @@ class AutoPipeline(object):
         else:
             log.info(f"Not all jobs were run. Needs manual review for {self.ebid}")
 
-            update_track_status(self.ebid,
-                                message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
-                                sheetname=self.sheetname,
-                                status_col=1)
-            update_track_status(self.ebid,
-                                message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
-                                sheetname=self.sheetname,
-                                status_col=2)
+            if check_continuum_job:
+                update_track_status(self.ebid,
+                                    message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
+                                    sheetname=self.sheetname,
+                                    status_col=1)
+
+            if check_line_job:
+                update_track_status(self.ebid,
+                                    message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
+                                    sheetname=self.sheetname,
+                                    status_col=2)
 
 
-    async def restart_job_submission(self, max_resubmission=1,                                     clustername='cc-cedar',
+    async def restart_job_submission(self, max_resubmission=1, clustername='cc-cedar',
                                      scripts_dir=Path('reduction_job_scripts/'),
                                      split_type='all',
                                      clusteracct=None,
