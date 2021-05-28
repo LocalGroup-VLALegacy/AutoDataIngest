@@ -32,10 +32,14 @@ fi
 rm new_ms_files.txt batch_files.txt
 python ~/AutoDataIngest/sync_to_gdrive_diffchecker.py
 
+FILENAMES=$(cat new_ms_files.txt)
+for filename in $FILENAMES; do
+    echo "$filename $filename" >> batch_files.txt
+done
+
 # diff drive_files.txt cedar_files.txt >> new_ms_files.txt
 
 # Transfer new files here:
-FILENAMES=$(cat new_ms_files.txt)
 
 echo "Found files to upload: ${FILENAMES}"
 

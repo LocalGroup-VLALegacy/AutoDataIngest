@@ -24,8 +24,10 @@ for filename in diff_files:
     print(filename, file=open('new_ms_files.txt', 'a'))
 
 # 2. Now create the batch format:
-for filename in diff_files:
+# This DOESN'T WORK. Despite end='', a newline is created. This might have to do with
+# some internal setting for the maximum line length. We're doing this in the shell now
+# for filename in diff_files:
     # Force no line end
-    print(filename, end='', file=open('batch_files.txt', 'a'))
-    print(f" {filename}", file=open('batch_files.txt', 'a'))
+    # print(f"{filename} {filename}", end='', file=open('batch_files.txt', 'a'))
+    # print(filename, file=open('batch_files.txt', 'a'))
 
