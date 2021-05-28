@@ -26,6 +26,6 @@ for filename in diff_files:
 # 2. Now create the batch format:
 for filename in diff_files:
     # Force no line end
-    print(filename, end=' ', file=open('batch_files.txt', 'a'))
+    print(filename, end='', file=open('batch_files.txt', 'a'))
     print(f" {filename}", file=open('batch_files.txt', 'a'))
 

@@ -29,11 +29,9 @@ if cmp -s drive_files.txt cedar_files.txt; then
 fi
 
 # Find the new files.
-rm new_ms_files.txt
-rm batch_files.txt
-# python -c "for filename in list(set(open('cedar_files.txt', 'r').readlines()) -set(open('drive_files.txt', 'r').readlines())): print(filename)" >> new_ms_files.txt
-# python -c "for filename in list(set(open('cedar_files.txt', 'r').readlines()) -set(open('drive_files.txt', 'r').readlines())): print(filename, end='', file=open('batch_files.txt', 'a')); print(filename, file=open('batch_files.txt', 'a'))"
+rm new_ms_files.txt batch_files.txt
 python ~/AutoDataIngest/sync_to_gdrive_diffchecker.py
+
 # diff drive_files.txt cedar_files.txt >> new_ms_files.txt
 
 # Transfer new files here:
