@@ -60,11 +60,11 @@ fi
 echo "Finished transferring at $(date)"
 
 # Upload to gdrive then delete from here
-for filename in FILENAMES; do
+for filename in $FILENAMES; do
 
     # Upload to gdrive
     echo "Uploading ${filename} to gdrive at $(date)"
-    rclone copy $filename vlaxl_gdrive:MeasurementSets/${filename}
+    rclone copy $filename vlaxl_gdrive:MeasurementSets/
     echo "Finsihed uploading ${filename} to gdrive at $(date)"
 
     echo "Removing ${filename} at $(date)"
