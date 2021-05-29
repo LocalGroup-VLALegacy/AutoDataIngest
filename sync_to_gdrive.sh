@@ -10,7 +10,7 @@
 # Setup requires: (1) rclone to the shared drive.
 # (2) login to globus with credentials to access Eric's rrg-eros-ab project space on cedar
 
-cd /home/datamaanager/space/vlaxl/calibrated/
+cd /home/datamanager/space/vlaxl/calibrated/
 
 source_ep=c99fd40c-5545-11e7-beb6-22000b9a448b
 dest_ep=e8fc98cc-9ca8-11eb-92cd-6b08dd67ff48
