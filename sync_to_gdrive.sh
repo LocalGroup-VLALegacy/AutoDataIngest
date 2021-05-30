@@ -64,7 +64,7 @@ for filename in $FILENAMES; do
 
     # Upload to gdrive
     echo "Uploading ${filename} to gdrive at $(date)"
-    rclone copy $filename vlaxl_gdrive:MeasurementSets/
+    flock -n /tmp/google_drv_sync.lock /usr/bin/rclone copy --retries 5 $filename vlaxl_gdrive:MeasurementSets/
     echo "Finsihed uploading ${filename} to gdrive at $(date)"
 
     echo "Removing ${filename} at $(date)"
