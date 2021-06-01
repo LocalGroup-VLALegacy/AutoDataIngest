@@ -16,7 +16,7 @@ def try_run_command(connect, test_cmd='ls', timeout=600):
     """
 
     try:
-        result = connect.run(test_cmd, hide=True, timeout=timeout)
+        result = connect.run(test_cmd, hide=True, timeout=timeout, command_timeout=timeout)
         return True
     except paramiko.PasswordRequiredException:
         return False
