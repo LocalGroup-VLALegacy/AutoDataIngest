@@ -38,7 +38,8 @@ from autodataingest.get_track_info import match_ebid_to_source
 from autodataingest.download_vlaant_corrections import download_vla_antcorr
 
 from autodataingest.ssh_utils import (try_run_command, run_command,
-                                      time_limit, TimeoutException)
+                                      time_limit, TimeoutException,
+                                      run_job_submission)
 
 from autodataingest.archive_request import archive_copy_SDM
 
@@ -441,12 +442,15 @@ class AutoPipeline(object):
         log.info(f"Submitting command: {submit_cmd}")
 
         try:
-            result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+            # result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+            split_jobid = await run_job_submission(self.connect, f"{chdir_cmd} && {submit_cmd}",
+                                                  self.track_name, 'import_and_split')
         except ValueError as exc:
+            split_jobid = None
             raise ValueError(f"Failed to submit split job! See stderr: {exc}")
 
         # Record the job ID so we can check for completion.
-        self.importsplit_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+        self.importsplit_jobid = split_jobid
 
         log.info(f"Submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
 
@@ -493,12 +497,15 @@ class AutoPipeline(object):
             log.info(f"Submitting command: {submit_cmd}")
 
             try:
-                result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                # result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                continuum_jobid = await run_job_submission(self.connect, f"{chdir_cmd} && {submit_cmd}",
+                                                           self.track_name, 'continuum_pipeline')
             except ValueError as exc:
+                continuum_jobid = None
                 raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
 
             # Record the job ID so we can check for completion.
-            self.continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+            self.continuum_jobid = continuum_jobid
 
             log.info(f"Submitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
 
@@ -556,12 +563,15 @@ class AutoPipeline(object):
                                 status_col=2)
 
             try:
-                result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                # result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                line_jobid = await run_job_submission(self.connect, f"{chdir_cmd} && {submit_cmd}",
+                                                      self.track_name, 'line_pipeline')
             except ValueError as exc:
+                line_jobid = None
                 raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
 
             # Record the job ID so we can check for completion.
-            self.line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+            self.line_jobid = line_jobid
 
             log.info(f"Submitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
 
@@ -939,12 +949,15 @@ class AutoPipeline(object):
             log.info(f"Submitting command: {submit_cmd}")
 
             try:
-                result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                # result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                import_jobid = await run_job_submission(self.connect, f"{chdir_cmd} && {submit_cmd}",
+                                                self.track_name, 'import_and_split')
             except ValueError as exc:
+                import_jobid = None
                 raise ValueError(f"Failed to submit split job! See stderr: {exc}")
 
             # Record the job ID so we can check for completion.
-            self.importsplit_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+            self.importsplit_jobid = import_jobid
 
             log.info(f"Re-submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
 
@@ -980,12 +993,15 @@ class AutoPipeline(object):
                 log.info(f"Submitting command: {submit_cmd}")
 
                 try:
-                    result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                    # result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                    continuum_jobid = await run_job_submission(self.connect, f"{chdir_cmd} && {submit_cmd}",
+                                                               self.track_name, 'continuum_pipeline')
                 except ValueError as exc:
+                    continuum_jobid = None
                     raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
 
                 # Record the job ID so we can check for completion.
-                self.continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+                self.continuum_jobid = continuum_jobid
 
                 log.info(f"Resubmitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
 
@@ -1028,12 +1044,15 @@ class AutoPipeline(object):
                 log.info(f"Submitting command: {submit_cmd}")
 
                 try:
-                    result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                    # result = run_command(self.connect, f"{chdir_cmd} && {submit_cmd}")
+                    line_jobid = await run_job_submission(self.connect, f"{chdir_cmd} && {submit_cmd}",
+                                                    self.track_name, 'line_pipeline')
                 except ValueError as exc:
+                    line_jobid = None
                     raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
 
                 # Record the job ID so we can check for completion.
-                self.line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+                self.line_jobid = line_jobid
 
                 log.info(f"Resubmitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
 
