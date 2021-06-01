@@ -10,6 +10,11 @@
 # Setup requires: (1) rclone to the shared drive.
 # (2) login to globus with credentials to access Eric's rrg-eros-ab project space on cedar
 
+# cronjob:
+# 0 2 * * * bash ~/AutoDataIngest/sync_to_gdrive.sh > /home/datamanager/cron_sync_to_gdrive.log 2>&1
+
+source ~/.bashrc
+
 cd /home/datamanager/space/vlaxl/calibrated/
 
 source_ep=c99fd40c-5545-11e7-beb6-22000b9a448b
