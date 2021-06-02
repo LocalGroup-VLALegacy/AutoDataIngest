@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 
 from autodataingest.gsheet_tracker.gsheet_functions import (return_all_ebids)
+from autodataingest.gsheet_tracker.gsheet_functions import (update_track_status)
 
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
@@ -59,9 +60,17 @@ async def consume(queue, sleeptime=60):
 
         if auto_pipe.target in TARGETS:
 
-            for data_type in ['speclines', 'continuum']:
+            data_types = []
 
-            # Move pipeline products to QA webserver
+            if RUN_CONTINUUM:
+                data_types.append('continuum')
+
+            if RUN_LINES:
+                data_types.append('speclines')
+
+            for data_type in data_types:
+
+                # Move pipeline products to QA webserver
                 await auto_pipe.transfer_pipeline_products(data_type=data_type,
                                                         startnode=CLUSTERNAME,
                                                         endnode='ingester')
@@ -74,6 +83,10 @@ async def consume(queue, sleeptime=60):
 
                 # Create the final QA products and move to the webserver
                 auto_pipe.make_qa_products(data_type=data_type)
+
+                update_track_status(auto_pipe.ebid, message=f"Ready for QA",
+                                    sheetname=auto_pipe.sheetname,
+                                    status_col=1 if data_type == 'continuum' else 2)
 
                 await asyncio.sleep(sleeptime)
 
@@ -106,9 +119,9 @@ if __name__ == "__main__":
     SHEETNAME = '20A - OpLog Summary'
 
     # Specify a target to grab the QA products and process
-    TARGETS = ['IC10', 'NGC6822']
+    TARGETS = ['IC10', 'NGC6822', 'M31']
 
-    MANUAL_EBID_LIST = [39549030]
+    MANUAL_EBID_LIST = [39742380]
     # MANUAL_EBID_LIST = None
 
     start_with_newest = True
