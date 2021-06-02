@@ -120,3 +120,4 @@ async def run_job_submission(connect, cmd, track_name, job_name, test_connection
         log.info(f"Waiting {timeout} s before re-attempting job submission")
         await asyncio.sleep(timeout)
 
+    return job_id
