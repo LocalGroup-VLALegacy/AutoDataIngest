@@ -20,6 +20,8 @@ cd /home/datamanager/space/vlaxl/calibrated/
 source_ep=c99fd40c-5545-11e7-beb6-22000b9a448b
 dest_ep=e8fc98cc-9ca8-11eb-92cd-6b08dd67ff48
 
+export globus=/home/datamanager/.local/bin/globus
+
 # Get current list of MS files on the drive after deleting the previous list.
 rm drive_files.txt
 rclone lsf vlaxl_gdrive:MeasurementSets >> drive_files.txt
@@ -35,7 +37,7 @@ fi
 
 # Find the new files.
 rm new_ms_files.txt batch_files.txt
-python ~/AutoDataIngest/sync_to_gdrive_diffchecker.py
+/home/datamanager/miniconda3/envs/py37/bin/python ~/AutoDataIngest/sync_to_gdrive_diffchecker.py
 
 FILENAMES=$(cat new_ms_files.txt)
 for filename in $FILENAMES; do
