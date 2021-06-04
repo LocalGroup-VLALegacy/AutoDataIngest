@@ -150,7 +150,7 @@ class AutoPipeline(object):
                                                 connect_timeout=20)
                     # I'm getting intermittent DNS issues on the CC cloud.
                     # This is to handle waiting until the DNS problem goes away
-                    connect.open()
+                    # connect.open()
 
                 break
 
