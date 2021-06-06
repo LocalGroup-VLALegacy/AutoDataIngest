@@ -87,7 +87,7 @@ tar -cvf $TRACK_FOLDER"_speclines_products.tar" products
 
 # Copy to long term storage
 # Account for previous runs and label numerically
-outfolder=/home/ekoch/projects/rrg-eros-ab/ekoch/VLAXL_products/
+outfolder=/home/ekoch/projects/rrg-eros-ab/ekoch/VLAXL/VLAXL_products/
 name=$TRACK_FOLDER"_speclines_products"
 if [[ -e $outfolder/$name.tar || -L $outfolder/$name.tar ]] ; then
     i=1
