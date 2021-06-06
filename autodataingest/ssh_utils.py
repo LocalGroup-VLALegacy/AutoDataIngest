@@ -89,7 +89,7 @@ async def run_job_submission(connect, cmd, track_name, job_name, test_connection
             # Try connecting again and checking submitted jobs to see if the job was submitted
             try:
                 with time_limit(timeout):
-                    sched_cmd = 'sacct --format="JobID,JobName%100'
+                    sched_cmd = 'sacct --format="JobID,JobName%100"'
                     result = run_command(connect, sched_cmd, test_connection=test_connection,
                                         timeout=timeout)
 
