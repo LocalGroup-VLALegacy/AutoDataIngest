@@ -36,6 +36,11 @@ cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
 [[ -d {trackname} ]] || tar -xf {trackname}.tar
 
+# To save storage space, remove the tar file after it's been extracted
+if [[ -f {trackname}.tar ]]; then
+    rm {trackname}.tar
+fi
+
 # Copy the rcdir here and append the pipeline path
 cp -r ~/.casa .
 echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/{startup_filename}
