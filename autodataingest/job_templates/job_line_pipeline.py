@@ -109,6 +109,8 @@ cp $TRACK_FOLDER"_speclines_products.tar" $outfolder/$name.tar
 
 # Tar the MS file.
 tar -cf "{target_name}_{config}_{trackname}.speclines.ms.tar" "{trackname}.speclines.ms"
+# Remove the original tar file to save space
+rm -r "{trackname}.speclines.ms"
 
 echo "casa default speclines pipeline finished."
 

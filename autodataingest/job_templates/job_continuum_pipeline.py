@@ -182,6 +182,8 @@ cp $TRACK_FOLDER"_continuum_products.tar" $outfolder/$name.tar
 
 # Tar the MS file.
 tar -cf "{target_name}_{config}_{trackname}.continuum.ms.tar" "{trackname}.continuum.ms"
+# Remove the original tar file to save space
+rm -r "{trackname}.continuum.ms"
 
 echo "casa default continuum pipeline finished."
 
