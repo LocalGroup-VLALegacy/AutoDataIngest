@@ -44,6 +44,10 @@ async def produce(queue, sleeptime=10, start_with_newest=False,
             all_ebids = all_ebids[::-1]
 
         for ebid in all_ebids:
+            if ebid in EBID_QUEUE_LIST:
+                log.info(f'Skipping new track with ID {ebid} because it is still in the queue.')
+                continue
+
             # produce an item
             log.info(f'Found new track with ID {ebid}')
 
@@ -52,6 +56,8 @@ async def produce(queue, sleeptime=10, start_with_newest=False,
 
             # put the item in the queue
             await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
+
+            EBID_QUEUE_LIST.append(ebid)
 
         if test_case_run_newest:
             break
@@ -63,6 +69,8 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
     while True:
         # wait for an item from the producer
         auto_pipe = await queue.get()
+
+        EBID_QUEUE_LIST.remove(auto_pipe.ebid)
 
         # process the item
         log.info('Processing {}...'.format(auto_pipe.ebid))
@@ -261,6 +269,9 @@ if __name__ == "__main__":
     MANUAL_EBID_LIST = None
 
     start_with_newest = True
+
+    global EBID_QUEUE_LIST
+    EBID_QUEUE_LIST = []
 
     print("Starting new event loop")
 
