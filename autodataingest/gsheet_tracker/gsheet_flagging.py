@@ -191,6 +191,7 @@ def download_refant(trackname, target, config,
 
     if len(refant_ignore_cell) == 0:
         log.info("No refant ignore found in the flagging sheet for {sheet_name}")
+        return None
 
     outfilename = Path(output_folder) / f"{trackname}_{data_type}_refantignore.txt"
 

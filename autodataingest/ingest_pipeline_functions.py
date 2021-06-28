@@ -1337,28 +1337,28 @@ class AutoPipeline(object):
                                                 debug=False,
                                                 test_against_previous=True)
 
-        if filename is None:
-            log.info(f"Unable to find a manual flagging sheet for {self.track_name}")
-            return
-
         # Copy to the same folder that job scripts are/will be in
         track_scripts_dir = scripts_dir / self.track_folder_name
 
         if not track_scripts_dir.exists():
             track_scripts_dir.mkdir()
 
-        newfilename = track_scripts_dir / f'manual_flagging_{data_type}.txt'
+        if filename is None:
+            log.info(f"Unable to find a manual flagging sheet for {self.track_name}")
+        else:
 
-        task_command = ['cp', filename, newfilename]
+            newfilename = track_scripts_dir / f'manual_flagging_{data_type}.txt'
 
-        task_copy = subprocess.run(task_command, capture_output=True)
+            task_command = ['cp', filename, newfilename]
 
-        log.info(f"Starting connection to {clustername}")
+            task_copy = subprocess.run(task_command, capture_output=True)
 
-        await self.setup_ssh_connection(clustername, **ssh_kwargs)
+            log.info(f"Starting connection to {clustername}")
 
-        result = self.connect.put(newfilename,
-                                  remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
+            await self.setup_ssh_connection(clustername, **ssh_kwargs)
+
+            result = self.connect.put(newfilename,
+                                    remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
 
         # Also grab and copy over the refant file:
         refant_filename = download_refant(self.track_name,
@@ -1367,18 +1367,21 @@ class AutoPipeline(object):
                                             flag_repo_path_type,
                                             data_type=data_type,)
 
-        newfilename = track_scripts_dir / f'refantignore_{data_type}.txt'
+        if refant_filename is None:
+            log.info(f"Unable to find a manual flagging sheet for {self.track_name}")
+        else:
+            newfilename = track_scripts_dir / f'refantignore_{data_type}.txt'
 
-        task_command = ['cp', refant_filename, newfilename]
+            task_command = ['cp', refant_filename, newfilename]
 
-        task_copy = subprocess.run(task_command, capture_output=True)
+            task_copy = subprocess.run(task_command, capture_output=True)
 
-        log.info(f"Starting connection to {clustername}")
+            log.info(f"Starting connection to {clustername}")
 
-        await self.setup_ssh_connection(clustername, **ssh_kwargs)
+            await self.setup_ssh_connection(clustername, **ssh_kwargs)
 
-        result = self.connect.put(newfilename,
-                                  remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
+            result = self.connect.put(newfilename,
+                                    remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
 
         # TODO: If changed, make git commit and push
 
