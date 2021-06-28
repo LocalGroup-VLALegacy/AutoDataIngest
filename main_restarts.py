@@ -20,7 +20,7 @@ from autodataingest.logging import setup_logging
 log = setup_logging()
 
 
-async def produce(queue, sleeptime=10, start_with_newest=False,
+async def produce(queue, sleeptime=600, start_with_newest=False,
                   ebid_list=None,
                   long_sleep=7200):
     '''
