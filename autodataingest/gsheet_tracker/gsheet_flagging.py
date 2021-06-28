@@ -187,7 +187,7 @@ def download_refant(trackname, target, config,
     worksheet = read_track_flagsheet(sheet_name)
 
     # Get the cell value:
-    refant_ignore_cell = worksheet.acell('O1')
+    refant_ignore_cell = worksheet.acell('O1').value
 
     if len(refant_ignore_cell) == 0:
         log.info("No refant ignore found in the flagging sheet for {sheet_name}")
