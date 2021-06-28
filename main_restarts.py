@@ -62,7 +62,7 @@ async def produce(queue, sleeptime=10, start_with_newest=False,
         if test_case_run_newest:
             break
 
-        # await asyncio.sleep(long_sleep)
+        await asyncio.sleep(long_sleep)
 
 
 async def consume(queue, sleeptime=1800, sleeptime_finish=600):
