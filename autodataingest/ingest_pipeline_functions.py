@@ -1367,7 +1367,7 @@ class AutoPipeline(object):
                                             flag_repo_path_type,
                                             data_type=data_type,)
 
-        newfilename = track_scripts_dir / f'refantignore.txt'
+        newfilename = track_scripts_dir / f'refantignore_{data_type}.txt'
 
         task_command = ['cp', refant_filename, newfilename]
 
