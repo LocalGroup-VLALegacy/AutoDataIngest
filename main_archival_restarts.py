@@ -54,10 +54,10 @@ async def produce(queue, sleeptime=10, start_with_newest=False,
             # Put a small gap between starting to consume processes
             await asyncio.sleep(sleeptime)
 
+            EBID_QUEUE_LIST.append(ebid)
+
             # put the item in the queue
             await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
-
-            EBID_QUEUE_LIST.append(ebid)
 
         if test_case_run_newest:
             break

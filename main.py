@@ -54,6 +54,8 @@ async def produce(queue, sleeptime=10, test_case_run_newest=False,
             # Put a small gap between starting to consume processes
             await asyncio.sleep(sleeptime)
 
+            EBID_QUEUE_LIST.append(ebid)
+
             # put the item in the queue
             await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
 
@@ -67,6 +69,8 @@ async def consume(queue):
     while True:
         # wait for an item from the producer
         auto_pipe = await queue.get()
+
+        EBID_QUEUE_LIST.remove(auto_pipe.ebid)
 
         # process the item
         log.info('Processing {}...'.format(auto_pipe.ebid))
@@ -236,6 +240,9 @@ if __name__ == "__main__":
     test_case_run_newest = False
 
     run_newest_first = True
+
+    global EBID_QUEUE_LIST
+    EBID_QUEUE_LIST = []
 
     print("Starting new event loop")
 
