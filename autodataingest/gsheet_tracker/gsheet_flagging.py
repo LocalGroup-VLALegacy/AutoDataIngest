@@ -162,10 +162,7 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
 def download_refant(trackname, target, config,
                     output_folder,
                     data_type='continuum',
-                    raise_nosheet_exists=False,
-                    raise_noflag_error=True,
-                    debug=False,
-                    test_against_previous=True):
+                    raise_nosheet_exists=False):
 
     if not data_type in ['continuum', 'speclines']:
         raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
