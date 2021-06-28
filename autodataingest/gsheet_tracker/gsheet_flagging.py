@@ -159,6 +159,53 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
     return outfilename
 
 
+def download_refant(trackname, target, config,
+                    output_folder,
+                    data_type='continuum',
+                    raise_nosheet_exists=False,
+                    raise_noflag_error=True,
+                    debug=False,
+                    test_against_previous=True):
+
+    if not data_type in ['continuum', 'speclines']:
+        raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
+
+    gsheet = read_flagsheet()
+
+    # Abbrev. name b/c it hits the charac. limit
+    # projcode_mjd_ebid
+    abbrev_tname = "_".join([trackname.split('.')[0],
+                             trackname.split('.')[3],
+                             trackname.split('.')[2][2:]])
+    sheet_name = f"{target}_{config}_{abbrev_tname}_{data_type}"
+
+    # Check if it exists:
+    if sheet_name not in [sheet.title for sheet in gsheet.worksheets()]:
+        if raise_nosheet_exists:
+            raise ValueError(f"The worksheet {sheet_name} does not exist.")
+        else:
+            log.info(f"The worksheet {sheet_name} does not exist. Skipping")
+            return None
+
+    worksheet = read_track_flagsheet(sheet_name)
+
+    # Get the cell value:
+    refant_ignore_cell = worksheet.acell('O1')
+
+    if len(refant_ignore_cell) == 0:
+        log.info("No refant ignore found in the flagging sheet for {sheet_name}")
+
+    outfilename = Path(output_folder) / f"{trackname}_{data_type}_refantignore.txt"
+
+    if os.path.exists(outfilename):
+        os.remove(outfilename)
+
+    with open(outfilename, "w") as outfile:
+
+        outfile.write(refant_ignore_cell)
+
+    return outfilename
+
 # def download_all_flags(output_folder="manual_flags",
 #                        waittime=10):
 #     """
