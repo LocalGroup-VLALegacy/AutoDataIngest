@@ -27,7 +27,8 @@ from autodataingest.email_notifications.receive_gmail_notifications import (chec
 from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
                                              update_cell, return_cell)
 
-from autodataingest.gsheet_tracker.gsheet_flagging import (download_flagsheet_to_flagtxt)
+from autodataingest.gsheet_tracker.gsheet_flagging import (download_flagsheet_to_flagtxt,
+                                                           download_refant)
 
 from autodataingest.globus_functions import (transfer_file, transfer_pipeline,
                                cleanup_source, globus_wait_for_completion,
@@ -1349,6 +1350,26 @@ class AutoPipeline(object):
         newfilename = track_scripts_dir / f'manual_flagging_{data_type}.txt'
 
         task_command = ['cp', filename, newfilename]
+
+        task_copy = subprocess.run(task_command, capture_output=True)
+
+        log.info(f"Starting connection to {clustername}")
+
+        await self.setup_ssh_connection(clustername, **ssh_kwargs)
+
+        result = self.connect.put(newfilename,
+                                  remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
+
+        # Also grab and copy over the refant file:
+        refant_filename = download_refant(self.track_name,
+                                            self.target,
+                                            self.config,
+                                            flag_repo_path_type,
+                                            data_type=data_type,)
+
+        newfilename = track_scripts_dir / f'refantignore.txt'
+
+        task_command = ['cp', refant_filename, newfilename]
 
         task_copy = subprocess.run(task_command, capture_output=True)
 
