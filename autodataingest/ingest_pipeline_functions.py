@@ -1368,7 +1368,7 @@ class AutoPipeline(object):
                                             data_type=data_type,)
 
         if refant_filename is None:
-            log.info(f"Unable to find a manual flagging sheet for {self.track_name}")
+            log.info(f"Unable to find a refant ignore file for {self.track_name}")
         else:
             newfilename = track_scripts_dir / f'refantignore_{data_type}.txt'
 
