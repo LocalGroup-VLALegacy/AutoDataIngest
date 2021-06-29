@@ -155,7 +155,8 @@ class AutoPipeline(object):
 
                 break
 
-            except (socket.gaierror, TimeoutException) as e:
+            # except (socket.gaierror, TimeoutException) as e:
+            except Exception as e:
                 log.info(f"SSH connection reached exception {e}")
                 log.info("Waiting {reconnect_waittime} sec before trying again")
 
@@ -168,18 +169,10 @@ class AutoPipeline(object):
             await asyncio.sleep(reconnect_waittime)
 
         # Test the connection:
-        if not try_run_command(connect):
-            raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
+        # if not try_run_command(connect):
+        #     raise ValueError(f"Cannot login to {CLUSTERADDRS[clustername]}. Requires password.")
 
-        # self._connect =
         return connect
-
-    # @property
-    # def connect(self):
-    #     if not hasattr(self, '_connect'):
-    #         raise ValueError('Run `setup_ssh_connection` first to create the ssh connection.')
-
-    #     return self._connect
 
     async def archive_request_and_transfer(self, archive_kwargs={},
                                      timewindow=48 * 3600.,
@@ -337,6 +330,9 @@ class AutoPipeline(object):
         log.info(f"Starting connection to {clustername}")
 
         connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+        log.info(f"Returned connection for {clustername}")
+        connect.open()
+        log.info(f"Opened connection to {clustername}")
 
         # Grab the repo; this is where we can also specify a version number, too
         cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
@@ -404,6 +400,9 @@ class AutoPipeline(object):
         # Setup connection:
         log.info(f"Starting connection to {clustername}")
         connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+        log.info(f"Returned connection for {clustername}")
+        connect.open()
+        log.info(f"Opened connection to {clustername}")
 
         # Create 1. job to import and split.
         log.info(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
@@ -916,6 +915,9 @@ class AutoPipeline(object):
         # Setup connection:
         log.info(f"Starting connection to {clustername}")
         connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+        log.info(f"Returned connection for {clustername}")
+        connect.open()
+        log.info(f"Opened connection to {clustername}")
 
         # Restart split submission
         if self.restarts['IMPORT_SPLIT']:
@@ -1359,6 +1361,9 @@ class AutoPipeline(object):
             log.info(f"Starting connection to {clustername}")
 
             connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+            log.info(f"Returned connection for {clustername}")
+            connect.open()
+            log.info(f"Opened connection to {clustername}")
 
             result = connect.put(newfilename,
                                 remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
@@ -1385,6 +1390,9 @@ class AutoPipeline(object):
             log.info(f"Starting connection to {clustername}")
 
             connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+            log.info(f"Returned connection for {clustername}")
+            connect.open()
+            log.info(f"Opened connection to {clustername}")
 
             result = connect.put(newfilename,
                                 remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
@@ -1464,6 +1472,9 @@ class AutoPipeline(object):
         log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
 
         connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+        log.info(f"Returned connection for {clustername}")
+        connect.open()
+        log.info(f"Opened connection to {clustername}")
 
         if not do_remove_whole_track:
             # Change to the track directory, then delete the request data type folder
