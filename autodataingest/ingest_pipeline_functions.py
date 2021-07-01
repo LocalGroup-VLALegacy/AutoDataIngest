@@ -153,6 +153,10 @@ class AutoPipeline(object):
                     # This is to handle waiting until the DNS problem goes away
                     # connect.open()
 
+                    log.info(f"Returned connection for {clustername}")
+                    connect.open()
+                    log.info(f"Opened connection to {clustername}")
+
                 break
 
             # except (socket.gaierror, TimeoutException) as e:
