@@ -187,7 +187,7 @@ if __name__ == "__main__":
     import logging
     from datetime import datetime
 
-    LOGGER_FORMAT = '%(asctime)s %(message)s'
+    LOGGER_FORMAT = '%(asctime)s [%(levelname)s] [%(module)s:%(funcName)s] %(message)s'
     DATE_FORMAT = '[%Y-%m-%d %H:%M:%S]'
     logging.basicConfig(format=LOGGER_FORMAT, datefmt=DATE_FORMAT)
 
@@ -201,12 +201,12 @@ if __name__ == "__main__":
     log.addHandler(handler)
 
     # Add stream logger
-    stream = logging.StreamHandler()
-    streamformat = logging.Formatter(fmt=LOGGER_FORMAT, datefmt=DATE_FORMAT)
-    stream.setLevel(logging.DEBUG)
-    stream.setFormatter(streamformat)
+    # stream = logging.StreamHandler()
+    # streamformat = logging.Formatter(fmt=LOGGER_FORMAT, datefmt=DATE_FORMAT)
+    # stream.setLevel(logging.DEBUG)
+    # stream.setFormatter(streamformat)
 
-    log.addHandler(stream)
+    # log.addHandler(stream)
 
     log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
 

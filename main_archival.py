@@ -188,7 +188,7 @@ if __name__ == "__main__":
     import logging
     from datetime import datetime
 
-    LOGGER_FORMAT = '%(asctime)s %(message)s'
+    LOGGER_FORMAT = '%(asctime)s [%(levelname)s] [%(module)s:%(funcName)s] %(message)s'
     DATE_FORMAT = '[%Y-%m-%d %H:%M:%S]'
     logging.basicConfig(format=LOGGER_FORMAT, datefmt=DATE_FORMAT)
 
