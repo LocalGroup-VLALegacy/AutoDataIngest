@@ -1158,7 +1158,8 @@ class AutoPipeline(object):
         return self._speclines_flagsheet_url
 
     def make_qa_products(self, data_type='speclines',
-                         verbose=False):
+                         verbose=False,
+                         update_track_status=True):
         '''
         Create the QA products for the QA webserver.
         '''
@@ -1290,6 +1291,13 @@ class AutoPipeline(object):
         log.debug(f"Stdout: {task_move_stdout}")
         task_move_stderr = task_move.stderr.decode('utf-8').replace("\n", " ")
         log.debug(f"Stderr: {task_move_stderr}")
+
+        # Update track status
+        if update_track_status:
+            update_track_status(self.ebid, message=f"Ready for QA",
+                                sheetname=self.sheetname,
+                                status_col=1 if data_type == 'continuum' else 2)
+
 
     @property
     def qa_track_path(self):
