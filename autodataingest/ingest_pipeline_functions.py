@@ -59,10 +59,20 @@ class AutoPipeline(object):
     Each stage is its own function and is meant to run asynchronously.
     """
 
-    def __init__(self, ebid, sheetname='20A - OpLog Summary'):
+    def __init__(self, ebid, sheetname='20A - OpLog Summary',
+                 ssh_retry_waittime=600,
+                 ssh_max_connect_time=600,
+                 ssh_max_retries=10):
         self.ebid = ebid
 
         self.sheetname = sheetname
+
+        # Set time limits on all ssh connections.
+        # We need to catch cases where the connection fails or hangs,
+        # and force a retry
+        self._ssh_retry_waitime = ssh_retry_waittime
+        self._ssh_max_connect_time = ssh_max_connect_time
+        self._ssh_max_retries = ssh_max_retries
 
         self._grab_sheetdata()
 
@@ -330,37 +340,61 @@ class AutoPipeline(object):
         3. Updates + transfers offline copies of the antenna positions corrections.
         """
 
-
-        log.info(f"Starting connection to {clustername}")
-
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-        connect.open()
-        log.info(f"Opened connection to {clustername}")
-
-        # Grab the repo; this is where we can also specify a version number, too
-        cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
-
-        log.info(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
-
-        git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
-        full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}'
-        result = run_command(connect, full_command)
-
         # Before running any reduction, update the antenna correction files
         # and copy that folder to each folder where the pipeline is run
         log.info("Downloading updates of antenna corrections to 'VLA_antcorr_tables'")
         download_vla_antcorr(data_folder="VLA_antcorr_tables")
 
-        # Move the antenna correction folder over:
-        log.info(f"Copying antenna corrections to {clustername}")
-        result = connect.run(f"{cd_command}/VLA_antcorr_tables || mkdir scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables")
-        for file in glob("VLA_antcorr_tables/*.txt"):
-            result = connect.put(file, remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables/")
+        log.info(f"Starting connection to {clustername}")
 
-        if connect.is_connected:
-            connect.close()
-            del connect
+        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+        log.info(f"Returned connection for {clustername}")
+
+        ssh_retry_times = 0
+
+        while True:
+            try:
+                with time_limit(self._ssh_max_connect_time):
+
+                    connect.open()
+                    log.info(f"Opened connection to {clustername} on try {ssh_retry_times}")
+
+                    # Grab the repo; this is where we can also specify a version number, too
+                    cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
+
+                    log.info(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
+
+                    git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
+                    full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}'
+                    result = run_command(connect, full_command)
+
+                    # Move the antenna correction folder over:
+                    log.info(f"Copying antenna corrections to {clustername}")
+                    result = connect.run(f"{cd_command}/VLA_antcorr_tables || mkdir scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables")
+                    for file in glob("VLA_antcorr_tables/*.txt"):
+                        result = connect.put(file, remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables/")
+
+                    break
+
+            except TimeoutError:
+
+                ssh_retry_times += 1
+
+                if ssh_retry_times >= self._ssh_max_retries:
+                    raise TimeoutError("Reached maximum number of retries.")
+
+                await asyncio.sleep(self._ssh_retry_waitime)
+
+                connect.close()
+                del connect
+                connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+                log.info(f"Remade connection for {clustername} on try {ssh_retry_times}")
+
+                continue
+
+        # if connect.is_connected:
+        connect.close()
+        del connect
 
 
     async def initial_job_submission(self,
@@ -1159,7 +1193,7 @@ class AutoPipeline(object):
 
     def make_qa_products(self, data_type='speclines',
                          verbose=False,
-                         update_track_status=True):
+                         do_update_track_status=True):
         '''
         Create the QA products for the QA webserver.
         '''
@@ -1293,7 +1327,7 @@ class AutoPipeline(object):
         log.debug(f"Stderr: {task_move_stderr}")
 
         # Update track status
-        if update_track_status:
+        if do_update_track_status:
             update_track_status(self.ebid, message=f"Ready for QA",
                                 sheetname=self.sheetname,
                                 status_col=1 if data_type == 'continuum' else 2)
