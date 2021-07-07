@@ -834,7 +834,7 @@ class AutoPipeline(object):
                                             status_col=2)
                         self.restarts['LINE_PIPE'] = True
 
-                if job_status_split == 'FAILED':
+                if job_status_split in ["FAILED", " OUT_OF_MEMORY"]:
 
                     self.restarts['IMPORT_SPLIT'] = True
 
@@ -864,7 +864,7 @@ class AutoPipeline(object):
                                         sheetname=self.sheetname,
                                         status_col=1)
 
-                if job_status_continuum == "FAILED":
+                if job_status_continuum in ["FAILED", " OUT_OF_MEMORY"]:
 
                     self.restarts['CONTINUUM_PIPE'] = True
 
@@ -892,7 +892,7 @@ class AutoPipeline(object):
                                         sheetname=self.sheetname,
                                         status_col=2)
 
-                if job_status_line == "FAILED":
+                if job_status_line in ["FAILED", " OUT_OF_MEMORY"]:
 
                     self.restarts['LINE_PIPE'] = True
 
