@@ -163,7 +163,7 @@ class AutoPipeline(object):
                     # This is to handle waiting until the DNS problem goes away
                     # connect.open()
 
-                    log.info(f"Returned connection for {clustername}")
+                    log.info(f"Returned connection for {clustername} running {self.track_folder_name}")
                     connect.open()
                     log.info(f"Opened connection to {clustername}")
 
