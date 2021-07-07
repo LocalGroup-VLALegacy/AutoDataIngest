@@ -74,6 +74,10 @@ class AutoPipeline(object):
         self._ssh_max_connect_time = ssh_max_connect_time
         self._ssh_max_retries = ssh_max_retries
 
+        self._restart_split_count = 0
+        self._restart_lines_count = 0
+        self._restart_continuum_count = 0
+
         self._grab_sheetdata()
 
         # TODO: add flags that can provide the stage we need to run from.
@@ -113,10 +117,6 @@ class AutoPipeline(object):
             self.track_name = track_name
         else:
             self.track_name = None
-
-        self._restart_split_count = 0
-        self._restart_lines_count = 0
-        self._restart_continuum_count = 0
 
     def _qa_review_input(self, data_type='continuum'):
         '''
