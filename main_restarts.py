@@ -270,7 +270,7 @@ if __name__ == "__main__":
     # MANUAL_EBID_LIST = [39591025]
     MANUAL_EBID_LIST = None
 
-    start_with_newest = True
+    start_with_newest = False
 
     global EBID_QUEUE_LIST
     EBID_QUEUE_LIST = []
