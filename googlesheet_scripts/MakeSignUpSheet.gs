@@ -73,8 +73,17 @@ function addtoQASignUp() {
             var old_status_lines = sheet_signup.getRange(j+2,7).getValue()
 
             var update_status = sheet_signup.getRange(j+2,6).setValue(this_status_cont)
-            var update_status = sheet_signup.getRange(j+2,7).setValue(this_status_lines)
+            var bkg_colour_cont = sheet_newdata.getRange(i+2,1).getBackground()
+            var update_status = sheet_signup.getRange(j+2,6).setBackground(bkg_colour_cont)
+            var font_colour_cont = sheet_newdata.getRange(i+2,1).getFontColor()
+            var update_status = sheet_signup.getRange(j+2,6).setFontColor(font_colour_cont)
 
+
+            var update_status = sheet_signup.getRange(j+2,7).setValue(this_status_lines)
+            var bkg_colour_lines = sheet_newdata.getRange(i+2,2).getBackground()
+            var update_status = sheet_signup.getRange(j+2,7).setBackground(bkg_colour_lines)
+            var font_colour_lines = sheet_newdata.getRange(i+2,2).getFontColor()
+            var update_status = sheet_signup.getRange(j+2,7).setFontColor(font_colour_lines)
 
             // Did the status change to "ready for QA"? If so, ping the reviewer
             var exp_qa_status = "Ready for QA"
@@ -86,21 +95,41 @@ function addtoQASignUp() {
 
 
             var do_send_email = false
+            var update_string = ""
             // Check if things have changes:
             if (!in_previously_qa_cont && new_qa_cont){
               do_send_email = true
+              update_string = update_string + 'Continuum'
             }
 
             if (!in_previously_qa_lines && new_qa_lines){
               do_send_email = true
+              var update_string
+              if (update_string.length > 0) {
+                update_string = update_string + '/Speclines'
+              } else {
+                update_string = 'Speclines'
+              }
             }
 
             if (do_send_email) {
+              // Record which continuum/lines is ready for review
+              sheet_signup.getRange(j+2,16).setValue(update_string)
+
               var emailAddress = sheet_signup.getRange(j+2,9).getValue()
               var subject = sheet_signup.getRange(j+2,12).getValue()
               var message = sheet_signup.getRange(j+2,13).getValue()
 
-              MailApp.sendEmail(emailAddress, subject, message)
+              if (emailAddress.length > 0) {
+                MailApp.sendEmail(emailAddress, subject, message)
+              }
+            }
+
+            // Set to "ready for imaging" color to the whole row when a track is "finished"
+            var finish_qa_status = "Ready for imaging"
+            if ((this_status_cont == finish_qa_status) && (this_status_lines == finish_qa_status)) {
+              var update_row_colour = sheet_signup.getRange(j+2, 1, 1, 10).setBackground(bkg_colour_lines)
+              var update_row_colour = sheet_signup.getRange(j+2, 1, 1, 10).setFontColor(font_colour_lines)
             }
 
           }
@@ -177,8 +206,17 @@ function addtoQASignUp() {
             var old_status_lines = sheet_signup.getRange(j+2,7).getValue()
 
             var update_status = sheet_signup.getRange(j+2,6).setValue(this_status_cont)
-            var update_status = sheet_signup.getRange(j+2,7).setValue(this_status_lines)
+            var bkg_colour_cont = sheet_archivedata.getRange(i+2,1).getBackground()
+            var update_status = sheet_signup.getRange(j+2,6).setBackground(bkg_colour_cont)
+            var font_colour_cont = sheet_archivedata.getRange(i+2,1).getFontColor()
+            var update_status = sheet_signup.getRange(j+2,6).setFontColor(font_colour_cont)
 
+
+            var update_status = sheet_signup.getRange(j+2,7).setValue(this_status_lines)
+            var bkg_colour_lines = sheet_archivedata.getRange(i+2,2).getBackground()
+            var update_status = sheet_signup.getRange(j+2,7).setBackground(bkg_colour_lines)
+            var font_colour_lines = sheet_archivedata.getRange(i+2,2).getFontColor()
+            var update_status = sheet_signup.getRange(j+2,7).setFontColor(font_colour_lines)
 
             // Did the status change to "ready for QA"? If so, ping the reviewer
             var exp_qa_status = "Ready for QA"
@@ -190,22 +228,44 @@ function addtoQASignUp() {
 
 
             var do_send_email = false
+            var update_string = ""
             // Check if things have changes:
             if (!in_previously_qa_cont && new_qa_cont){
               do_send_email = true
+              update_string = update_string + 'Continuum'
             }
 
             if (!in_previously_qa_lines && new_qa_lines){
               do_send_email = true
+              var update_string
+              if (update_string.length > 0) {
+                update_string = update_string + '/Speclines'
+              } else {
+                update_string = 'Speclines'
+              }
             }
 
             if (do_send_email) {
+              // Record which continuum/lines is ready for review
+              sheet_signup.getRange(j+2,16).setValue(update_string)
+
               var emailAddress = sheet_signup.getRange(j+2,9).getValue()
               var subject = sheet_signup.getRange(j+2,12).getValue()
               var message = sheet_signup.getRange(j+2,13).getValue()
 
-              MailApp.sendEmail(emailAddress, subject, message)
+              if (emailAddress.length > 0) {
+                MailApp.sendEmail(emailAddress, subject, message)
+              }
+
             }
+
+            // Set to "ready for imaging" color to the whole row when a track is "finished"
+            var finish_qa_status = "Ready for imaging"
+            if ((this_status_cont == finish_qa_status) && (this_status_lines == finish_qa_status)) {
+              var update_row_colour = sheet_signup.getRange(j+2, 1, 1, 10).setBackground(bkg_colour_lines)
+              var update_row_colour = sheet_signup.getRange(j+2, 1, 1, 10).setFontColor(font_colour_lines)
+            }
+
 
           }
         }
