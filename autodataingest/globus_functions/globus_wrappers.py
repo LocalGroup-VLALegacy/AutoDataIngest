@@ -38,7 +38,7 @@ def do_authenticate_globus():
         raise ValueError("Unexpected login user? {user}")
 
 
-def do_manual_login(nodename, verbose=True):
+def do_manual_login(nodename, verbose=True, interactive_login=False):
     '''
     Some transfer nodes aren't automated yet (we need some keys and
     stuff setup). For now just do some parts manually.
@@ -57,15 +57,16 @@ def do_manual_login(nodename, verbose=True):
     if 'is activated' in out.stdout.decode('utf-8'):
         return True
 
-    log.info(f"Require manual login to {nodename}")
+    if interactive_login:
+        log.info(f"Require manual login to {nodename}")
 
-    username = input("Username:")
-    password = unix_getpass()
+        username = input("Username:")
+        password = unix_getpass()
 
-    cmd = ['globus', 'endpoint', 'activate', '--myproxy', id_number,
-           '--myproxy-username', username, '--myproxy-password', password]
+        cmd = ['globus', 'endpoint', 'activate', '--myproxy', id_number,
+            '--myproxy-username', username, '--myproxy-password', password]
 
-    out = subprocess.run(cmd, capture_output=True)
+        out = subprocess.run(cmd, capture_output=True)
 
     return True
 
@@ -98,7 +99,8 @@ async def globus_wait_for_completion(task_id, sleeptime=900,
 
 def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
                   endnode='cc-cedar',
-                  wait_for_completion=False):
+                  wait_for_completion=False,
+                  request_manual_login=False):
     """
     Start a globus transfer from `startnode` to `endnode`.
     """
@@ -107,10 +109,11 @@ def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
         do_authenticate_globus()
     except ValueError:
         log.exception(f"Auto authentication of {endnode} failed. Try manual login.")
-        do_manual_login(endnode)
+        if request_manual_login:
+            do_manual_login(endnode)
 
     # May have to change this ordering for both nodes in general.
-    do_manual_login(startnode)
+    do_manual_login(startnode, interactive_login=request_manual_login)
 
     # Make a new folder on `endnode` for the data to go to:
     mkdir_command = ["globus", "mkdir",
