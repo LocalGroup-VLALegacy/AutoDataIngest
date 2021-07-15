@@ -244,6 +244,8 @@ if __name__ == "__main__":
     RUN_CONTINUUM = True
     RUN_LINES = True
 
+    NUM_CONSUMERS = 10
+
     uname = 'ekoch'
     sname = 'ualberta.ca'
     EMAILADDR = f"{uname}@{sname}"
@@ -283,7 +285,8 @@ if __name__ == "__main__":
     loop.slow_callback_duration = 0.001
 
     loop.run_until_complete(run(start_with_newest=start_with_newest,
-                                ebid_list=MANUAL_EBID_LIST))
+                                ebid_list=MANUAL_EBID_LIST,
+                                num_consume=NUM_CONSUMERS))
     loop.close()
 
     del loop
