@@ -78,6 +78,44 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
         # simulate i/o operation using sleep
         # await asyncio.sleep(1)
 
+        # Check for completions:
+        complete_continuum = auto_pipe._qa_review_input(data_type='continuum') == "COMPLETE"
+        complete_speclines = auto_pipe._qa_review_input(data_type='speclines') == "COMPLETE"
+
+        if complete_continuum or complete_speclines:
+            log.info("Found a completion job")
+
+            data_types = []
+            if complete_continuum:
+                data_types.append('continuum')
+            if complete_speclines:
+                data_types.append('speclines')
+
+            for data_type in data_types:
+                await auto_pipe.export_track_for_imaging(data_type=data_type,
+                                                        clustername=CLUSTERNAME,
+                                                        project_dir=COMPLETEDDATAPATH)
+
+                await asyncio.sleep(sleeptime_finish)
+
+        # Check for QA failures needing a full manual reduction/review:
+        manualcheck_continuum = auto_pipe._qa_review_input(data_type='continuum') == "MANUAL REVIEW"
+        manualcheck_speclines = auto_pipe._qa_review_input(data_type='speclines') == "MANUAL REVIEW"
+
+        if manualcheck_continuum or manualcheck_speclines:
+            log.info("Found a manual review job")
+
+            data_types = []
+            if manualcheck_continuum:
+                data_types.append('continuum')
+            if manualcheck_speclines:
+                data_types.append('speclines')
+
+            for data_type in data_types:
+                await auto_pipe.label_qa_failures(data_type=data_type)
+
+        # Restarts
+
         restart_continuum = auto_pipe._qa_review_input(data_type='continuum') == "RESTART"
         restart_speclines = auto_pipe._qa_review_input(data_type='speclines') == "RESTART"
 
@@ -144,42 +182,6 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
 
                 # Create the final QA products and move to the webserver
                 auto_pipe.make_qa_products(data_type=data_type)
-
-        # Check for completions:
-        complete_continuum = auto_pipe._qa_review_input(data_type='continuum') == "COMPLETE"
-        complete_speclines = auto_pipe._qa_review_input(data_type='speclines') == "COMPLETE"
-
-        if complete_continuum or complete_speclines:
-            log.info("Found a completion job")
-
-            data_types = []
-            if complete_continuum:
-                data_types.append('continuum')
-            if complete_speclines:
-                data_types.append('speclines')
-
-            for data_type in data_types:
-                await auto_pipe.export_track_for_imaging(data_type=data_type,
-                                                        clustername=CLUSTERNAME,
-                                                        project_dir=COMPLETEDDATAPATH)
-
-                await asyncio.sleep(sleeptime_finish)
-
-        # Check for QA failures needing a full manual reduction/review:
-        manualcheck_continuum = auto_pipe._qa_review_input(data_type='continuum') == "MANUAL REVIEW"
-        manualcheck_speclines = auto_pipe._qa_review_input(data_type='speclines') == "MANUAL REVIEW"
-
-        if manualcheck_continuum or manualcheck_speclines:
-            log.info("Found a manual review job")
-
-            data_types = []
-            if manualcheck_continuum:
-                data_types.append('continuum')
-            if manualcheck_speclines:
-                data_types.append('speclines')
-
-            for data_type in data_types:
-                await auto_pipe.label_qa_failures(data_type=data_type)
 
         log.info('Completed {}...'.format(auto_pipe.ebid))
 
