@@ -83,6 +83,8 @@ class AutoPipeline(object):
         # TODO: add flags that can provide the stage we need to run from.
         # This enables easy restarting of tracks partially processed.
 
+        self.completions = {'continuum': False,
+                            'speclines': False}
 
     def _grab_sheetdata(self):
         '''
@@ -774,7 +776,6 @@ class AutoPipeline(object):
                          'CONTINUUM_PIPE': False,
                          'LINE_PIPE': False,}
 
-
         if all([is_done_split, is_done_continuum, is_done_line]):
 
             # Check if these were successful runs:
@@ -874,6 +875,8 @@ class AutoPipeline(object):
                                         status_col=1)
 
                 if job_status_continuum == "COMPLETED":
+                    self.completions['continuum'] = True
+
                     update_track_status(self.ebid, message=f"Ready for QA",
                                         sheetname=self.sheetname,
                                         status_col=1)
@@ -902,6 +905,8 @@ class AutoPipeline(object):
                                         status_col=2)
 
                 if job_status_line == "COMPLETED":
+                    self.completions['speclines'] = True
+
                     update_track_status(self.ebid, message=f"Ready for QA",
                                         sheetname=self.sheetname,
                                         status_col=2)
