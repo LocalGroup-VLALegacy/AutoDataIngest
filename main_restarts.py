@@ -146,7 +146,25 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                                                   check_line_job=restart_speclines,
                                                   sleeptime=1800)
 
-            log.info("Received job notifications")
+            log.info("Received job notifications for {auto_pipe.track_folder_name}")
+
+            # If completed, finish off before the others are done:
+            for data_type in auto_pipe.completions:
+
+                if not auto_pipe.completions[data_type]:
+                    continue
+
+                await auto_pipe.transfer_pipeline_products(data_type=data_type,
+                                                           startnode=CLUSTERNAME,
+                                                           endnode='ingester')
+
+                # Create the flagging sheets in the google sheet
+                await auto_pipe.make_flagging_sheet(data_type=data_type)
+
+                # Create the final QA products and move to the webserver
+                auto_pipe.make_qa_products(data_type=data_type)
+
+                auto_pipe.completions[data_type] = False
 
             # Handle submissions
             while any(list(auto_pipe.restarts.values())):
@@ -167,11 +185,11 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                 log.info("Checking and waiting for job completion")
                 # Return dictionary of jobs to restart.
                 await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
-                                                    check_line_job=RUN_LINES,
-                                                    sleeptime=1800)
+                                                      check_line_job=RUN_LINES,
+                                                      sleeptime=1800)
 
             # Move pipeline products to QA webserver
-            for data_type in data_types:
+            for data_type in auto_pipe.completions:
 
                 await auto_pipe.transfer_pipeline_products(data_type=data_type,
                                                            startnode=CLUSTERNAME,
