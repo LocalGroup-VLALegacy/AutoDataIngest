@@ -951,7 +951,7 @@ class AutoPipeline(object):
         chdir_cmd = f"cd scratch/VLAXL_reduction/{self.track_folder_name}/"
 
         # Setup connection:
-        log.info(f"Starting connection to {clustername}")
+        log.info(f"Starting connection to {clustername} for {self.track_folder_name}")
         connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
         log.info(f"Returned connection for {clustername}")
         connect.open()
@@ -959,7 +959,7 @@ class AutoPipeline(object):
 
         # Restart split submission
         if self.restarts['IMPORT_SPLIT']:
-            log.info("Attempting to restart the import/split job")
+            log.info(f"Attempting to restart the import/split job for {self.track_folder_name}")
 
             self._restart_split_count += 1
 
@@ -1010,7 +1010,7 @@ class AutoPipeline(object):
 
         # Restart continuum submission
         if self.restarts['CONTINUUM_PIPE']:
-            log.info("Attempting to restart the continuum pipeline job")
+            log.info(f"Attempting to restart the continuum pipeline job for {self.track_folder_name}")
 
             self._restart_continuum_count += 1
 
@@ -1060,7 +1060,7 @@ class AutoPipeline(object):
 
         # Restart lines submission
         if self.restarts['LINE_PIPE']:
-            log.info("Attempting to restart the line pipeline job")
+            log.info(f"Attempting to restart the line pipeline job for {self.track_folder_name}")
 
             self._restart_line_count += 1
 
