@@ -157,7 +157,10 @@ stage_colors = {'Archive download staged': {'row_color': [0.9254901960784314, 0.
                           'bold_text': False},
                 'FAILED': {'row_color': [0., 0., 0.],
                            'text_color': [1., 1., 1.],
-                           'bold_text': False}}
+                           'bold_text': False},
+                'HELP': {'row_color': [0.8, 0.47058823529411764, 0.7372549019607844],
+                         'text_color': [1., 1., 1.],
+                         'bold_text': False}}
 
 # Future stage colors:
 # Deep blue: initial/revised reduction running
