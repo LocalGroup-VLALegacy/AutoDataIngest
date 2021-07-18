@@ -1648,14 +1648,21 @@ class AutoPipeline(object):
         Note failing tracks or those that require manual reduction attempts.
         """
 
+        manual_review_states = ["MANUAL REVIEW", "HELP REQUESTED"]
+
         status_flag = self._qa_review_input(data_type=data_type)
 
-        if status_flag != "MANUAL REVIEW":
-            log.debug("No restart requested. Exiting")
+        if status_flag not in manual_review_states:
+            log.debug("No manual review requested. Exiting")
             return
 
+        if status_flag == manual_review_states[0]:
+            message=f"FAILED QA: Requires manual review."
+        else:
+            message=f"HELP: QA help requested."
+
         update_track_status(self.ebid,
-                        message=f"FAILED QA: Requires manual review.",
+                        message=message,
                         sheetname=self.sheetname,
                         status_col=1 if data_type == 'continuum' else 2)
 
