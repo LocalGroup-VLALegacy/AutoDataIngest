@@ -97,14 +97,16 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary'):
             time_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
             if len(track['Re-run\ncontinuum']) > 0:
-                continuum_trigger = f"{track['Re-run\ncontinuum']} at {time_stamp}"
+                trigger_continuum = track['Re-run\ncontinuum']
+                continuum_trigger = f"{trigger_continuum} at {time_stamp}"
 
                 update_cell(track['EBID'],
                             continuum_trigger,
                             name_col='Prev continuum status')
 
             if len(track['Re-run\nspeclines']) > 0:
-                speclines_trigger = f"{track['Re-run\nspeclines']} at {time_stamp}"
+                trigger_speclines = track['Re-run\nspeclines']
+                speclines_trigger = f"{trigger_speclines} at {time_stamp}"
 
                 update_cell(track['EBID'],
                             speclines_trigger,
