@@ -11,6 +11,7 @@ import time
 import requests
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
+import string
 
 from ..logging import setup_logging
 log = setup_logging()
@@ -197,10 +198,10 @@ def update_track_status(ebid, message="Archive download staged",
         bold_text = stage_colors[key]['bold_text']
 
     fmt = cellFormat(backgroundColor=color(*row_color),
-                        textFormat=textFormat(bold=bold_text,
-                                              foregroundColor=color(*text_color)))
+                     textFormat=textFormat(bold=bold_text,
+                                           foregroundColor=color(*text_color)))
 
-    format_cell_range(worksheet, f'{cell.row}', fmt)
+    format_cell_range(worksheet, f'{string.ascii_uppercase[status_col-1]}{cell.row}', fmt)
 
 
 def update_cell(ebid, value,
