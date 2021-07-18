@@ -12,6 +12,7 @@ import requests
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
 import string
+from datetime import datetime
 
 from ..logging import setup_logging
 log = setup_logging()
@@ -72,7 +73,8 @@ def find_new_tracks(sheetname='20A - OpLog Summary', status_check=''):
 
 def find_rerun_status_tracks(sheetname='20A - OpLog Summary'):
     """
-    Find new tracks where the sheet has not recorded the data being staged from the archive on AOC.
+    Find new tracks where an updated run status has been indicated. Fill in last given
+    status with a timestamp in the sheet.
     """
 
     full_sheet = read_tracksheet()
@@ -91,6 +93,22 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary'):
         if len(track['Re-run\ncontinuum']) > 0 or len(track['Re-run\nspeclines']) > 0:
 
             new_tracks.append(track['EBID'])
+
+            time_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            if len(track['Re-run\ncontinuum']) > 0:
+                continuum_trigger = f"{track['Re-run\ncontinuum']} at {time_stamp}"
+
+                update_cell(track['EBID'],
+                            continuum_trigger,
+                            name_col='Prev continuum status')
+
+            if len(track['Re-run\nspeclines']) > 0:
+                speclines_trigger = f"{track['Re-run\nspeclines']} at {time_stamp}"
+
+                update_cell(track['EBID'],
+                            speclines_trigger,
+                            name_col='Prev speclines status')
 
     return new_tracks
 
