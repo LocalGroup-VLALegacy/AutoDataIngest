@@ -239,7 +239,7 @@ if __name__ == "__main__":
 
     test_case_run_newest = False
 
-    run_newest_first = True
+    run_newest_first = False
 
     global EBID_QUEUE_LIST
     EBID_QUEUE_LIST = []
