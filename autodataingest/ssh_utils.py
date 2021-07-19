@@ -26,7 +26,7 @@ def try_run_command(connect, test_cmd='ls', timeout=600):
         return False
 
 
-def run_command(connect, cmd, test_connection=False, timeout=600,):
+def run_command(connect, cmd, test_connection=False, timeout=600, allow_failure=False):
     """
     Run a command on the given connection.
     """
@@ -35,9 +35,9 @@ def run_command(connect, cmd, test_connection=False, timeout=600,):
         if try_run_command(connect) is False:
             raise ValueError("Connection requires a password.")
 
-    result = connect.run(cmd, hide=True, timeout=timeout)
+    result = connect.run(cmd, hide=True, timeout=timeout, warn=True)
 
-    if result.failed:
+    if result.failed and allow_failure:
         raise ValueError(f"Failed to run {cmd}! See stderr: {result.stderr}")
 
     return result
