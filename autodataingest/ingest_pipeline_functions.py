@@ -1549,9 +1549,8 @@ class AutoPipeline(object):
 
         log.info(f"Finished clean up on {clustername} for track {cd_command}")
 
-        if connect.is_connected:
-            connect.close()
-            del connect
+        connect.close()
+        del connect
 
     async def export_track_for_imaging(self,
                                        clustername='cc-cedar',
