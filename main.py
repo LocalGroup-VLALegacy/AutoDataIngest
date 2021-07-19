@@ -158,7 +158,7 @@ async def consume(queue):
         queue.task_done()
 
 
-async def run(num_produce=1, num_consume=4,
+async def run(num_produce=1, num_consume=2,
               **produce_kwargs):
 
     queue = asyncio.Queue()
