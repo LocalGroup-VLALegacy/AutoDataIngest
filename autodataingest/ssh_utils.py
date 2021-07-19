@@ -37,7 +37,7 @@ def run_command(connect, cmd, test_connection=False, timeout=600, allow_failure=
 
     result = connect.run(cmd, hide=True, timeout=timeout, warn=True)
 
-    if result.failed and allow_failure:
+    if result.failed and not allow_failure:
         raise ValueError(f"Failed to run {cmd}! See stderr: {result.stderr}")
 
     return result
