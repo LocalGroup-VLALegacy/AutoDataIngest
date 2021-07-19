@@ -98,9 +98,10 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
 
                 await asyncio.sleep(sleeptime_finish)
 
-        # Check for QA failures needing a full manual reduction/review:
-        manualcheck_continuum = auto_pipe._qa_review_input(data_type='continuum') == "MANUAL REVIEW"
-        manualcheck_speclines = auto_pipe._qa_review_input(data_type='speclines') == "MANUAL REVIEW"
+        # Check for QA failures needing a full manual reduction/review, or help requested:
+        manual_review_states = ["MANUAL REVIEW", "HELP REQUESTED"]
+        manualcheck_continuum = auto_pipe._qa_review_input(data_type='continuum') in manual_review_states
+        manualcheck_speclines = auto_pipe._qa_review_input(data_type='speclines') in manual_review_states
 
         if manualcheck_continuum or manualcheck_speclines:
             log.info("Found a manual review job")
