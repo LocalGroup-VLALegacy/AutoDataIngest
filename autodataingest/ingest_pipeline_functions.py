@@ -1545,7 +1545,7 @@ class AutoPipeline(object):
             rm_command = f"rm -rf {self.track_folder_name}"
 
         full_command = f'{cd_command} && {rm_command}'
-        result = run_command(connect, full_command)
+        result = run_command(connect, full_command, allow_failure=True)
 
         if connect.is_connected:
             connect.close()
