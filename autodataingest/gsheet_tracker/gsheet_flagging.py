@@ -51,7 +51,8 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
                                   raise_nosheet_exists=False,
                                   raise_noflag_error=True,
                                   debug=False,
-                                  test_against_previous=True):
+                                  test_against_previous=True,
+                                  warn=True):
     """
     Create a txt file of the flagging commands generated in the spreadsheet.
     We will also link to the MS name to include in the file header.
@@ -141,7 +142,13 @@ def download_flagsheet_to_flagtxt(trackname, target, config,
             row_values = all_values[row + head_nrow]
 
             if len(row_values[flgstr_col]) == 0:
-                raise ValueError(f"Empty flag string in {trackname}. Check for mistakes in the google sheet!")
+                error_str = f"Empty flag string in {trackname}. Check for mistakes in the google sheet!"
+                log.info(error_str)
+                if warn:
+                    log.info("Skipping flag error. Ignoring this line.")
+                    continue
+                else:
+                    raise ValueError(error_str)
 
             outfile.write(f"{row_values[flgstr_col]}\n")
 
