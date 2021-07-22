@@ -18,7 +18,8 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
                      lustre_path="/lustre/aoc/projects/20A-346/data_staged/",
                      projectaccess_key_file=os.path.expanduser('~/20A-346_accesskey.txt'),
                      retry_times=5, retry_wait=30,
-                     save_screenshot=True):
+                     save_screenshot=True,
+                     project_code='20A-346'):
     '''
     eb : execution block, e.g., "TCAL0003_sb3369507_1_001.55601.74787561342"
     emailaddr : email address
@@ -75,6 +76,14 @@ def archive_copy_SDM(eb, emailaddr="ekoch@ualberta.ca",
             elem = driver.find_element_by_name('ARCHIVE_VOLUME')
             # Distinguish each track by its unique EB name.
             elem.send_keys(eb)
+
+            # VERY rarely, the eb is not completely unique
+            # (there's been some test tracks that contain the EBID, so the search
+            # returns those, too)
+            # To avoid this, also pass the project code.
+            if project_code is not None:
+                elem = driver.find_element_by_name('PROJECT_CODE')
+                elem.send_keys(project_code)
 
             # Give access code if needed
             if access_code is not None:
