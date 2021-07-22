@@ -158,7 +158,7 @@ async def consume(queue):
         queue.task_done()
 
 
-async def run(num_produce=1, num_consume=NUM_CONSUMERS,
+async def run(num_produce=1, num_consume=4,
               **produce_kwargs):
 
     queue = asyncio.Queue()
@@ -254,7 +254,8 @@ if __name__ == "__main__":
     loop.slow_callback_duration = 0.001
 
     loop.run_until_complete(run(test_case_run_newest=test_case_run_newest,
-                                run_newest_first=run_newest_first))
+                                run_newest_first=run_newest_first,
+                                num_consume=NUM_CONSUMERS))
     loop.close()
 
     del loop
