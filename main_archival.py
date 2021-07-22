@@ -80,7 +80,8 @@ async def consume(queue):
         log.info(f'Starting archive request for {auto_pipe.ebid}')
         # 1.
         await auto_pipe.archive_request_and_transfer(archive_kwargs={'emailaddr': EMAILADDR,
-                                                                     'lustre_path': NRAODATAPATH},
+                                                                     'lustre_path': NRAODATAPATH,
+                                                                     'project_code': None},
                                                     sleeptime=600,
                                                     clustername=CLUSTERNAME,
                                                     do_cleanup=False)
