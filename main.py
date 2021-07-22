@@ -158,7 +158,7 @@ async def consume(queue):
         queue.task_done()
 
 
-async def run(num_produce=1, num_consume=2,
+async def run(num_produce=1, num_consume=NUM_CONSUMERS,
               **produce_kwargs):
 
     queue = asyncio.Queue()
@@ -222,6 +222,8 @@ if __name__ == "__main__":
 
     RUN_CONTINUUM = True
     RUN_LINES = True
+
+    NUM_CONSUMERS = 6
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
