@@ -110,26 +110,26 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
             log.info("Received job notifications")
 
             # Handle submissions
-            while any(list(auto_pipe.restarts.values())):
-                log.info(f"Checking and resubmitting pipeline jobs to {CLUSTERNAME}")
-                log.info(f"Resubmissions only for failed/timeout pipeline jobs ")
-                await auto_pipe.restart_job_submission(
-                                        max_resubmission=1,
-                                        clustername=CLUSTERNAME,
-                                        scripts_dir=Path('reduction_job_scripts/'),
-                                        submit_continuum_pipeline=restart_continuum,
-                                        submit_line_pipeline=restart_speclines,
-                                        clusteracct=CLUSTERACCOUNT,
-                                        split_time=CLUSTER_SPLIT_JOBTIME,
-                                        continuum_time=CLUSTER_CONTINUUM_JOBTIME,
-                                        line_time=CLUSTER_LINE_JOBTIME,
-                                        scheduler_cmd=CLUSTER_SCHEDCMD,)
+            # while any(list(auto_pipe.restarts.values())):
+            #     log.info(f"Checking and resubmitting pipeline jobs to {CLUSTERNAME}")
+            #     log.info(f"Resubmissions only for failed/timeout pipeline jobs ")
+            #     await auto_pipe.restart_job_submission(
+            #                             max_resubmission=1,
+            #                             clustername=CLUSTERNAME,
+            #                             scripts_dir=Path('reduction_job_scripts/'),
+            #                             submit_continuum_pipeline=restart_continuum,
+            #                             submit_line_pipeline=restart_speclines,
+            #                             clusteracct=CLUSTERACCOUNT,
+            #                             split_time=CLUSTER_SPLIT_JOBTIME,
+            #                             continuum_time=CLUSTER_CONTINUUM_JOBTIME,
+            #                             line_time=CLUSTER_LINE_JOBTIME,
+            #                             scheduler_cmd=CLUSTER_SCHEDCMD,)
 
-                log.info("Checking and waiting for job completion")
-                # Return dictionary of jobs to restart.
-                await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
-                                                    check_line_job=RUN_LINES,
-                                                    sleeptime=1800)
+            #     log.info("Checking and waiting for job completion")
+            #     # Return dictionary of jobs to restart.
+            #     await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
+            #                                         check_line_job=RUN_LINES,
+            #                                         sleeptime=1800)
 
             # Move pipeline products to QA webserver
             for data_type in data_types:
