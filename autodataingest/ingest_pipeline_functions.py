@@ -221,7 +221,7 @@ class AutoPipeline(object):
 
             log.info(f'Sending archive request for {ebid}')
 
-            if not project_code in archive_kwargs:
+            if not 'project_code' in archive_kwargs:
                 archive_kwargs['project_code'] = project_code
 
             archive_copy_SDM(ebid, **archive_kwargs)
