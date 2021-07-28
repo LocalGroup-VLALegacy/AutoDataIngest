@@ -190,6 +190,23 @@ class AutoPipeline(object):
 
         return connect
 
+    async def initial_status(self):
+        '''
+        Set a status to stop new tracks being re-added to the new track queue.
+        '''
+        ebid = self.ebid
+
+        log.info(f"Adding start status for {ebid}.")
+
+        # Continuum
+        update_track_status(ebid, message="Queued",
+                            sheetname=self.sheetname,
+                            status_col=1)
+        # Lines
+        update_track_status(ebid, message="Queued",
+                            sheetname=self.sheetname,
+                            status_col=2)
+
     async def archive_request_and_transfer(self, archive_kwargs={},
                                      timewindow=48 * 3600.,
                                      sleeptime=600,
