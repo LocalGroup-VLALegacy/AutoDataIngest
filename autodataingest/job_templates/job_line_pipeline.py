@@ -67,6 +67,7 @@ xvfb-run -a ~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nolo
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
+    tar -cvf $TRACK_FOLDER"_speclines_products_failure.tar" products
     echo "Non-zero exit code from CASA. Exiting"
     exit 1
 fi
