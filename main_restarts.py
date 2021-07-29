@@ -192,18 +192,18 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
             #                                           check_line_job=RUN_LINES,
             #                                           sleeptime=1800)
 
-            # Move pipeline products to QA webserver
-            for data_type in auto_pipe.completions:
+            # # Move pipeline products to QA webserver
+            # for data_type in auto_pipe.completions:
 
-                await auto_pipe.transfer_pipeline_products(data_type=data_type,
-                                                           startnode=CLUSTERNAME,
-                                                           endnode='ingester')
+            #     await auto_pipe.transfer_pipeline_products(data_type=data_type,
+            #                                                startnode=CLUSTERNAME,
+            #                                                endnode='ingester')
 
-                # Create the flagging sheets in the google sheet
-                await auto_pipe.make_flagging_sheet(data_type=data_type)
+            #     # Create the flagging sheets in the google sheet
+            #     await auto_pipe.make_flagging_sheet(data_type=data_type)
 
-                # Create the final QA products and move to the webserver
-                auto_pipe.make_qa_products(data_type=data_type)
+            #     # Create the final QA products and move to the webserver
+            #     auto_pipe.make_qa_products(data_type=data_type)
 
         log.info('Completed {}...'.format(auto_pipe.ebid))
 
