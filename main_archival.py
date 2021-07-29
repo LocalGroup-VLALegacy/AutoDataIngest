@@ -48,6 +48,10 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
             new_ebids = new_ebids[-2:]
 
         for ebid in new_ebids:
+            if ebid in EBID_QUEUE_LIST:
+                log.info(f'Skipping new track with ID {ebid} because it is still in the queue.')
+                continue
+
             # produce an item
             log.info(f'Found new track with ID {ebid}')
 
@@ -57,7 +61,10 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
             EBID_QUEUE_LIST.append(ebid)
 
             # put the item in the queue
-            await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
+            this_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+            this_pipe.initial_status()
+
+            await queue.put(this_pipe)
 
         if test_case_run_newest:
             break
