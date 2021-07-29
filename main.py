@@ -268,9 +268,9 @@ if __name__ == "__main__":
     del loop
 
     # Run purely a test
-    # ebid = 38730505
+    # ebid = 39992361
     # tester = AutoPipeline(ebid)
-    # asyncio.run(tester.archive_request_and_transfer())
+    # asyncio.run(tester.archive_request_and_transfer(do_cleanup=False, timewindow=1.))
     # asyncio.run(tester.setup_for_reduction_pipeline(clustername=CLUSTERNAME))
     # asyncio.run(tester.get_flagging_files(data_type='continuum'))
     # asyncio.run(tester.get_flagging_files(data_type='speclines'))
