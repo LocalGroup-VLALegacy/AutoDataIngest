@@ -102,7 +102,8 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary'):
 
                 update_cell(track['EBID'],
                             continuum_trigger,
-                            name_col='Prev continuum status')
+                            name_col='Prev continuum status',
+                            sheetname=sheetname)
 
             if len(track['Re-run\nspeclines']) > 0:
                 trigger_speclines = track['Re-run\nspeclines']
@@ -110,7 +111,8 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary'):
 
                 update_cell(track['EBID'],
                             speclines_trigger,
-                            name_col='Prev speclines status')
+                            name_col='Prev speclines status',
+                            sheetname=sheetname)
 
     return new_tracks
 
