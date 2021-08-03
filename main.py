@@ -109,6 +109,9 @@ async def consume(queue):
                                 split_time=CLUSTER_SPLIT_JOBTIME,
                                 continuum_time=CLUSTER_CONTINUUM_JOBTIME,
                                 line_time=CLUSTER_LINE_JOBTIME,
+                                split_mem=CLUSTER_SPLIT_MEM,
+                                continuum_mem=CLUSTER_CONTINUUM_MEM,
+                                line_mem=CLUSTER_LINE_MEM,
                                 scheduler_cmd=CLUSTER_SCHEDCMD,)
 
         log.info("Checking and waiting for job completion")
@@ -242,6 +245,10 @@ if __name__ == "__main__":
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
     CLUSTER_CONTINUUM_JOBTIME = '48:00:00'
     CLUSTER_LINE_JOBTIME = '48:00:00'
+
+    CLUSTER_SPLIT_MEM = '24000M'
+    CLUSTER_CONTINUUM_MEM = '16000M'
+    CLUSTER_LINE_MEM = '16000M'
 
     RUN_CONTINUUM = True
     RUN_LINES = True
