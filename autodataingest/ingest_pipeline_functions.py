@@ -885,7 +885,7 @@ class AutoPipeline(object):
                                         sheetname=self.sheetname,
                                         status_col=1)
 
-                if job_status_continuum in ["FAILED", " OUT_OF_MEMORY"]:
+                if job_status_continuum in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
 
                     self.restarts['CONTINUUM_PIPE'] = True
 
@@ -915,7 +915,7 @@ class AutoPipeline(object):
                                         sheetname=self.sheetname,
                                         status_col=2)
 
-                if job_status_line in ["FAILED", " OUT_OF_MEMORY"]:
+                if job_status_line in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
 
                     self.restarts['LINE_PIPE'] = True
 
