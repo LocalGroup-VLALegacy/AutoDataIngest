@@ -429,6 +429,9 @@ class AutoPipeline(object):
                                     split_time=None,
                                     continuum_time=None,
                                     line_time=None,
+                                    split_mem=None,
+                                    continuum_mem=None,
+                                    line_mem=None,
                                     scheduler_cmd="",
                                     **ssh_kwargs):
         """
@@ -499,7 +502,12 @@ class AutoPipeline(object):
         else:
             time_str = ""
 
-        submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_split_filename}"
+        if split_mem is not None:
+            mem_str = f"--mem={split_mem}"
+        else:
+            mem_str = ""
+
+        submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {mem_str} {job_split_filename}"
 
         log.info(f"Submitting command: {submit_cmd}")
 
@@ -554,7 +562,12 @@ class AutoPipeline(object):
             else:
                 time_str = ""
 
-            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_continuum_filename}"
+            if continuum_mem is not None:
+                mem_str = f"--mem={continuum_mem}"
+            else:
+                mem_str = ""
+
+            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {mem_str} {job_continuum_filename}"
 
             log.info(f"Submitting command: {submit_cmd}")
 
@@ -614,7 +627,12 @@ class AutoPipeline(object):
             else:
                 time_str = ""
 
-            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_line_filename}"
+            if line_mem is not None:
+                mem_str = f"--mem={line_mem}"
+            else:
+                mem_str = ""
+
+            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {mem_str} {job_line_filename}"
 
             log.info(f"Submitting command: {submit_cmd}")
 
