@@ -1664,10 +1664,17 @@ class AutoPipeline(object):
                     sheetname=self.sheetname)
 
 
-    async def label_qa_failures(self, data_type='continuum'):
+    async def label_qa_failures(self, data_type='continuum',
+                                startnode='cc-cedar',
+                                endnode='ingester'):
+
         """
         Note failing tracks or those that require manual reduction attempts.
         """
+
+        self._grab_sheetdata()
+        if self.target is None or self.track_name is None:
+            raise ValueError(f"Cannot find target or trackname in {self.ebid}")
 
         manual_review_states = ["MANUAL REVIEW", "HELP REQUESTED"]
 
@@ -1692,3 +1699,33 @@ class AutoPipeline(object):
                     # num_col=28 if data_type == 'continuum' else 29,
                     name_col=f"Re-run\n{data_type}",
                     sheetname=self.sheetname)
+
+        # Attempt to transfer failed data products
+
+        log.info(f"Transferring {self.track_folder_name} {data_type} products from {startnode} to {endnode}.")
+
+        path_to_products = f'{self.track_folder_name}/{self.track_folder_name}_{data_type}/'
+
+        filename = f'{path_to_products}/{self.track_folder_name}_{data_type}_products_failure.tar'
+
+        # Going to the ingester instance. Doesn't need an extra path.
+        output_destination = "pipeline_failures/"
+
+        transfer_taskid = transfer_general(filename, output_destination,
+                                           startnode=startnode,
+                                           endnode=endnode,
+                                           wait_for_completion=False,
+                                           skip_if_not_existing=True)
+
+        if transfer_taskid is None:
+            return
+
+        self.transfer_taskid = transfer_taskid
+
+        log.info(f"The globus transfer ID is: {transfer_taskid}")
+
+        log.info(f"Waiting for globus transfer to {endnode} to complete.")
+        await globus_wait_for_completion(transfer_taskid, sleeptime=180)
+        log.info(f"Globus transfer {transfer_taskid} completed!")
+
+        # TODO: link this into the webserver to easily view the weblog for failures
