@@ -855,7 +855,7 @@ class AutoPipeline(object):
                                             status_col=2)
                         self.restarts['LINE_PIPE'] = True
 
-                if job_status_split in ["FAILED", " OUT_OF_MEMORY"]:
+                if job_status_split in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
 
                     self.restarts['IMPORT_SPLIT'] = True
 
@@ -1699,6 +1699,25 @@ class AutoPipeline(object):
                     # num_col=28 if data_type == 'continuum' else 29,
                     name_col=f"Re-run\n{data_type}",
                     sheetname=self.sheetname)
+
+
+    async def transfer_qa_failures(self, data_type='continuum',
+                                   startnode='cc-cedar',
+                                   endnode='ingester',
+                                   set_status=True):
+
+        self._grab_sheetdata()
+        if self.target is None or self.track_name is None:
+            raise ValueError(f"Cannot find target or trackname in {self.ebid}")
+
+        if set_status:
+
+            status_col = 1 if data_type == 'continuum' else 2
+
+            update_track_status(self.ebid,
+                                message=f"ISSUE: Needs manual check of job status",
+                                sheetname=self.sheetname,
+                                status_col=status_col)
 
         # Attempt to transfer failed data products
 
