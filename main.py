@@ -162,7 +162,7 @@ async def consume(queue):
             if auto_pipe.restarts['LINE_PIPE']:
                 log.info("speclines failed at some point. Transferring failed products")
 
-                auto_pipe.transfer_qa_failures(data_type='speclines')
+                await auto_pipe.transfer_qa_failures(data_type='speclines')
 
 
         if auto_pipe.completions['continuum']:
@@ -177,7 +177,7 @@ async def consume(queue):
             if auto_pipe.restarts['CONTINUUM_PIPE']:
                 log.info("continuum failed at some point. Transferring failed products")
 
-                auto_pipe.transfer_qa_failures(data_type='continuum')
+                await auto_pipe.transfer_qa_failures(data_type='continuum')
 
         # Notify the queue that the item has been processed
         log.info('Completed {}...'.format(auto_pipe.ebid))
@@ -246,7 +246,7 @@ if __name__ == "__main__":
     CLUSTER_CONTINUUM_JOBTIME = '48:00:00'
     CLUSTER_LINE_JOBTIME = '48:00:00'
 
-    CLUSTER_SPLIT_MEM = '24000M'
+    CLUSTER_SPLIT_MEM = '28000M'
     CLUSTER_CONTINUUM_MEM = '16000M'
     CLUSTER_LINE_MEM = '16000M'
 
