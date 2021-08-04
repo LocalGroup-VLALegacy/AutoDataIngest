@@ -62,7 +62,7 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
 
             # put the item in the queue
             this_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-            this_pipe.initial_status()
+            await this_pipe.initial_status()
 
             await queue.put(this_pipe)
 
