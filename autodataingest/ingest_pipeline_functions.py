@@ -1649,7 +1649,8 @@ class AutoPipeline(object):
                                        clustername='cc-cedar',
                                        data_type='continuum',
                                        staging_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/",
-                                       project_dir="/project/rrg-eros-ab/ekoch/VLAXL/calibrated/"):
+                                       project_dir="/project/rrg-eros-ab/ekoch/VLAXL/calibrated/",
+                                       ssh_kwargs={}):
         """
         Step 8.
 
@@ -1705,7 +1706,6 @@ class AutoPipeline(object):
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
         log.info(f"Globus transfer {transfer_taskid} completed!")
 
-
         # Update track status. Append both data types if one has already finished
         other_data_type = "speclines" if data_type == 'continuum' else 'continuum'
         current_status = return_cell(self.ebid,
@@ -1731,6 +1731,23 @@ class AutoPipeline(object):
 
         await self.cleanup_on_cluster(clustername=clustername, data_type=data_type,
                                       do_remove_whole_track=do_remove_whole_track)
+
+        # Clean up temp ms.tar file on project space.
+        log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
+        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+        log.info(f"Returned connection for {clustername}")
+        connect.open()
+        log.info(f"Opened connection to {clustername}")
+
+        cd_command = f"cd {staging_dir}"
+        rm_command = f"rm -rf {self.track_folder_name}.ms.tar"
+        full_command = f'{cd_command} && {rm_command}'
+
+        result = run_command(connect, full_command, allow_failure=True)
+        log.info(f"Finished cleaning up temp ms file up on {clustername} for track {cd_command}")
+
+        connect.close()
+        del connect
 
         # Last, make sure we have cleaned up the SDM on AOC:
         cleanup_source(self.track_name, node='nrao-aoc')
