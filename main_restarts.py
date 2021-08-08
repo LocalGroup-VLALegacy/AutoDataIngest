@@ -162,10 +162,14 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                                                            startnode=CLUSTERNAME,
                                                            endnode='ingester')
 
+                await auto_pipe.transfer_calibrated_data(data_type=data_type,
+                                                         clustername=CLUSTERNAME)
+
                 # Create the flagging sheets in the google sheet
                 await auto_pipe.make_flagging_sheet(data_type=data_type)
 
                 # Create the final QA products and move to the webserver
+                log.info("Transferring QA products to webserver")
                 auto_pipe.make_qa_products(data_type=data_type)
 
                 auto_pipe.completions[data_type] = False

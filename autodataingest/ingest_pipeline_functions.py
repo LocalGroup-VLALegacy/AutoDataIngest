@@ -1596,10 +1596,10 @@ class AutoPipeline(object):
         connect.close()
         del connect
 
-    async def do_temp_data_transfer(self,
-                                    clustername='cc-cedar',
-                                    data_type='continuum',
-                                    project_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/"):
+    async def transfer_calibrated_data(self,
+                                       clustername='cc-cedar',
+                                       data_type='continuum',
+                                       project_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/"):
         """
         Move calibrated MSs to persistent storage location.
         """

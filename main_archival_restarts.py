@@ -77,86 +77,6 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
         # simulate i/o operation using sleep
         # await asyncio.sleep(1)
 
-        restart_continuum = auto_pipe._qa_review_input(data_type='continuum') == "RESTART"
-        restart_speclines = auto_pipe._qa_review_input(data_type='speclines') == "RESTART"
-
-        if restart_continuum or restart_speclines:
-
-            log.info("Found a restart job")
-
-            data_types = []
-            if restart_continuum:
-                data_types.append('continuum')
-            if restart_speclines:
-                data_types.append('speclines')
-
-            # Clean up, update repo/ant files, and resubmit
-            for data_type in data_types:
-
-                await auto_pipe.rerun_job_submission(clustername=CLUSTERNAME,
-                                                    data_type=data_type,
-                                                    clusteracct=CLUSTERACCOUNT,
-                                                    split_time=CLUSTER_SPLIT_JOBTIME,
-                                                    pipeline_time=CLUSTER_LINE_JOBTIME,
-                                                    scheduler_cmd=CLUSTER_SCHEDCMD,)
-
-                await asyncio.sleep(sleeptime)
-
-            # Wait for job completion
-            await auto_pipe.get_job_notifications(check_continuum_job=restart_continuum,
-                                                  check_line_job=restart_speclines,
-                                                  sleeptime=1800)
-
-            log.info("Received job notifications for {auto_pipe.track_folder_name}")
-
-            # Move pipeline products to QA webserver
-            for data_type in data_types:
-
-                await auto_pipe.transfer_pipeline_products(data_type=data_type,
-                                                           startnode=CLUSTERNAME,
-                                                           endnode='ingester')
-
-                # Create the flagging sheets in the google sheet
-                await auto_pipe.make_flagging_sheet(data_type=data_type)
-
-                # Create the final QA products and move to the webserver
-                auto_pipe.make_qa_products(data_type=data_type)
-
-            # Handle submissions
-            # while any(list(auto_pipe.restarts.values())):
-            #     log.info(f"Checking and resubmitting pipeline jobs to {CLUSTERNAME}")
-            #     log.info(f"Resubmissions only for failed/timeout pipeline jobs ")
-            #     await auto_pipe.restart_job_submission(
-            #                             max_resubmission=1,
-            #                             clustername=CLUSTERNAME,
-            #                             scripts_dir=Path('reduction_job_scripts/'),
-            #                             submit_continuum_pipeline=restart_continuum,
-            #                             submit_line_pipeline=restart_speclines,
-            #                             clusteracct=CLUSTERACCOUNT,
-            #                             split_time=CLUSTER_SPLIT_JOBTIME,
-            #                             continuum_time=CLUSTER_CONTINUUM_JOBTIME,
-            #                             line_time=CLUSTER_LINE_JOBTIME,
-            #                             scheduler_cmd=CLUSTER_SCHEDCMD,)
-
-            #     log.info("Checking and waiting for job completion")
-            #     # Return dictionary of jobs to restart.
-            #     await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
-            #                                         check_line_job=RUN_LINES,
-            #                                         sleeptime=1800)
-
-            # # Move pipeline products to QA webserver
-            # for data_type in data_types:
-
-            #     await auto_pipe.transfer_pipeline_products(data_type=data_type,
-            #                                                startnode=CLUSTERNAME,
-            #                                                endnode='ingester')
-
-            #     # Create the flagging sheets in the google sheet
-            #     await auto_pipe.make_flagging_sheet(data_type=data_type)
-
-            #     # Create the final QA products and move to the webserver
-            #     auto_pipe.make_qa_products(data_type=data_type)
-
         # Check for completions:
         complete_continuum = auto_pipe._qa_review_input(data_type='continuum') == "COMPLETE"
         complete_speclines = auto_pipe._qa_review_input(data_type='speclines') == "COMPLETE"
@@ -193,6 +113,96 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
 
             for data_type in data_types:
                 await auto_pipe.label_qa_failures(data_type=data_type)
+
+
+        restart_continuum = auto_pipe._qa_review_input(data_type='continuum') == "RESTART"
+        restart_speclines = auto_pipe._qa_review_input(data_type='speclines') == "RESTART"
+
+        if restart_continuum or restart_speclines:
+
+            log.info("Found a restart job")
+
+            data_types = []
+            if restart_continuum:
+                data_types.append('continuum')
+            if restart_speclines:
+                data_types.append('speclines')
+
+            # Clean up, update repo/ant files, and resubmit
+            for data_type in data_types:
+
+                await auto_pipe.rerun_job_submission(clustername=CLUSTERNAME,
+                                                    data_type=data_type,
+                                                    clusteracct=CLUSTERACCOUNT,
+                                                    split_time=CLUSTER_SPLIT_JOBTIME,
+                                                    pipeline_time=CLUSTER_LINE_JOBTIME,
+                                                    scheduler_cmd=CLUSTER_SCHEDCMD,)
+
+                await asyncio.sleep(sleeptime)
+
+            # Wait for job completion
+            await auto_pipe.get_job_notifications(check_continuum_job=restart_continuum,
+                                                  check_line_job=restart_speclines,
+                                                  sleeptime=1800)
+
+            log.info("Received job notifications for {auto_pipe.track_folder_name}")
+
+            # If completed, finish off before the others are done:
+            for data_type in auto_pipe.completions:
+
+                if not auto_pipe.completions[data_type]:
+                    continue
+
+                await auto_pipe.transfer_pipeline_products(data_type=data_type,
+                                                           startnode=CLUSTERNAME,
+                                                           endnode='ingester')
+
+                await auto_pipe.transfer_calibrated_data(data_type=data_type,
+                                                         clustername=CLUSTERNAME)
+
+                # Create the flagging sheets in the google sheet
+                await auto_pipe.make_flagging_sheet(data_type=data_type)
+
+                # Create the final QA products and move to the webserver
+                log.info("Transferring QA products to webserver")
+                auto_pipe.make_qa_products(data_type=data_type)
+
+                auto_pipe.completions[data_type] = False
+
+            # Handle submissions
+            # while any(list(auto_pipe.restarts.values())):
+            #     log.info(f"Checking and resubmitting pipeline jobs to {CLUSTERNAME}")
+            #     log.info(f"Resubmissions only for failed/timeout pipeline jobs ")
+            #     await auto_pipe.restart_job_submission(
+            #                             max_resubmission=1,
+            #                             clustername=CLUSTERNAME,
+            #                             scripts_dir=Path('reduction_job_scripts/'),
+            #                             submit_continuum_pipeline=restart_continuum,
+            #                             submit_line_pipeline=restart_speclines,
+            #                             clusteracct=CLUSTERACCOUNT,
+            #                             split_time=CLUSTER_SPLIT_JOBTIME,
+            #                             continuum_time=CLUSTER_CONTINUUM_JOBTIME,
+            #                             line_time=CLUSTER_LINE_JOBTIME,
+            #                             scheduler_cmd=CLUSTER_SCHEDCMD,)
+
+            #     log.info("Checking and waiting for job completion")
+            #     # Return dictionary of jobs to restart.
+            #     await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
+            #                                         check_line_job=RUN_LINES,
+            #                                         sleeptime=1800)
+
+            # # Move pipeline products to QA webserver
+            # for data_type in data_types:
+
+            #     await auto_pipe.transfer_pipeline_products(data_type=data_type,
+            #                                                startnode=CLUSTERNAME,
+            #                                                endnode='ingester')
+
+            #     # Create the flagging sheets in the google sheet
+            #     await auto_pipe.make_flagging_sheet(data_type=data_type)
+
+            #     # Create the final QA products and move to the webserver
+            #     auto_pipe.make_qa_products(data_type=data_type)
 
 
         # Notify the queue that the item has been processed

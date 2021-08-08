@@ -155,6 +155,9 @@ async def consume(queue):
                                                     startnode='cc-cedar',
                                                     endnode='ingester')
 
+            await auto_pipe.transfer_calibrated_data(data_type='speclines',
+                                                     clustername='cc-cedar')
+
             log.info("Transferring QA products to webserver")
             auto_pipe.make_qa_products(data_type='speclines')
         else:
@@ -169,6 +172,9 @@ async def consume(queue):
             await auto_pipe.transfer_pipeline_products(data_type='continuum',
                                                     startnode='cc-cedar',
                                                     endnode='ingester')
+
+            await auto_pipe.transfer_calibrated_data(data_type='continuum',
+                                                     clustername='cc-cedar')
 
             # Create the final QA products and move to the webserver
             log.info("Transferring QA products to webserver")
