@@ -204,6 +204,7 @@ def transfer_general(filename, output_destination,
                     wait_for_completion=False,
                     use_rootname=True,
                     skip_if_not_existing=True,
+                    remove_existing=False,
                     use_startnode_datapath=True,
                     use_endnode_datapath=True):
 
@@ -250,6 +251,18 @@ def transfer_general(filename, output_destination,
 
         raise ValueError(f"The file {base_filename} does not exist at {input_cmd}.")
 
+    # Check if the output file/folder already exists:
+    task_command = ['globus', 'ls', "/".join(output_cmd.split("/")[:-1])]
+    task_check = subprocess.run(task_command, capture_output=True)
+
+    if base_filename in task_check.stdout.decode('utf-8'):
+        log.info("Found existing output file.")
+        if remove_existing:
+            task_command = ['globus', 'rm', output_cmd]
+            task_remove = subprocess.run(task_command, capture_output=True)
+        else:
+            log.info("Skipping deletion of existing output file.")
+
     # task_command = f"$(globus transfer {input_cmd} {output_cmd} --jmes path 'task_id' --format=UNIX)"
     task_command = ['globus', 'transfer', input_cmd, output_cmd]
 
@@ -269,7 +282,7 @@ def transfer_general(filename, output_destination,
     # Wait for 30 seconds to allow the transfer to get started.
     time.sleep(30)
 
-    if wait_for_completion:
-        globus_wait_for_completion(task_id)
+    # if wait_for_completion:
+    #     globus_wait_for_completion(task_id)
 
     return task_id
