@@ -1549,6 +1549,7 @@ class AutoPipeline(object):
 
     async def cleanup_on_cluster(self, clustername='cc-cedar', data_type='continuum',
                                  do_remove_whole_track=False,
+                                 do_only_remove_ms=False,
                                  **ssh_kwargs):
         '''
         Remove a previous run to setup for a new split and new pipeline reduction.
@@ -1573,7 +1574,12 @@ class AutoPipeline(object):
 
             log.info(f"Cleaning up {data_type} on {clustername} at {cd_command}")
 
-            rm_command = f"rm -rf {self.track_folder_name}_{data_type}"
+            # A successful job will end with a .ms.tar file.
+            if do_only_remove_ms:
+                rm_command = f"rm -rf {self.track_folder_name}_{data_type}/{ms_tar_suffix}"
+            else:
+                rm_command = f"rm -rf {self.track_folder_name}_{data_type}"
+
         else:
 
             cd_command = f'cd scratch/VLAXL_reduction/'
@@ -1590,25 +1596,13 @@ class AutoPipeline(object):
         connect.close()
         del connect
 
-    async def export_track_for_imaging(self,
-                                       clustername='cc-cedar',
-                                       data_type='continuum',
-                                       project_dir="/project/rrg-eros-ab/ekoch/VLAXL/calibrated/"):
+    async def do_temp_data_transfer(self,
+                                    clustername='cc-cedar',
+                                    data_type='continuum',
+                                    project_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/"):
         """
-        Step 8.
-
-        Move calibrated MSs to a persistent storage location for imaging.
-        Clean-up scratch space.
+        Move calibrated MSs to persistent storage location.
         """
-
-        # Status check.
-
-        status_flag = self._qa_review_input(data_type=data_type)
-
-        # Skip if completion is not indicated
-        if status_flag != "COMPLETE":
-            log.debug("No completion step requested. Exiting")
-            return
 
         # Transfer the MS with globus to its place on project space.
         log.info(f"Transferring {self.track_folder_name} {data_type} calibrated MS to project space.")
@@ -1629,6 +1623,71 @@ class AutoPipeline(object):
                                            wait_for_completion=False,
                                            skip_if_not_existing=True,
                                            use_startnode_datapath=True,
+                                           use_endnode_datapath=False,
+                                           use_rootname=True)
+
+        if transfer_taskid is None:
+            log.debug(f"No transfer task ID returned. Check existence of {filename}."
+                  " Exiting completion process.")
+            return
+
+        self.transfer_taskid = transfer_taskid
+
+        log.info(f"The globus transfer ID is: {transfer_taskid}")
+
+        log.info(f"Waiting for globus transfer to {clustername} to complete.")
+        await globus_wait_for_completion(transfer_taskid, sleeptime=180)
+        log.info(f"Globus transfer {transfer_taskid} completed!")
+
+        log.info("Clean-up ms file on scratch")
+        await self.cleanup_on_cluster(clustername=clustername, data_type=data_type,
+                                      do_remove_whole_track=False,
+                                      do_only_remove_ms=True)
+
+    async def export_track_for_imaging(self,
+                                       clustername='cc-cedar',
+                                       data_type='continuum',
+                                       staging_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/",
+                                       project_dir="/project/rrg-eros-ab/ekoch/VLAXL/calibrated/"):
+        """
+        Step 8.
+
+        Move calibrated MSs to a persistent storage location for imaging.
+        Clean-up scratch space.
+        """
+
+        # Status check.
+
+        status_flag = self._qa_review_input(data_type=data_type)
+
+        # Skip if completion is not indicated
+        if status_flag != "COMPLETE":
+            log.debug("No completion step requested. Exiting")
+            return
+
+        # Transfer the MS with globus to its place on project space.
+        log.info(f"Transferring {self.track_folder_name} {data_type} calibrated MS to project space.")
+
+        # These paths point to the track space on scratch.
+        # path_to_products = f'{self.track_folder_name}/{self.track_folder_name}_{data_type}/'
+        # filename = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.tar'
+
+        # These paths point to MS location on project space.
+        path_to_products = staging_dir
+        filename = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.tar'
+
+        # Going to the ingester instance. Doesn't need an extra path.
+        output_destination = project_dir
+
+        log.info(f"Filename to transfer is: {filename}")
+        log.info(f"Transferring to: {output_destination}")
+
+        transfer_taskid = transfer_general(filename, output_destination,
+                                           startnode=clustername,
+                                           endnode=clustername,
+                                           wait_for_completion=False,
+                                           skip_if_not_existing=True,
+                                           use_startnode_datapath=False,
                                            use_endnode_datapath=False,
                                            use_rootname=True)
 
@@ -1682,9 +1741,7 @@ class AutoPipeline(object):
                     sheetname=self.sheetname)
 
 
-    async def label_qa_failures(self, data_type='continuum',
-                                startnode='cc-cedar',
-                                endnode='ingester'):
+    async def label_qa_failures(self, data_type='continuum'):
 
         """
         Note failing tracks or those that require manual reduction attempts.
@@ -1766,3 +1823,4 @@ class AutoPipeline(object):
         log.info(f"Globus transfer {transfer_taskid} completed!")
 
         # TODO: link this into the webserver to easily view the weblog for failures
+
