@@ -6,4 +6,7 @@
 from ._astropy_init import *   # noqa
 # ----------------------------------------------------------------------------
 
-__all__ = []
+from ingest_pipeline_functions import AutoPipeline
+
+__all__ = ['AutoPipeline']
+
