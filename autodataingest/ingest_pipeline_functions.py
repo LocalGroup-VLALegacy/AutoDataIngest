@@ -1576,7 +1576,7 @@ class AutoPipeline(object):
 
             # A successful job will end with a .ms.tar file.
             if do_only_remove_ms:
-                rm_command = f"rm -rf {self.track_folder_name}_{data_type}/{ms_tar_suffix}"
+                rm_command = f"rm -rf {self.track_folder_name}_{data_type}/*.ms.tar"
             else:
                 rm_command = f"rm -rf {self.track_folder_name}_{data_type}"
 
