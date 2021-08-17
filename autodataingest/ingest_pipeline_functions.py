@@ -1622,7 +1622,7 @@ class AutoPipeline(object):
                                            endnode=clustername,
                                            wait_for_completion=False,
                                            skip_if_not_existing=True,
-                                           remove_existing=True,
+                                           remove_existing=False,
                                            use_startnode_datapath=True,
                                            use_endnode_datapath=False,
                                            use_rootname=True)
