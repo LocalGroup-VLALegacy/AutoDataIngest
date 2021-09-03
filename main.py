@@ -66,6 +66,8 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
 
             await queue.put(this_pipe)
 
+            log.info(f"There are now {queue.qsize()} items in the queue.")
+
         if test_case_run_newest:
             break
 
@@ -74,15 +76,20 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
 
 async def consume(queue):
     while True:
+        log.info("Starting consume")
+
+        log.info(f"consume: There are {queue.qsize()} items in the queue.")
+
         # wait for an item from the producer
         auto_pipe = await queue.get()
-
-        EBID_QUEUE_LIST.remove(auto_pipe.ebid)
 
         # process the item
         log.info('Processing {}...'.format(auto_pipe.ebid))
         # simulate i/o operation using sleep
-        # await asyncio.sleep(1)
+        await asyncio.sleep(120)
+
+        EBID_QUEUE_LIST.remove(auto_pipe.ebid)
+
 
         log.info(f'Starting archive request for {auto_pipe.ebid}')
         # 1.
@@ -186,12 +193,15 @@ async def consume(queue):
                 await auto_pipe.transfer_qa_failures(data_type='continuum')
 
         # Notify the queue that the item has been processed
-        log.info('Completed {}...'.format(auto_pipe.ebid))
         queue.task_done()
+        log.info('Completed {}...'.format(auto_pipe.ebid))
+        del auto_pipe
 
 
 async def run(num_produce=1, num_consume=4,
               **produce_kwargs):
+
+    log.info(f"Creating queue given {num_produce} producers and {num_consume} consumers.")
 
     queue = asyncio.Queue()
 
@@ -201,10 +211,12 @@ async def run(num_produce=1, num_consume=4,
     consumers = [asyncio.create_task(consume(queue))
                  for _ in range(num_consume)]
 
+    log.info("Created producers and consumers.")
+
     # with both producers and consumers running, wait for
     # the producers to finish
     await asyncio.gather(*producers)
-    print('---- done producing')
+    log.info('---- done producing')
 
     # wait for the remaining tasks to be processed
     await queue.join()
@@ -249,17 +261,17 @@ if __name__ == "__main__":
     CLUSTER_SCHEDCMD = "sbatch"
 
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '48:00:00'
-    CLUSTER_LINE_JOBTIME = '48:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '54:00:00'
+    CLUSTER_LINE_JOBTIME = '54:00:00'
 
-    CLUSTER_SPLIT_MEM = '28000M'
+    CLUSTER_SPLIT_MEM = '32000M'
     CLUSTER_CONTINUUM_MEM = '16000M'
     CLUSTER_LINE_MEM = '16000M'
 
     RUN_CONTINUUM = True
     RUN_LINES = True
 
-    NUM_CONSUMERS = 6
+    NUM_CONSUMERS = 1
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
@@ -289,9 +301,7 @@ if __name__ == "__main__":
     loop.set_debug(False)
     loop.slow_callback_duration = 0.001
 
-    loop.run_until_complete(run(test_case_run_newest=test_case_run_newest,
-                                run_newest_first=run_newest_first,
-                                num_consume=NUM_CONSUMERS))
+    loop.run_until_complete(run(num_consume=NUM_CONSUMERS))
     loop.close()
 
     del loop
