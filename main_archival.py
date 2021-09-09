@@ -9,8 +9,8 @@ REQUIRE python>=3.7 for asyncio.
 '''
 
 import asyncio
+import time
 from pathlib import Path
-from datetime import datetime
 
 from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks)
 
@@ -66,6 +66,8 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
 
             await queue.put(this_pipe)
 
+            log.info(f"There are now {queue.qsize()} items in the queue.")
+
         if test_case_run_newest:
             break
 
@@ -74,21 +76,24 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
 
 async def consume(queue):
     while True:
+        log.info("Starting consume")
+
+        log.info(f"consume: There are {queue.qsize()} items in the queue.")
+
         # wait for an item from the producer
         auto_pipe = await queue.get()
-
-        EBID_QUEUE_LIST.remove(auto_pipe.ebid)
 
         # process the item
         log.info('Processing {}...'.format(auto_pipe.ebid))
         # simulate i/o operation using sleep
-        # await asyncio.sleep(1)
+        await asyncio.sleep(120)
+
+        EBID_QUEUE_LIST.remove(auto_pipe.ebid)
 
         log.info(f'Starting archive request for {auto_pipe.ebid}')
         # 1.
         await auto_pipe.archive_request_and_transfer(archive_kwargs={'emailaddr': EMAILADDR,
-                                                                     'lustre_path': NRAODATAPATH,
-                                                                     'project_code': None},
+                                                                     'lustre_path': NRAODATAPATH},
                                                     sleeptime=600,
                                                     clustername=CLUSTERNAME,
                                                     do_cleanup=False)
@@ -110,6 +115,9 @@ async def consume(queue):
                                 split_time=CLUSTER_SPLIT_JOBTIME,
                                 continuum_time=CLUSTER_CONTINUUM_JOBTIME,
                                 line_time=CLUSTER_LINE_JOBTIME,
+                                split_mem=CLUSTER_SPLIT_MEM,
+                                continuum_mem=CLUSTER_CONTINUUM_MEM,
+                                line_mem=CLUSTER_LINE_MEM,
                                 scheduler_cmd=CLUSTER_SCHEDCMD,)
 
         log.info("Checking and waiting for job completion")
@@ -139,6 +147,11 @@ async def consume(queue):
         #     await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
         #                                         check_line_job=RUN_LINES,
         #                                         sleeptime=1800)
+
+        # Create the flagging sheets in the google sheet
+        log.info("Creating flagging sheets")
+        await auto_pipe.make_flagging_sheet(data_type='continuum')
+        await auto_pipe.make_flagging_sheet(data_type='speclines')
 
         log.info("Transferring pipeline products")
         # Move pipeline products to QA webserver
@@ -177,14 +190,17 @@ async def consume(queue):
                 log.info("continuum failed at some point. Transferring failed products")
 
                 await auto_pipe.transfer_qa_failures(data_type='continuum')
-        # Notify the queue that the item has been processed
-        log.info('Completed {}...'.format(auto_pipe.ebid))
 
+        # Notify the queue that the item has been processed
         queue.task_done()
+        log.info('Completed {}...'.format(auto_pipe.ebid))
+        del auto_pipe
 
 
 async def run(num_produce=1, num_consume=4,
               **produce_kwargs):
+
+    log.info(f"Creating queue given {num_produce} producers and {num_consume} consumers.")
 
     queue = asyncio.Queue()
 
@@ -194,10 +210,12 @@ async def run(num_produce=1, num_consume=4,
     consumers = [asyncio.create_task(consume(queue))
                  for _ in range(num_consume)]
 
+    log.info("Created producers and consumers.")
+
     # with both producers and consumers running, wait for
     # the producers to finish
     await asyncio.gather(*producers)
-    print('---- done producing')
+    log.info('---- done producing')
 
     # wait for the remaining tasks to be processed
     await queue.join()
@@ -233,11 +251,17 @@ if __name__ == "__main__":
     CLUSTER_SCHEDCMD = "sbatch"
 
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '72:00:00'
-    CLUSTER_LINE_JOBTIME = '72:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '54:00:00'
+    CLUSTER_LINE_JOBTIME = '54:00:00'
+
+    CLUSTER_SPLIT_MEM = '32000M'
+    CLUSTER_CONTINUUM_MEM = '16000M'
+    CLUSTER_LINE_MEM = '16000M'
 
     RUN_CONTINUUM = True
     RUN_LINES = True
+
+    NUM_CONSUMERS = 1
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
@@ -255,7 +279,7 @@ if __name__ == "__main__":
 
     test_case_run_newest = False
 
-    run_newest_first = True
+    run_newest_first = False
 
     global EBID_QUEUE_LIST
     EBID_QUEUE_LIST = []
@@ -267,17 +291,15 @@ if __name__ == "__main__":
     loop.set_debug(False)
     loop.slow_callback_duration = 0.001
 
-    loop.run_until_complete(run(test_case_run_newest=test_case_run_newest,
-                                run_newest_first=run_newest_first))
+    loop.run_until_complete(run(num_consume=NUM_CONSUMERS))
     loop.close()
 
     del loop
 
-
     # Run purely a test
-    # ebid = 38730505
+    # ebid = 39992361
     # tester = AutoPipeline(ebid)
-    # asyncio.run(tester.archive_request_and_transfer())
+    # asyncio.run(tester.archive_request_and_transfer(do_cleanup=False, timewindow=1.))
     # asyncio.run(tester.setup_for_reduction_pipeline(clustername=CLUSTERNAME))
     # asyncio.run(tester.get_flagging_files(data_type='continuum'))
     # asyncio.run(tester.get_flagging_files(data_type='speclines'))
