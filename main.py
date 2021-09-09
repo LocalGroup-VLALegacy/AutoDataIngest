@@ -86,7 +86,7 @@ async def consume(queue):
         # process the item
         log.info('Processing {}...'.format(auto_pipe.ebid))
         # simulate i/o operation using sleep
-        await asyncio.sleep(120)
+        # await asyncio.sleep(120)
 
         EBID_QUEUE_LIST.remove(auto_pipe.ebid)
 
