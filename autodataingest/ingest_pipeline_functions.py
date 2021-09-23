@@ -1297,6 +1297,14 @@ class AutoPipeline(object):
 
         task_scantxt = subprocess.run(task_command, capture_output=True)
 
+        # Extract quicklook images
+        task_command = ['tar', '--strip-components=1', '-C',
+                        f"{temp_path}", '-xf', f"{product_file}",
+                        "products/quicklook_imaging"]
+
+        task_scantxt = subprocess.run(task_command, capture_output=True)
+
+
         cur_dir = os.getcwd()
 
         os.chdir(temp_path)
