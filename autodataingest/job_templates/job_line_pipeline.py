@@ -109,7 +109,11 @@ fi
 cp $TRACK_FOLDER"_speclines_products.tar" $outfolder/$name.tar
 
 # Tar the MS file.
-tar -cf "{target_name}_{config}_{trackname}.speclines.ms.tar" "{trackname}.speclines.ms"
+
+# As of 10/25/21 we split the calibrated column into a target and calibrator part.
+tar -cf "{target_name}_{config}_{trackname}.speclines.ms.split.tar" "{trackname}.speclines.ms.split"
+tar -cf "{target_name}_{config}_{trackname}.speclines.ms.split_calibrators.tar" "{trackname}.speclines.ms.split_calibrators"
+
 # Remove the original tar file to save space
 rm -r "{trackname}.speclines.ms"
 rm -r "{trackname}.speclines.ms.flagversions"

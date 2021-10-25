@@ -182,7 +182,11 @@ fi
 cp $TRACK_FOLDER"_continuum_products.tar" $outfolder/$name.tar
 
 # Tar the MS file.
-tar -cf "{target_name}_{config}_{trackname}.continuum.ms.tar" "{trackname}.continuum.ms"
+
+# As of 10/25/21 we split the calibrated column into a target and calibrator part.
+tar -cf "{target_name}_{config}_{trackname}.continuum.ms.split.tar" "{trackname}.continuum.ms.split"
+tar -cf "{target_name}_{config}_{trackname}.continuum.ms.split_calibrators.tar" "{trackname}.continuum.ms.split_calibrators"
+
 # Remove the original tar file to save space
 rm -r "{trackname}.continuum.ms"
 rm -r "{trackname}.continuum.ms.flagversions"
