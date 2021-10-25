@@ -1617,7 +1617,7 @@ class AutoPipeline(object):
 
         path_to_products = f'{self.track_folder_name}/{self.track_folder_name}_{data_type}/'
 
-        filename = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.tar'
+        filename = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.split.tar'
 
         # Going to the ingester instance. Doesn't need an extra path.
         output_destination = project_dir
@@ -1644,8 +1644,34 @@ class AutoPipeline(object):
 
         log.info(f"The globus transfer ID is: {transfer_taskid}")
 
+        # Next transfer the split calibrator MS
+        filename_cals = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.split_calibrators.tar'
+
+        log.info(f"Filename to transfer is: {filename_cals}")
+        log.info(f"Transferring to: {output_destination}")
+
+        transfer_taskid_cals = transfer_general(filename_cals, output_destination,
+                                                startnode=clustername,
+                                                endnode=clustername,
+                                                wait_for_completion=False,
+                                                skip_if_not_existing=True,
+                                                remove_existing=False,
+                                                use_startnode_datapath=True,
+                                                use_endnode_datapath=False,
+                                                use_rootname=True)
+
+        if transfer_taskid_cals is None:
+            log.debug(f"No transfer task ID returned. Check existence of {filename_cals}."
+                  " Exiting completion process.")
+            return
+
+        log.info(f"The globus transfer ID for cals is: {transfer_taskid_cals}")
+
         log.info(f"Waiting for globus transfer to {clustername} to complete.")
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
+        log.info(f"Globus transfer {transfer_taskid} completed!")
+
+        await globus_wait_for_completion(transfer_taskid_cals, sleeptime=180)
         log.info(f"Globus transfer {transfer_taskid} completed!")
 
         log.info("Clean-up ms file on scratch")
