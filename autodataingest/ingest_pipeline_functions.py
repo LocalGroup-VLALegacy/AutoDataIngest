@@ -1684,6 +1684,7 @@ class AutoPipeline(object):
                                        data_type='continuum',
                                        staging_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/",
                                        project_dir="/project/rrg-eros-ab/ekoch/VLAXL/calibrated/",
+                                       project_cals_dir="/project/rrg-eros-ab/ekoch/VLAXL/calibrated_calsonly/",
                                        ssh_kwargs={}):
         """
         Step 8.
@@ -1710,7 +1711,7 @@ class AutoPipeline(object):
 
         # These paths point to MS location on project space.
         path_to_products = staging_dir
-        filename = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.tar'
+        filename = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.split.tar'
 
         # Going to the ingester instance. Doesn't need an extra path.
         output_destination = project_dir
@@ -1729,16 +1730,38 @@ class AutoPipeline(object):
 
         if transfer_taskid is None:
             log.debug(f"No transfer task ID returned. Check existence of {filename}."
-                  " Exiting completion process.")
+                    " Exiting completion process.")
             return
 
         self.transfer_taskid = transfer_taskid
 
         log.info(f"The globus transfer ID is: {transfer_taskid}")
 
+        filename_cals = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.split_calibrators.tar'
+
+        log.info(f"Filename to transfer is: {filename_cals}")
+        log.info(f"Transferring to: {project_cals_dir}")
+
+        transfer_taskid_cals = transfer_general(filename_cals, project_cals_dir,
+                                                startnode=clustername,
+                                                endnode=clustername,
+                                                wait_for_completion=False,
+                                                skip_if_not_existing=True,
+                                                use_startnode_datapath=False,
+                                                use_endnode_datapath=False,
+                                                use_rootname=True)
+
+        if transfer_taskid_cals is None:
+            log.debug(f"No transfer task ID returned. Check existence of {filename_cals}."
+                    " Exiting completion process.")
+            return
+
         log.info(f"Waiting for globus transfer to {clustername} to complete.")
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
         log.info(f"Globus transfer {transfer_taskid} completed!")
+
+        await globus_wait_for_completion(transfer_taskid_cals, sleeptime=180)
+        log.info(f"Globus transfer {transfer_taskid_cals} completed!")
 
         # Update track status. Append both data types if one has already finished
         other_data_type = "speclines" if data_type == 'continuum' else 'continuum'
