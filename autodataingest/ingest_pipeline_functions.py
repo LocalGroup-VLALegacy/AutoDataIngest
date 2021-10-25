@@ -1672,7 +1672,7 @@ class AutoPipeline(object):
         log.info(f"Globus transfer {transfer_taskid} completed!")
 
         await globus_wait_for_completion(transfer_taskid_cals, sleeptime=180)
-        log.info(f"Globus transfer {transfer_taskid} completed!")
+        log.info(f"Globus transfer {transfer_taskid_cals} completed!")
 
         log.info("Clean-up ms file on scratch")
         await self.cleanup_on_cluster(clustername=clustername, data_type=data_type,
