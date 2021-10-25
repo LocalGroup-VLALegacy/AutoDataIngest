@@ -1796,12 +1796,18 @@ class AutoPipeline(object):
         connect.open()
         log.info(f"Opened connection to {clustername}")
 
-        cd_command = f"cd {staging_dir}"
-        rm_command = f"rm -rf {self.track_folder_name}.ms.tar"
-        full_command = f'{cd_command} && {rm_command}'
+        # NOTE: Keep the original delete here for now, since failures are allowed.
+        # Remove after transition to the split data products.
+        for product_name in [f"{self.track_folder_name}.ms.tar",
+                             f"{self.track_folder_name}.ms.split.tar",
+                             f"{self.track_folder_name}.ms.split_calibrators.tar"]:
 
-        result = run_command(connect, full_command, allow_failure=True)
-        log.info(f"Finished cleaning up temp ms file up on {clustername} for track {cd_command}")
+            cd_command = f"cd {staging_dir}"
+            rm_command = f"rm -rf {product_name}"
+            full_command = f'{cd_command} && {rm_command}'
+
+            result = run_command(connect, full_command, allow_failure=True)
+            log.info(f"Finished cleaning up temp ms file up on {clustername} for track {cd_command}")
 
         connect.close()
         del connect
