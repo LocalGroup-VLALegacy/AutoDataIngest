@@ -113,6 +113,7 @@ tar -cf "{target_name}_{config}_{trackname}.speclines.ms.tar" "{trackname}.specl
 # Remove the original tar file to save space
 rm -r "{trackname}.speclines.ms"
 rm -r "{trackname}.speclines.ms.flagversions"
+rm -r calibrators.ms finalcalibrators.ms
 
 echo "casa default speclines pipeline finished."
 

@@ -186,6 +186,7 @@ tar -cf "{target_name}_{config}_{trackname}.continuum.ms.tar" "{trackname}.conti
 # Remove the original tar file to save space
 rm -r "{trackname}.continuum.ms"
 rm -r "{trackname}.continuum.ms.flagversions"
+rm -r calibrators.ms finalcalibrators.ms
 
 echo "casa default continuum pipeline finished."
 
