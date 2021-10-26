@@ -1558,6 +1558,8 @@ class AutoPipeline(object):
     async def cleanup_on_cluster(self, clustername='cc-cedar', data_type='continuum',
                                  do_remove_whole_track=False,
                                  do_only_remove_ms=False,
+                                 do_cleanup_tempstorage=False,
+                                 temp_project_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/",
                                  **ssh_kwargs):
         '''
         Remove a previous run to setup for a new split and new pipeline reduction.
@@ -1600,6 +1602,15 @@ class AutoPipeline(object):
         result = run_command(connect, full_command, allow_failure=True)
 
         log.info(f"Finished clean up on {clustername} for track {cd_command}")
+
+        if do_cleanup_tempstorage:
+            log.info(f"Cleaning up temp project space on {clustername} for track {cd_command}")
+
+            rm_command = f"rm -r {temp_project_dir}/{self.track_folder_name}_{data_type}.ms*.tar"
+
+            result = run_command(connect, rm_command, allow_failure=True)
+
+            log.info(f"Finished temp project clean up on {clustername} for track {cd_command}")
 
         connect.close()
         del connect
@@ -1787,7 +1798,9 @@ class AutoPipeline(object):
         do_remove_whole_track = other_part_finished
 
         await self.cleanup_on_cluster(clustername=clustername, data_type=data_type,
-                                      do_remove_whole_track=do_remove_whole_track)
+                                      do_remove_whole_track=do_remove_whole_track,
+                                      do_cleanup_tempstorage=True,
+                                      temp_project_dir=staging_dir)
 
         # Clean up temp ms.tar file on project space.
         log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
