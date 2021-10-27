@@ -33,8 +33,9 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
             # If we get an API error for too many requests, just wait a bit and
             # try again:
             try:
-                all_ebids = find_rerun_status_tracks(sheetname=SHEETNAME)
-            except:
+                all_ebids = find_rerun_status_tracks(sheetname=SHEETNAME, job_type=JOB_TYPE)
+            except Exception as e:
+                log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
                 await asyncio.sleep(long_sleep)
                 continue
         else:
@@ -267,8 +268,10 @@ if __name__ == "__main__":
     CLUSTER_SCHEDCMD = "sbatch"
 
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '48:00:00'
-    CLUSTER_LINE_JOBTIME = '48:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '54:00:00'
+    CLUSTER_LINE_JOBTIME = '54:00:00'
+
+    JOB_TYPE = "ALL"
 
     RUN_CONTINUUM = True
     RUN_LINES = True
