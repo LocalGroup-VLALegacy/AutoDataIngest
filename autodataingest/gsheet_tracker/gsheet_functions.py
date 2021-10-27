@@ -71,7 +71,7 @@ def find_new_tracks(sheetname='20A - OpLog Summary', status_check=''):
     return new_tracks
 
 
-def find_rerun_status_tracks(sheetname='20A - OpLog Summary'):
+def find_rerun_status_tracks(sheetname='20A - OpLog Summary', job_type=None):
     """
     Find new tracks where an updated run status has been indicated. Fill in last given
     status with a timestamp in the sheet.
@@ -88,33 +88,54 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary'):
 
     new_tracks = []
 
+    if job_type is None:
+        job_type = 'ALL'
+
     for track in tracks_info:
         # Check if the status is equal to `status_check`
         if len(track['Re-run\ncontinuum']) > 0 or len(track['Re-run\nspeclines']) > 0:
 
-            new_tracks.append(track['EBID'])
-
             time_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-            if len(track['Re-run\ncontinuum']) > 0:
-                trigger_continuum = track['Re-run\ncontinuum']
-                continuum_trigger = f"{trigger_continuum} at {time_stamp}"
+            append_this_track = False
 
-                update_cell(track['EBID'],
-                            continuum_trigger,
-                            name_col='Prev continuum status',
-                            sheetname=sheetname)
+            if len(track['Re-run\ncontinuum']) > 0:
+                if job_type is not 'ALL' and job_type not in track['Re-run\ncontinuum']:
+                    this_type = track['Re-run\ncontinuum']
+                    log.info(f"Skipping continuum job since it is a {this_type} not a  {job_type} job.")
+                else:
+
+                    append_this_track = True
+
+                    trigger_continuum = track['Re-run\ncontinuum']
+                    continuum_trigger = f"{trigger_continuum} at {time_stamp}"
+
+                    update_cell(track['EBID'],
+                                continuum_trigger,
+                                name_col='Prev continuum status',
+                                sheetname=sheetname)
 
             if len(track['Re-run\nspeclines']) > 0:
-                trigger_speclines = track['Re-run\nspeclines']
-                speclines_trigger = f"{trigger_speclines} at {time_stamp}"
+                if job_type is not 'ALL' and job_type not in track['Re-run\nspeclines']:
+                    this_type = track['Re-run\nspeclines']
+                    log.info(f"Skipping line job since it isn't a {this_type} not a {job_type} job.")
+                else:
 
-                update_cell(track['EBID'],
-                            speclines_trigger,
-                            name_col='Prev speclines status',
-                            sheetname=sheetname)
+                    append_this_track = True
+
+                    trigger_speclines = track['Re-run\nspeclines']
+                    speclines_trigger = f"{trigger_speclines} at {time_stamp}"
+
+                    update_cell(track['EBID'],
+                                speclines_trigger,
+                                name_col='Prev speclines status',
+                                sheetname=sheetname)
+
+            if append_this_track:
+                new_tracks.append(track['EBID'])
 
     return new_tracks
+
 
 
 def return_all_ebids(sheetname='20A - OpLog Summary'):
