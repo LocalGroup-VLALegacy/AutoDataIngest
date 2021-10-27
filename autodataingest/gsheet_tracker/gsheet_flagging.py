@@ -279,3 +279,12 @@ def make_new_flagsheet(trackname, target, config,
     worksheet.update_cell(1, 10, data_type.upper())
 
     return worksheet
+
+
+def translate_with_no_spw_reindexing():
+    '''
+    Eventually re-write the flagging spreadsheets to use the non reindexed SPW
+    numbering.
+    '''
+
+    return

@@ -423,6 +423,7 @@ class AutoPipeline(object):
                                     clustername='cc-cedar',
                                     scripts_dir=Path('reduction_job_scripts/'),
                                     split_type='all',
+                                    reindex=True,
                                     submit_continuum_pipeline=True,
                                     submit_line_pipeline=True,
                                     clusteracct=None,
@@ -481,6 +482,7 @@ class AutoPipeline(object):
                 config=self.track_folder_name.split('_')[1],
                 trackname=self.track_folder_name.split('_')[2],
                 split_type=split_type,
+                reindex=reindex,
                 slurm_kwargs={},
                 setup_kwargs={}),
             file=open(track_scripts_dir / job_split_filename, 'a'))
@@ -1505,7 +1507,8 @@ class AutoPipeline(object):
                                    clusteracct=None,
                                    split_time=None,
                                    pipeline_time=None,
-                                   scheduler_cmd=''):
+                                   scheduler_cmd='',
+                                   reindex=False):
 
         """
         Step 7.
@@ -1542,6 +1545,7 @@ class AutoPipeline(object):
         await self.initial_job_submission(clustername=clustername,
                                         scripts_dir=Path('reduction_job_scripts/'),
                                         split_type=data_type,
+                                        reindex=reindex,
                                         submit_continuum_pipeline=True if data_type == 'continuum' else False,
                                         submit_line_pipeline=True if data_type == 'speclines' else False,
                                         clusteracct=clusteracct,

@@ -11,6 +11,7 @@ REQUIRE python>=3.7 for asyncio.
 import asyncio
 import time
 from pathlib import Path
+from AutoDataIngest.main_restarts import REINDEX
 
 from autodataingest.gsheet_tracker.gsheet_functions import (find_rerun_status_tracks)
 
@@ -136,7 +137,8 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                                                     clusteracct=CLUSTERACCOUNT,
                                                     split_time=CLUSTER_SPLIT_JOBTIME,
                                                     pipeline_time=CLUSTER_LINE_JOBTIME,
-                                                    scheduler_cmd=CLUSTER_SCHEDCMD,)
+                                                    scheduler_cmd=CLUSTER_SCHEDCMD,
+                                                    reindex=REINDEX)
 
                 await asyncio.sleep(sleeptime)
 
@@ -266,6 +268,10 @@ if __name__ == "__main__":
 
     RUN_CONTINUUM = True
     RUN_LINES = True
+
+    # Set whether to reindex the SPWs. Eventually, this should be set to False
+    # everywhere!
+    REINDEX = True
 
     uname = 'ekoch'
     sname = 'ualberta.ca'

@@ -12,6 +12,7 @@ from .job_tools import (cedar_slurm_setup, cedar_job_setup,
 def cedar_submission_script(target_name="M31", config="C",
                             trackname="20A-346.sb38098105.eb38158028.58985.68987263889",
                             split_type='all',
+                            reindex=True,
                             slurm_kwargs={},
                             setup_kwargs={},
                             run_casa6=True):
@@ -47,7 +48,7 @@ echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/Reducti
 
 echo 'Start casa'
 
-~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} {split_type}
+~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} {split_type} {reindex}
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then

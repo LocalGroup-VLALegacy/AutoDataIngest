@@ -118,7 +118,8 @@ async def consume(queue):
                                 split_mem=CLUSTER_SPLIT_MEM,
                                 continuum_mem=CLUSTER_CONTINUUM_MEM,
                                 line_mem=CLUSTER_LINE_MEM,
-                                scheduler_cmd=CLUSTER_SCHEDCMD,)
+                                scheduler_cmd=CLUSTER_SCHEDCMD,
+                                reindex=False)
 
         log.info("Checking and waiting for job completion")
         # Return dictionary of jobs to restart.
