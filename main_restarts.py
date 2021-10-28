@@ -278,7 +278,7 @@ if __name__ == "__main__":
 
     # Set whether to reindex the SPWs. Eventually, this should be set to False
     # everywhere!
-    REINDEX = True
+    REINDEX = False
 
     NUM_CONSUMERS = 10
 

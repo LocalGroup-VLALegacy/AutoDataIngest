@@ -12,7 +12,7 @@ from .job_tools import (cedar_slurm_setup, cedar_job_setup,
 def cedar_submission_script(target_name="M31", config="C",
                             trackname="20A-346.sb38098105.eb38158028.58985.68987263889",
                             split_type='all',
-                            reindex=True,
+                            reindex=False,
                             slurm_kwargs={},
                             setup_kwargs={},
                             run_casa6=True):

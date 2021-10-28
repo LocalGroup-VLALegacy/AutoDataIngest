@@ -423,7 +423,7 @@ class AutoPipeline(object):
                                     clustername='cc-cedar',
                                     scripts_dir=Path('reduction_job_scripts/'),
                                     split_type='all',
-                                    reindex=True,
+                                    reindex=False,
                                     submit_continuum_pipeline=True,
                                     submit_line_pipeline=True,
                                     clusteracct=None,
