@@ -281,10 +281,158 @@ def make_new_flagsheet(trackname, target, config,
     return worksheet
 
 
-def translate_with_no_spw_reindexing():
+def translate_with_no_spw_reindexing(flag_sheet, start_idx=0):
     '''
     Eventually re-write the flagging spreadsheets to use the non reindexed SPW
     numbering.
     '''
 
-    return
+    raise NotImplementedError("This error is here to stop this being re-run. Remove"
+                              " only if you've backed everything up beforehand.")
+
+    # Mapping dictionaries from reindex=True to reindex=False
+
+    speclines_spw_mapping = dict.fromkeys(range(7 + 1))
+    speclines_spw_mapping[0] = 0
+    speclines_spw_mapping[1] = 4
+    speclines_spw_mapping[2] = 5
+    speclines_spw_mapping[3] = 7
+    speclines_spw_mapping[4] = 8
+    speclines_spw_mapping[5] = 10
+    speclines_spw_mapping[6] = 11
+    speclines_spw_mapping[7] = 13
+
+    # 20 continuum SPWs in total, including the backups with the lines.
+    continuum_spw_mapping = dict.fromkeys(range(19 + 1))
+    continuum_spw_mapping[0] = 0
+    continuum_spw_mapping[1] = 4
+    continuum_spw_mapping[2] = 8
+    continuum_spw_mapping[3] = 11
+
+    # Continuum baseband starts at SPW 16.
+    for ii, key in enumerate(range(4, 19 + 1)):
+        continuum_spw_mapping[key] = ii + 16
+
+    # Now loop through all of the sheets.
+    # NOTE: ONLY WORKING FOR 20A-346 tracks right now!
+    # there are far fewer processed archival tracks as of 10/26/2021
+    # these can be done by hand
+
+    # flag_sheet = read_flagsheet()
+
+    # sheet_name = f"{target}_{config}_{abbrev_tname}_{data_type}"
+
+    all_worksheets = flag_sheet.worksheets()
+
+    total_sheets = len(all_worksheets)
+
+    # Clip out some sheets to make this go faster for already finished sheets.
+    all_worksheets = all_worksheets[start_idx:]
+
+    time.sleep(30)
+
+    for num, wsheet in enumerate(all_worksheets):
+
+        time.sleep(10)
+
+        wsheet_name = wsheet.title
+
+        print(f"On {wsheet_name}. {num + 1 + start_idx} of {total_sheets}")
+
+        # This only works if we know if it's continuum or speclines
+        # some early flagging from summer 2020 will be skipped b/c of this
+        if "continuum" not in wsheet_name and "speclines" not in wsheet_name:
+            print(f"Skipping sheet {wsheet_name}")
+            continue
+
+        # Add a marker onto the sheet for when the reindexing has already been done
+        # if found, don't do it again!
+        reindex_cell = wsheet.cell(1, 17).value
+        if reindex_cell == "REINDEXED":
+            print(f"Already reindexed {wsheet_name}. Continuing")
+            continue
+
+
+        # Split out the project code and the data type
+        proj_code = wsheet_name.split("_")[2]
+        data_type = wsheet_name.split("_")[-1]
+
+        if proj_code != "20A-346":
+            print(f"Reindexing only working for 20A-346. Skipping {wsheet_name}.")
+            continue
+
+        if data_type == "continuum":
+            spw_mapping = continuum_spw_mapping
+        elif data_type == "speclines":
+            spw_mapping = speclines_spw_mapping
+        else:
+            raise ValueError(f"Unable to identify spw_mapping for: {data_type}")
+
+        # We want the spw column. Nothing else should change.
+        column = 8
+        start_row = 7
+
+        all_spw_values = wsheet.get("H:H")[start_row - 1:]
+
+        if len(all_spw_values) == 0:
+            print("No SPW information. Continuing")
+            time.sleep(1)
+            wsheet.update_cell(1, 17, "REINDEXED")
+            continue
+
+        for idx, this_cell_value in enumerate(all_spw_values):
+
+            time.sleep(0.5)
+
+            row = start_row + idx
+
+            # if row >= wsheet.row_count:
+            #     break
+
+            # Get cell value
+            # this_cell = wsheet.cell(row, column)
+
+            # this_cell_value = this_cell.value
+
+            if len(this_cell_value)  == 0:
+                continue
+
+            this_cell_value = this_cell_value[0]
+
+            # Split SPW and channel is ":" is in the value
+            spws_chans = this_cell_value.split(":")
+
+            if len(spws_chans) == 1:
+                spws = spws_chans[0]
+                chans = None
+            elif len(spws_chans) == 2:
+                spws, chans = this_cell_value.split(":")
+            else:
+                raise ValueError(f"Unable to process SPW cell: {this_cell_value} in {wsheet_name}")
+
+            # spw_list = [int(val) for val in spws.split(",")]
+            new_spw_list = []
+            for these_spws in spws.split(","):
+                if "~" in these_spws:
+                    spw_init, spw_end = these_spws.split("~")
+                    spw_init = int(spw_init)
+                    spw_end = int(spw_end)
+                    new_spw_list.append(f"{spw_mapping[spw_init]}~{spw_mapping[spw_end]}")
+                else:
+                    new_spw_list.append(spw_mapping[int(these_spws)])
+
+            new_spws = ",".join([str(this_spw) for this_spw in new_spw_list])
+
+            if chans is None:
+                new_spws_chans = new_spws
+            else:
+                new_spws_chans = ":".join([new_spws, chans])
+
+            time.sleep(0.5)
+
+            wsheet.update_cell(row, column, new_spws_chans)
+
+        time.sleep(0.5)
+
+        # Once finished, indicate the sheet was reindexed.
+        wsheet.update_cell(1, 17, "REINDEXED")
