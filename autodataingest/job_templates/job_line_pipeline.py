@@ -118,6 +118,8 @@ tar -cf "{target_name}_{config}_{trackname}.speclines.ms.split_calibrators.tar" 
 rm -r "{trackname}.speclines.ms"
 rm -r "{trackname}.speclines.ms.flagversions"
 rm -r calibrators.ms finalcalibrators.ms
+rm -r "{trackname}.speclines.ms.split"
+rm -r "{trackname}.speclines.ms.split_calibrators"
 
 echo "casa default speclines pipeline finished."
 

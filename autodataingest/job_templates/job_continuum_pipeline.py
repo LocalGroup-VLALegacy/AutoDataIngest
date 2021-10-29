@@ -191,6 +191,8 @@ tar -cf "{target_name}_{config}_{trackname}.continuum.ms.split_calibrators.tar" 
 rm -r "{trackname}.continuum.ms"
 rm -r "{trackname}.continuum.ms.flagversions"
 rm -r calibrators.ms finalcalibrators.ms
+rm -r "{trackname}.continuum.ms.split"
+rm -r "{trackname}.continuum.ms.split_calibrators"
 
 echo "casa default continuum pipeline finished."
 
