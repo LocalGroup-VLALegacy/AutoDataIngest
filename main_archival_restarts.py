@@ -136,8 +136,12 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                                                     data_type=data_type,
                                                     clusteracct=CLUSTERACCOUNT,
                                                     split_time=CLUSTER_SPLIT_JOBTIME,
-                                                    pipeline_time=CLUSTER_LINE_JOBTIME,
+                                                    line_time=CLUSTER_LINE_JOBTIME,
+                                                    continuum_time=CLUSTER_LINE_JOBTIME,
                                                     scheduler_cmd=CLUSTER_SCHEDCMD,
+                                                    split_mem=CLUSTER_SPLIT_MEM,
+                                                    continuum_mem=CLUSTER_CONTINUUM_MEM,
+                                                    line_mem=CLUSTER_LINE_MEM,
                                                     reindex=REINDEX)
 
                 await asyncio.sleep(sleeptime)
@@ -265,6 +269,10 @@ if __name__ == "__main__":
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
     CLUSTER_CONTINUUM_JOBTIME = '48:00:00'
     CLUSTER_LINE_JOBTIME = '48:00:00'
+
+    CLUSTER_SPLIT_MEM = '20000M'
+    CLUSTER_CONTINUUM_MEM = '24000M'
+    CLUSTER_LINE_MEM = '24000M'
 
     RUN_CONTINUUM = True
     RUN_LINES = True

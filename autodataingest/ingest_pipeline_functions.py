@@ -1506,7 +1506,11 @@ class AutoPipeline(object):
                                    data_type='continuum',
                                    clusteracct=None,
                                    split_time=None,
-                                   pipeline_time=None,
+                                   continuum_time=None,
+                                   line_time=None,
+                                   split_mem=None,
+                                   continuum_mem=None,
+                                   line_mem=None,
                                    scheduler_cmd='',
                                    reindex=False):
 
@@ -1550,8 +1554,11 @@ class AutoPipeline(object):
                                         submit_line_pipeline=True if data_type == 'speclines' else False,
                                         clusteracct=clusteracct,
                                         split_time=split_time,
-                                        continuum_time=pipeline_time,
-                                        line_time=pipeline_time,
+                                        continuum_time=continuum_time,
+                                        line_time=line_time,
+                                        split_mem=split_mem,
+                                        continuum_mem=continuum_mem,
+                                        line_mem=line_mem,
                                         scheduler_cmd=scheduler_cmd)
 
         update_track_status(self.ebid,
