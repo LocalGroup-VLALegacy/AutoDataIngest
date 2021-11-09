@@ -424,6 +424,7 @@ class AutoPipeline(object):
                                     scripts_dir=Path('reduction_job_scripts/'),
                                     split_type='all',
                                     reindex=False,
+                                    casa_version="6.2",
                                     submit_continuum_pipeline=True,
                                     submit_line_pipeline=True,
                                     clusteracct=None,
@@ -484,7 +485,8 @@ class AutoPipeline(object):
                 split_type=split_type,
                 reindex=reindex,
                 slurm_kwargs={},
-                setup_kwargs={}),
+                setup_kwargs={},
+                casa_version=casa_version),
             file=open(track_scripts_dir / job_split_filename, 'a'))
 
         # Move the job script to the cluster:
@@ -551,7 +553,8 @@ class AutoPipeline(object):
                     trackname=self.track_folder_name.split('_')[2],
                     slurm_kwargs={},
                     setup_kwargs={},
-                    conditional_on_jobnum=self.importsplit_jobid),
+                    conditional_on_jobnum=self.importsplit_jobid,
+                    casa_version=casa_version),
                 file=open(track_scripts_dir / job_continuum_filename, 'a'))
 
             # Move the job script to the cluster:
@@ -616,7 +619,8 @@ class AutoPipeline(object):
                     trackname=self.track_folder_name.split('_')[2],
                     slurm_kwargs={},
                     setup_kwargs={},
-                    conditional_on_jobnum=self.importsplit_jobid),
+                    conditional_on_jobnum=self.importsplit_jobid,
+                    casa_version=casa_version),
                 file=open(track_scripts_dir / job_line_filename, 'a'))
 
             # Move the job script to the cluster:
@@ -1512,7 +1516,8 @@ class AutoPipeline(object):
                                    continuum_mem=None,
                                    line_mem=None,
                                    scheduler_cmd='',
-                                   reindex=False):
+                                   reindex=False,
+                                   casa_version=6.2):
 
         """
         Step 7.
@@ -1559,7 +1564,8 @@ class AutoPipeline(object):
                                         split_mem=split_mem,
                                         continuum_mem=continuum_mem,
                                         line_mem=line_mem,
-                                        scheduler_cmd=scheduler_cmd)
+                                        scheduler_cmd=scheduler_cmd,
+                                        casa_version=casa_version)
 
         update_track_status(self.ebid,
                             message=f"Reduction running on {clustername} after QA check",
