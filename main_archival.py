@@ -11,6 +11,7 @@ REQUIRE python>=3.7 for asyncio.
 import asyncio
 import time
 from pathlib import Path
+from AutoDataIngest.main import CASA_VERSION
 
 from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks)
 
@@ -119,7 +120,8 @@ async def consume(queue):
                                 continuum_mem=CLUSTER_CONTINUUM_MEM,
                                 line_mem=CLUSTER_LINE_MEM,
                                 scheduler_cmd=CLUSTER_SCHEDCMD,
-                                reindex=False)
+                                reindex=False,
+                                casa_version=CASA_VERSION)
 
         log.info("Checking and waiting for job completion")
         # Return dictionary of jobs to restart.
@@ -258,6 +260,8 @@ if __name__ == "__main__":
     CLUSTER_SPLIT_MEM = '32000M'
     CLUSTER_CONTINUUM_MEM = '16000M'
     CLUSTER_LINE_MEM = '16000M'
+
+    CASA_VERSION = "6.2"
 
     RUN_CONTINUUM = True
     RUN_LINES = True

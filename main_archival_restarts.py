@@ -11,6 +11,7 @@ REQUIRE python>=3.7 for asyncio.
 import asyncio
 import time
 from pathlib import Path
+from AutoDataIngest.main import CASA_VERSION
 from AutoDataIngest.main_restarts import REINDEX
 
 from autodataingest.gsheet_tracker.gsheet_functions import (find_rerun_status_tracks)
@@ -142,7 +143,8 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                                                     split_mem=CLUSTER_SPLIT_MEM,
                                                     continuum_mem=CLUSTER_CONTINUUM_MEM,
                                                     line_mem=CLUSTER_LINE_MEM,
-                                                    reindex=REINDEX)
+                                                    reindex=REINDEX,
+                                                    casa_version=CASA_VERSION)
 
                 await asyncio.sleep(sleeptime)
 
@@ -273,6 +275,8 @@ if __name__ == "__main__":
     CLUSTER_SPLIT_MEM = '20000M'
     CLUSTER_CONTINUUM_MEM = '24000M'
     CLUSTER_LINE_MEM = '24000M'
+
+    CASA_VERSION = "6.2"
 
     RUN_CONTINUUM = True
     RUN_LINES = True

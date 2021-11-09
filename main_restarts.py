@@ -147,7 +147,8 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                                                     split_mem=CLUSTER_SPLIT_MEM,
                                                     continuum_mem=CLUSTER_CONTINUUM_MEM,
                                                     line_mem=CLUSTER_LINE_MEM,
-                                                    reindex=REINDEX)
+                                                    reindex=REINDEX,
+                                                    casa_version=CASA_VERSION)
 
                 await asyncio.sleep(sleeptime)
 
@@ -280,6 +281,8 @@ if __name__ == "__main__":
     CLUSTER_LINE_MEM = '24000M'
 
     JOB_TYPE = "ALL"
+
+    CASA_VERSION = "6.2"
 
     RUN_CONTINUUM = True
     RUN_LINES = True
