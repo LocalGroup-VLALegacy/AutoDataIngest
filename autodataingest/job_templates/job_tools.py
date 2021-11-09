@@ -103,3 +103,15 @@ def cedar_casa_startupfile(casa6=True):
         filename = 'init.py'
 
     return filename
+
+
+def path_to_casa(version=6.2):
+
+    if version == 6.2:
+        return "casa-6.2.1-7-pipeline-2021.2.0.128"
+    elif version == 6.1:
+        return "casa-6.1.2-7-pipeline-2020.1.0.36"
+    elif version == "5.6":
+        return "casa-pipeline-release-5.6.2-3.el7"
+    else:
+        raise ValueError(f"No pipeline version corresponding to {version}")

@@ -6,7 +6,8 @@ To be run in python3
 '''
 
 from .job_tools import (cedar_slurm_setup, cedar_job_setup,
-                        cedar_qa_plots, cedar_casa_startupfile)
+                        cedar_qa_plots, cedar_casa_startupfile,
+                        path_to_casa)
 
 
 def cedar_submission_script(target_name="M31",
@@ -16,7 +17,8 @@ def cedar_submission_script(target_name="M31",
                             setup_kwargs={},
                             conditional_on_jobnum=None,
                             run_casa6=True,
-                            run_qaplotter=False):
+                            run_qaplotter=False,
+                            casa_version=6.2):
     '''
     Runs the default VLA pipeline.
 
@@ -39,6 +41,8 @@ def cedar_submission_script(target_name="M31",
 
     startup_filename = cedar_casa_startupfile(casa6=run_casa6)
 
+    casa_path = path_to_casa(verion=casa_version)
+
     job_str = \
         f'''{slurm_str}\n{setup_str}
 
@@ -59,11 +63,11 @@ cp -r ../VLA_antcorr_tables .
 
 echo 'Start casa default speclines pipeline'
 
-xvfb-run -a ~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
 
 # Trigger an immediate re-run attempt: This will skip completed parts and QA txt files.
 # It's here because repeated plotms calls seem to stop working after awhile.
-xvfb-run -a ~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then

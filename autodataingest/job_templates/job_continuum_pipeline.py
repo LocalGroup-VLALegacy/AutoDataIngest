@@ -6,7 +6,8 @@ To be run in python3
 '''
 
 from .job_tools import (cedar_slurm_setup, cedar_job_setup,
-                        cedar_qa_plots, cedar_casa_startupfile)
+                        cedar_qa_plots, cedar_casa_startupfile,
+                        path_to_casa)
 
 
 def cedar_submission_script_default(target_name="M31",
@@ -15,11 +16,11 @@ def cedar_submission_script_default(target_name="M31",
                                     slurm_kwargs={},
                                     setup_kwargs={},
                                     conditional_on_jobnum=None,
-                                    run_casa6=True):
+                                    run_casa6=True,
+                                    casa_version=6.2):
     '''
     Runs the default VLA pipeline.
 
-    TODO: Make job start conditional on the split job finishing (need to pass that job num)
     '''
 
     slurm_kwargs['job_name'] = f"{target_name}_{config}_{trackname}"
@@ -32,6 +33,8 @@ def cedar_submission_script_default(target_name="M31",
     setup_str = cedar_job_setup(**setup_kwargs)
 
     startup_filename = cedar_casa_startupfile(casa6=run_casa6)
+
+    casa_path = path_to_casa(verion=casa_version)
 
     job_str = \
         f'''{slurm_str}\n{setup_str}
@@ -50,7 +53,7 @@ cd $TRACK_FOLDER"_continuum"
 
 echo 'Start casa default continuum pipeline'
 
-~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}.continuum.ms')"
+~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c "import pipeline.recipes.hifv as hifv; hifv.hifv('{trackname}.continuum.ms')"
 
 export exitcode = $?
 if [ $exitcode -ge 1 ]; then
@@ -97,7 +100,8 @@ def cedar_submission_script(target_name="M31",
                             setup_kwargs={},
                             conditional_on_jobnum=None,
                             run_casa6=True,
-                            run_qaplotter=False):
+                            run_qaplotter=False,
+                            casa_version=6.2):
     '''
     Runs the default VLA pipeline.
 
@@ -114,6 +118,8 @@ def cedar_submission_script(target_name="M31",
     setup_str = cedar_job_setup(**setup_kwargs)
 
     startup_filename = cedar_casa_startupfile(casa6=run_casa6)
+
+    casa_path = path_to_casa(verion=casa_version)
 
     if run_qaplotter:
         plots_str = cedar_qa_plots()
@@ -140,11 +146,11 @@ cp -r ../VLA_antcorr_tables .
 
 echo 'Start casa default continuum pipeline'
 
-xvfb-run -a ~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
 
 # Trigger an immediate re-run attempt: This will skip completed parts and QA txt files.
 # It's here because repeated plotms calls seem to stop working after awhile.
-xvfb-run -a ~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then

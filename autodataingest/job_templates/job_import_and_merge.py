@@ -6,7 +6,8 @@ To be run in python3
 '''
 
 from .job_tools import (cedar_slurm_setup, cedar_job_setup,
-                        cedar_casa_startupfile)
+                        cedar_casa_startupfile,
+                        path_to_casa)
 
 
 def cedar_submission_script(target_name="M31", config="C",
@@ -15,7 +16,8 @@ def cedar_submission_script(target_name="M31", config="C",
                             reindex=False,
                             slurm_kwargs={},
                             setup_kwargs={},
-                            run_casa6=True):
+                            run_casa6=True,
+                            casa_version=6.2):
 
     # Add in default info to set the log file, job name, etc
     slurm_kwargs['job_name'] = f"{target_name}_{config}_{trackname}"
@@ -25,6 +27,8 @@ def cedar_submission_script(target_name="M31", config="C",
     setup_str = cedar_job_setup(**setup_kwargs)
 
     startup_filename = cedar_casa_startupfile(casa6=run_casa6)
+
+    casa_path = path_to_casa(verion=casa_version)
 
     job_str = \
         f'''{slurm_str}\n{setup_str}
@@ -48,7 +52,7 @@ echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/Reducti
 
 echo 'Start casa'
 
-~/casa-6.1.2-7-pipeline-2020.1.0.36/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} {split_type} {reindex}
+~/{casa_path}/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} {split_type} {reindex}
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
