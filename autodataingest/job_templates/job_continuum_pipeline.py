@@ -34,7 +34,7 @@ def cedar_submission_script_default(target_name="M31",
 
     startup_filename = cedar_casa_startupfile(casa6=run_casa6)
 
-    casa_path = path_to_casa(verion=casa_version)
+    casa_path = path_to_casa(version=casa_version)
 
     job_str = \
         f'''{slurm_str}\n{setup_str}
