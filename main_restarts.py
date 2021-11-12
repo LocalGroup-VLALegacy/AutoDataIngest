@@ -148,7 +148,8 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                                                     continuum_mem=CLUSTER_CONTINUUM_MEM,
                                                     line_mem=CLUSTER_LINE_MEM,
                                                     reindex=REINDEX,
-                                                    casa_version=CASA_VERSION)
+                                                    casa_version=CASA_VERSION,
+                                                    pipeline_branch=PIPELINE_BRANCHNAME)
 
                 await asyncio.sleep(sleeptime)
 
@@ -266,6 +267,10 @@ if __name__ == "__main__":
 
     log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
 
+    # Name of branch or tag to use for the reduction pipeline
+    PIPELINE_BRANCHNAME = 'v6.1'
+    CASA_VERSION = "6.1"
+
     # Configuration parameters:
     CLUSTERNAME = 'cc-cedar'
     CLUSTERACCOUNT = 'rrg-eros-ab'
@@ -281,8 +286,6 @@ if __name__ == "__main__":
     CLUSTER_LINE_MEM = '24000M'
 
     JOB_TYPE = "ALL"
-
-    CASA_VERSION = "6.2"
 
     RUN_CONTINUUM = True
     RUN_LINES = True

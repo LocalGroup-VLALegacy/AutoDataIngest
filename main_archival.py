@@ -100,7 +100,8 @@ async def consume(queue):
                                                     do_cleanup=False)
 
         log.info(f"Setting up scripts for reduction.")
-        await auto_pipe.setup_for_reduction_pipeline(clustername=CLUSTERNAME)
+        await auto_pipe.setup_for_reduction_pipeline(clustername=CLUSTERNAME,
+                                                     pipeline_branch=PIPELINE_BRANCHNAME)
 
         log.info("Create the flagging sheets in the google sheet (if they exist)")
         await auto_pipe.get_flagging_files(data_type='continuum')
@@ -247,6 +248,10 @@ if __name__ == "__main__":
 
     log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
 
+    # Name of branch or tag to use for the reduction pipeline
+    PIPELINE_BRANCHNAME = 'update_to_pipeline62'
+    CASA_VERSION = "6.2"
+
     # Configuration parameters:
     CLUSTERNAME = 'cc-cedar'
     CLUSTERACCOUNT = 'rrg-eros-ab'
@@ -260,8 +265,6 @@ if __name__ == "__main__":
     CLUSTER_SPLIT_MEM = '32000M'
     CLUSTER_CONTINUUM_MEM = '16000M'
     CLUSTER_LINE_MEM = '16000M'
-
-    CASA_VERSION = "6.2"
 
     RUN_CONTINUUM = True
     RUN_LINES = True
