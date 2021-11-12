@@ -348,6 +348,7 @@ class AutoPipeline(object):
 
 
     async def setup_for_reduction_pipeline(self, clustername='cc-cedar',
+                                           pipeline_branch='master',
                                            **ssh_kwargs):
 
         """
@@ -387,7 +388,8 @@ class AutoPipeline(object):
                     log.info(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
 
                     git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
-                    full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command}'
+                    git_checkout_command = f'git checkout {pipeline_branch}'
+                    full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command} ; cd ReductionPipeline ; {git_checkout_command}'
                     result = run_command(connect, full_command)
 
                     # Move the antenna correction folder over:
@@ -1517,7 +1519,8 @@ class AutoPipeline(object):
                                    line_mem=None,
                                    scheduler_cmd='',
                                    reindex=False,
-                                   casa_version=6.2):
+                                   casa_version=6.2,
+                                   pipeline_branch='master'):
 
         """
         Step 7.
@@ -1549,7 +1552,8 @@ class AutoPipeline(object):
         await self.get_flagging_files(clustername=clustername,
                                       data_type=data_type)
 
-        await self.setup_for_reduction_pipeline(clustername=clustername)
+        await self.setup_for_reduction_pipeline(clustername=clustername,
+                                                pipeline_branch=pipeline_branch)
 
         await self.initial_job_submission(clustername=clustername,
                                         scripts_dir=Path('reduction_job_scripts/'),
