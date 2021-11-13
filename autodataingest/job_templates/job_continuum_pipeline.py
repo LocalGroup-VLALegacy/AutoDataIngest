@@ -119,7 +119,7 @@ def cedar_submission_script(target_name="M31",
 
     startup_filename = cedar_casa_startupfile(casa6=run_casa6)
 
-    casa_path = path_to_casa(verion=casa_version)
+    casa_path = path_to_casa(version=casa_version)
 
     if run_qaplotter:
         plots_str = cedar_qa_plots()
