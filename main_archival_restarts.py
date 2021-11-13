@@ -11,8 +11,6 @@ REQUIRE python>=3.7 for asyncio.
 import asyncio
 import time
 from pathlib import Path
-from AutoDataIngest.main import CASA_VERSION
-from AutoDataIngest.main_restarts import REINDEX
 
 from autodataingest.gsheet_tracker.gsheet_functions import (find_rerun_status_tracks)
 
