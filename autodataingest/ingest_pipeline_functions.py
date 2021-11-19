@@ -348,7 +348,7 @@ class AutoPipeline(object):
 
 
     async def setup_for_reduction_pipeline(self, clustername='cc-cedar',
-                                           pipeline_branch='master',
+                                           pipeline_branch='main',
                                            **ssh_kwargs):
 
         """
@@ -1520,7 +1520,7 @@ class AutoPipeline(object):
                                    scheduler_cmd='',
                                    reindex=False,
                                    casa_version=6.2,
-                                   pipeline_branch='master'):
+                                   pipeline_branch='main'):
 
         """
         Step 7.

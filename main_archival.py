@@ -248,7 +248,7 @@ if __name__ == "__main__":
     log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
 
     # Name of branch or tag to use for the reduction pipeline
-    PIPELINE_BRANCHNAME = 'update_to_pipeline62'
+    PIPELINE_BRANCHNAME = 'main'
     CASA_VERSION = "6.2"
 
     # Configuration parameters:
