@@ -1709,7 +1709,8 @@ class AutoPipeline(object):
         log.info("Clean-up ms file on scratch")
         await self.cleanup_on_cluster(clustername=clustername, data_type=data_type,
                                       do_remove_whole_track=False,
-                                      do_only_remove_ms=True)
+                                      do_only_remove_ms=True,
+                                      do_cleanup_tempstorage=True)
 
     async def export_track_for_imaging(self,
                                        clustername='cc-cedar',
