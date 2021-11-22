@@ -29,6 +29,8 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
 
     while True:
 
+        log.info("Checking for new jobs")
+
         # If we get an API error for too many requests, just wait a bit and
         # try again:
         try:
