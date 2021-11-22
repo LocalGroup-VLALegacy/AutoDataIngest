@@ -1627,7 +1627,9 @@ class AutoPipeline(object):
         if do_cleanup_tempstorage:
             log.info(f"Cleaning up temp project space on {clustername} for track {cd_command}")
 
-            rm_command = f"rm -r {temp_project_dir}/{self.track_folder_name}_{data_type}.ms*.tar"
+            rm_command = f"rm -r {temp_project_dir}/{self.track_folder_name}.{data_type}.ms*.tar"
+
+            log.info(f"Running command on {clustername}: {rm_command}")
 
             result = run_command(connect, rm_command, allow_failure=True)
 
