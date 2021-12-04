@@ -1339,7 +1339,8 @@ class AutoPipeline(object):
             flagging_sheet_link = self.speclines_flagsheet_url
         else:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
-        qaplotter.make_all_plots(flagging_sheet_link=flagging_sheet_link)
+        qaplotter.make_all_plots(flagging_sheet_link=flagging_sheet_link,
+                                 show_target_linesonly=True)
 
         # Return the original directory
         os.chdir(cur_dir)
