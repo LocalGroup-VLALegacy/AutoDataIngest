@@ -1339,7 +1339,7 @@ class AutoPipeline(object):
         else:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
 
-        kwarg_strs = f"flagging_sheet_link={flagging_sheet_link}, show_target_linesonly=True"
+        kwarg_strs = f"flagging_sheet_link='{flagging_sheet_link}', show_target_linesonly=True"
 
         task_command = ['ipython', '-c',
                         f'"import qaplotter; qaplotter.make_all_plots({kwarg_strs})"']
