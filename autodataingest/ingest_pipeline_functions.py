@@ -1310,8 +1310,14 @@ class AutoPipeline(object):
                         f"{temp_path}", '-xf', f"{product_file}",
                         "products/quicklook_imaging"]
 
-        task_scantxt = subprocess.run(task_command, capture_output=True)
+        task_qlimages = subprocess.run(task_command, capture_output=True)
 
+        # Extract quicklook images
+        task_command = ['tar', '--strip-components=1', '-C',
+                        f"{temp_path}", '-xf', f"{product_file}",
+                        "products/spw_definitions.npy"]
+
+        task_spwdict = subprocess.run(task_command, capture_output=True)
 
         cur_dir = os.getcwd()
 
@@ -1344,9 +1350,12 @@ class AutoPipeline(object):
         task_command = ['ipython', '-c',
                         f'"import qaplotter; qaplotter.make_all_plots({kwarg_strs})"']
 
+        log.info(f"Running qaplotting.")
+        log.info(" ".join(task_command))
+
         task_qaplot_make = subprocess.run(task_command, capture_output=True)
 
-        print(task_qaplot_make.stdout)
+        log.info(task_qaplot_make.stdout)
 
         # qaplotter.make_all_plots(flagging_sheet_link=flagging_sheet_link,
         #                          show_target_linesonly=True)
