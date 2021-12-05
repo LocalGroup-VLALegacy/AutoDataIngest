@@ -1332,15 +1332,24 @@ class AutoPipeline(object):
             os.remove('weblog.tgz')
 
         # Generate the QA products:
-        import qaplotter
         if data_type == 'continuum':
             flagging_sheet_link = self.continuum_flagsheet_url
         elif data_type == 'speclines':
             flagging_sheet_link = self.speclines_flagsheet_url
         else:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
-        qaplotter.make_all_plots(flagging_sheet_link=flagging_sheet_link,
-                                 show_target_linesonly=True)
+
+        kwarg_strs = f"flagging_sheet_link={flagging_sheet_link}, show_target_linesonly=True"
+
+        task_command = ['ipython', '-c',
+                        f'"import qaplotter; qaplotter.make_all_plots({kwarg_strs})"']
+
+        task_qaplot_make = subprocess.run(task_command, capture_output=True)
+
+        print(task_qaplot_make.stdout)
+
+        # qaplotter.make_all_plots(flagging_sheet_link=flagging_sheet_link,
+        #                          show_target_linesonly=True)
 
         # Return the original directory
         os.chdir(cur_dir)
