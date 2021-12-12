@@ -280,7 +280,7 @@ if __name__ == "__main__":
     RUN_CONTINUUM = True
     RUN_LINES = True
 
-    NUM_CONSUMERS = 1
+    NUM_CONSUMERS = 3
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
