@@ -8,7 +8,9 @@ def cedar_slurm_setup(job_time="72:00:00", mem="20000M",
                       job_name="M31_C_20A-346.sb38098105.eb38158028.58985.68987263889",
                       job_type="import_and_split",
                       sendto="ekoch@ualberta.ca",
-                      dependency=None):
+                      dependency=None,
+                      mail_complete=False,
+                      mail_fail=True):
 
     '''
     Dependency example: --dependency=afterok:11254323
@@ -22,6 +24,9 @@ def cedar_slurm_setup(job_time="72:00:00", mem="20000M",
     else:
         dependency_str = ""
 
+    mail_on_complete = "#SBATCH --mail-type=END" if mail_complete else ""
+    mail_on_fail = "#SBATCH --mail-type=FAIL" if mail_fail else ""
+
     slurm_setup = \
         f'''#!/bin/bash
 #SBATCH --time={job_time}
@@ -29,8 +34,8 @@ def cedar_slurm_setup(job_time="72:00:00", mem="20000M",
 #SBATCH --job-name={job_name}.vla_pipeline.{job_type}-%J
 #SBATCH --output={job_name}_{job_type}-%J.out
 #SBATCH --mail-user={sendto}
-#SBATCH --mail-type=END
-#SBATCH --mail-type=FAIL
+{mail_on_complete}
+{mail_on_fail}
 {dependency_str}
         '''
 
