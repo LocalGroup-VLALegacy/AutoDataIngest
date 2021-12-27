@@ -84,10 +84,6 @@ async def consume(queue, sleeptime=60):
                 # Create the final QA products and move to the webserver
                 auto_pipe.make_qa_products(data_type=data_type)
 
-                update_track_status(auto_pipe.ebid, message=f"Ready for QA",
-                                    sheetname=auto_pipe.sheetname,
-                                    status_col=1 if data_type == 'continuum' else 2)
-
                 await asyncio.sleep(sleeptime)
 
         # Notify the queue that the item has been processed
