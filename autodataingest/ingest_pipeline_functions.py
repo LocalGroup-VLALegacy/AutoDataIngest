@@ -141,7 +141,7 @@ class AutoPipeline(object):
 
         return self.track_name.split(".")[0]
 
-    def setup_ssh_connection(self, clustername, user='ekoch',
+    async def setup_ssh_connection(self, clustername, user='ekoch',
                                    max_retry_connection=10,
                                    connection_timeout=60,
                                    reconnect_waittime=900):
