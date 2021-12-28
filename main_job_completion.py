@@ -48,13 +48,18 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
         log.info(f"Found completions for: {df_comp['EBID']}")
 
+        auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+
+        # NOTE: Add check of the last status in the sheet?
+        # Avoid duplicating completion jobs?
+
         if len(df_comp) == 1:
 
             ebid = int(df_comp['EBID'])
 
             data_type = 'continuum' if df_comp['JobType'] == "continuum_default" else "speclines"
 
-            await queue.put([AutoPipeline(ebid, sheetname=SHEETNAME), data_type])
+            await queue.put([auto_pipe, data_type])
 
         else:
             for index, row in df_comp.iteritems():
@@ -63,7 +68,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
                 data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
 
-                await queue.put([AutoPipeline(ebid, sheetname=SHEETNAME), data_type])
+                await queue.put([auto_pipe, data_type])
 
                 await asyncio.sleep(sleeptime)
 
@@ -74,25 +79,33 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
         if len(df_fail) == 1:
 
             ebid = int(df_fail['EBID'])
-
-            data_type = 'continuum' if df_comp['JobType'] == "continuum_default" else "speclines"
-
             job_status = df_fail['State']
 
             auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-            auto_pipe.set_job_status(data_type, job_status)
+
+            if df_fail['JobType'] == "import_and_split":
+                auto_pipe.set_job_status('continuum', job_status)
+                auto_pipe.set_job_status('speclines', job_status)
+
+            else:
+                data_type = 'continuum' if df_fail['JobType'] == "continuum_default" else "speclines"
+                auto_pipe.set_job_status(data_type, job_status)
 
         else:
             for index, row in df_fail.iteritems():
 
                 ebid = int(row['EBID'])
-
-                data_type = 'continuum' if df_comp['JobType'] == "continuum_default" else "speclines"
-
                 job_status = row['State']
 
                 auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-                auto_pipe.set_job_status(data_type, job_status)
+
+                if row['JobType'] == "import_and_split":
+                    auto_pipe.set_job_status('continuum', job_status)
+                    auto_pipe.set_job_status('speclines', job_status)
+
+                else:
+                    data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
+                    auto_pipe.set_job_status(data_type, job_status)
 
 
 async def consume(queue, sleeptime=60):
