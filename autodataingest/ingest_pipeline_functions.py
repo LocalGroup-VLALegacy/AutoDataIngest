@@ -970,6 +970,42 @@ class AutoPipeline(object):
                                 sheetname=self.sheetname,
                                 status_col=status_col)
 
+    def set_job_stats(self, job_id, job_type):
+
+        job_check = check_for_job_notification(job_id)
+
+        if job_check is None:
+            log.info(f"Unable to find notification for job ID: {job_id}")
+            return
+
+        job_status, job_runtime =  job_check
+
+        log.info(f"Found continuum notification for {job_id} with status {job_status}")
+
+        if job_type == "continuum":
+            update_cell(self.ebid, job_status,
+                        name_col='Continuum reduction',
+                        sheetname=self.sheetname)
+            update_cell(self.ebid, job_runtime,
+                        name_col="Continuum job wall time",
+                        sheetname=self.sheetname)
+        elif job_type == "speclines":
+            update_cell(self.ebid, job_status,
+                        name_col='Line reduction',
+                        sheetname=self.sheetname)
+            update_cell(self.ebid, job_runtime,
+                        name_col="Line job wall time",
+                        sheetname=self.sheetname)
+        elif job_type == "import_and_split":
+            update_cell(self.ebid, job_status,
+                        name_col='Line/continuum split',
+                        sheetname=self.sheetname)
+            update_cell(self.ebid, job_runtime,
+                        name_col="Split Job ID",
+                        sheetname=self.sheetname)
+        else:
+            log.error(f"Unable to interpret job_type {job_type}")
+
 
     async def restart_job_submission(self, max_resubmission=1, clustername='cc-cedar',
                                      scripts_dir=Path('reduction_job_scripts/'),
