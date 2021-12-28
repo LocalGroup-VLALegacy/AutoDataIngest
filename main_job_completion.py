@@ -50,14 +50,13 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
             log.info(f"Found completions for: {df_comp['EBID']}")
 
-            auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-
             # NOTE: Add check of the last status in the sheet?
             # Avoid duplicating completion jobs?
 
             if len(df_comp) == 1:
 
                 ebid = int(df_comp['EBID'])
+                auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
                 data_type = 'continuum' if df_comp['JobType'] == "continuum_default" else "speclines"
 
@@ -67,6 +66,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                 for index, row in df_comp.iteritems():
 
                     ebid = int(row['EBID'])
+                    auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
                     data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
 
