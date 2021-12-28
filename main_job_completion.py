@@ -46,7 +46,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
             if len(df_comp) == 1:
 
                 ebid = int(df_comp['EBID'])
-                job_id = int(df_comp['JobID'].to_string(index=False))
+                job_id = int(df_comp['JobID'])
                 data_type = 'continuum' if df_comp['JobType'] == "continuum_default" else "speclines"
 
                 auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
@@ -58,7 +58,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                 for index, row in df_comp.iterrows():
 
                     ebid = int(row['EBID'])
-                    job_id = int(row['JobID'].to_string(index=False))
+                    job_id = int(row['JobID'])
                     data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
 
                     auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
@@ -76,7 +76,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
                 ebid = int(df_fail['EBID'])
                 job_status = df_fail['State']
-                job_id = int(df_fail['JobID'].to_string(index=False))
+                job_id = int(df_fail['JobID'])
 
                 auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
@@ -95,7 +95,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
                     ebid = int(row['EBID'])
                     job_status = row['State']
-                    job_id = int(row['JobID'].to_string(index=False))
+                    job_id = int(row['JobID'])
 
                     auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
