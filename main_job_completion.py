@@ -18,8 +18,7 @@ log = setup_logging()
 
 
 async def produce(queue, sleeptime=60, longsleeptime=3600,
-                  clustername='cc-cedar',
-                  previous_status_suffix='job_status'):
+                  clustername='cc-cedar'):
     '''
     Check for new tracks from the google sheet.
     '''
@@ -56,7 +55,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                 await queue.put([auto_pipe, data_type])
 
             else:
-                for index, row in df_comp.iteritems():
+                for index, row in df_comp.iterrows():
 
                     ebid = int(row['EBID'])
                     job_id = int(row['JobID'].to_string(index=False))
@@ -92,7 +91,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                     auto_pipe.set_job_stats(job_id, data_type)
 
             else:
-                for index, row in df_fail.iteritems():
+                for index, row in df_fail.iterrows():
 
                     ebid = int(row['EBID'])
                     job_status = row['State']
