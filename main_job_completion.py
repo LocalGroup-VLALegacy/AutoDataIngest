@@ -9,8 +9,7 @@ from autodataingest.ingest_pipeline_functions import AutoPipeline
 
 from autodataingest.ssh_utils import setup_ssh_connection
 
-from autodataingest.gsheet_tracker.gsheet_functions import (return_all_ebids)
-from autodataingest.gsheet_tracker.gsheet_functions import (update_track_status)
+from autodataingest.gsheet_tracker.gsheet_functions import (find_running_tracks, update_track_status)
 
 from autodataingest.job_monitor import get_slurm_job_monitor, identify_completions
 
@@ -29,22 +28,14 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
     while True:
 
-        while True:
-            connect = setup_ssh_connection(clustername)
-            df = get_slurm_job_monitor(connect)
-            connect.close()
+        running_tracks = find_running_tracks(sheetname=SHEETNAME)
 
-            previous_status_filename = Path(f'{clustername}_{previous_status_suffix}.csv')
+        connect = setup_ssh_connection(clustername)
+        df = get_slurm_job_monitor(connect)
+        connect.close()
 
-            if previous_status_filename.exists():
-                df_previous = pd.read_csv(previous_status_filename)
-                break
-            else:
-                log.info("No previous status file found. Saving initial version.")
-                df.to_csv(previous_status_filename)
-                await asyncio.sleep(longsleeptime)
-
-        df_comp, df_fail = identify_completions(df, df_previous)
+        log.info("Checking for completed jobs")
+        df_comp, df_fail = identify_completions(df, running_tracks)
 
         if len(df_comp) > 0:
 
@@ -56,9 +47,11 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
             if len(df_comp) == 1:
 
                 ebid = int(df_comp['EBID'])
-                auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-
+                job_id = int(df_comp['JobID'].to_string(index=False))
                 data_type = 'continuum' if df_comp['JobType'] == "continuum_default" else "speclines"
+
+                auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+                auto_pipe.set_job_stats(job_id, data_type)
 
                 await queue.put([auto_pipe, data_type])
 
@@ -66,9 +59,11 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                 for index, row in df_comp.iteritems():
 
                     ebid = int(row['EBID'])
-                    auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-
+                    job_id = int(row['JobID'].to_string(index=False))
                     data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
+
+                    auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+                    auto_pipe.set_job_stats(job_id, data_type)
 
                     await queue.put([auto_pipe, data_type])
 
@@ -82,36 +77,40 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
                 ebid = int(df_fail['EBID'])
                 job_status = df_fail['State']
+                job_id = int(df_fail['JobID'].to_string(index=False))
 
                 auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
                 if df_fail['JobType'] == "import_and_split":
                     auto_pipe.set_job_status('continuum', job_status)
                     auto_pipe.set_job_status('speclines', job_status)
+                    auto_pipe.set_job_stats(job_id, "import_and_split")
 
                 else:
                     data_type = 'continuum' if df_fail['JobType'] == "continuum_default" else "speclines"
                     auto_pipe.set_job_status(data_type, job_status)
+                    auto_pipe.set_job_stats(job_id, data_type)
 
             else:
                 for index, row in df_fail.iteritems():
 
                     ebid = int(row['EBID'])
                     job_status = row['State']
+                    job_id = int(row['JobID'].to_string(index=False))
 
                     auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
                     if row['JobType'] == "import_and_split":
                         auto_pipe.set_job_status('continuum', job_status)
                         auto_pipe.set_job_status('speclines', job_status)
+                        auto_pipe.set_job_stats(job_id, "import_and_split")
 
                     else:
                         data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
                         auto_pipe.set_job_status(data_type, job_status)
+                        auto_pipe.set_job_stats(job_id, data_type)
 
-        # Save the updated job status
-        previous_status_filename.unlink()
-        df.to_csv(previous_status_filename)
+                    await asyncio.sleep(sleeptime)
 
         await asyncio.sleep(longsleeptime)
 
@@ -200,8 +199,6 @@ if __name__ == "__main__":
     # SHEETNAME = 'Archival Track Summary'
 
     DO_DATA_TRANSFER = True
-
-    MANUAL_EBID_LIST = []
 
     while True:
 
