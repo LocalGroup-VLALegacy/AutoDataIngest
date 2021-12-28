@@ -67,7 +67,7 @@ def identify_completions(df_old, df_new):
                         how='right').loc[lambda x : x['_merge'] != 'both']
 
     diff_comp = diff[diff['State'] == "COMPLETED"]
-    diff_fails = diff[diff['State'] != "COMPLETED"]
+    diff_fails = diff[(diff['State'] != "COMPLETED") & (diff['State'] != "RUNNING")]
 
     # We also don't need to keep import/split completions, so filter those
     # ones out:
