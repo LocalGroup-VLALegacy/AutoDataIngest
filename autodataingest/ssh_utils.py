@@ -3,6 +3,7 @@
 Functions for ssh loging and run using the fabric and paramiko paxkages.
 '''
 
+import time
 import fabric
 import paramiko
 import signal
@@ -126,10 +127,10 @@ async def run_job_submission(connect, cmd, track_name, job_name, test_connection
     return job_id
 
 
-async def setup_ssh_connection(clustername, user='ekoch',
-                                   max_retry_connection=10,
-                                   connection_timeout=60,
-                                   reconnect_waittime=900):
+def setup_ssh_connection(clustername, user='ekoch',
+                               max_retry_connection=10,
+                               connection_timeout=60,
+                               reconnect_waittime=900):
     '''
     Setup and test the ssh connection to the cluster.
     '''
@@ -146,7 +147,6 @@ async def setup_ssh_connection(clustername, user='ekoch',
                 # This is to handle waiting until the DNS problem goes away
                 # connect.open()
 
-                log.info(f"Returned connection for {clustername} running {self.track_folder_name}")
                 connect.open()
                 log.info(f"Opened connection to {clustername}")
 
@@ -163,7 +163,7 @@ async def setup_ssh_connection(clustername, user='ekoch',
             raise Exception(f"Reached maximum retries to connect to {clustername}")
 
         log.info("Waiting to retry connection")
-        await asyncio.sleep(reconnect_waittime)
+        time.sleep(reconnect_waittime)
 
     # Test the connection:
     # if not try_run_command(connect):

@@ -149,10 +149,10 @@ class AutoPipeline(object):
         Setup and test the ssh connection to the cluster.
         '''
 
-        connect = await setup_ssh_connection(clustername, user=user,
-                                             max_retry_connection=max_retry_connection,
-                                             connection_timeout=connection_timeout,
-                                             reconnect_waittime=reconnect_waittime)
+        connect = setup_ssh_connection(clustername, user=user,
+                                       max_retry_connection=max_retry_connection,
+                                       connection_timeout=connection_timeout,
+                                       reconnect_waittime=reconnect_waittime)
 
         log.info(f"Returned connection for {clustername} running {self.track_folder_name}")
 
