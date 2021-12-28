@@ -154,33 +154,33 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
                 await asyncio.sleep(sleeptime)
 
             # Wait for job completion
-            await auto_pipe.get_job_notifications(check_continuum_job=restart_continuum,
-                                                  check_line_job=restart_speclines,
-                                                  sleeptime=1800)
+            # await auto_pipe.get_job_notifications(check_continuum_job=restart_continuum,
+            #                                       check_line_job=restart_speclines,
+            #                                       sleeptime=1800)
 
-            log.info("Received job notifications for {auto_pipe.track_folder_name}")
+            # log.info("Received job notifications for {auto_pipe.track_folder_name}")
 
-            # If completed, finish off before the others are done:
-            for data_type in auto_pipe.completions:
+            # # If completed, finish off before the others are done:
+            # for data_type in auto_pipe.completions:
 
-                if not auto_pipe.completions[data_type]:
-                    continue
+            #     if not auto_pipe.completions[data_type]:
+            #         continue
 
-                await auto_pipe.transfer_pipeline_products(data_type=data_type,
-                                                           startnode=CLUSTERNAME,
-                                                           endnode='ingester')
+            #     await auto_pipe.transfer_pipeline_products(data_type=data_type,
+            #                                                startnode=CLUSTERNAME,
+            #                                                endnode='ingester')
 
-                await auto_pipe.transfer_calibrated_data(data_type=data_type,
-                                                         clustername=CLUSTERNAME)
+            #     await auto_pipe.transfer_calibrated_data(data_type=data_type,
+            #                                              clustername=CLUSTERNAME)
 
-                # Create the flagging sheets in the google sheet
-                await auto_pipe.make_flagging_sheet(data_type=data_type)
+            #     # Create the flagging sheets in the google sheet
+            #     await auto_pipe.make_flagging_sheet(data_type=data_type)
 
-                # Create the final QA products and move to the webserver
-                log.info("Transferring QA products to webserver")
-                auto_pipe.make_qa_products(data_type=data_type)
+            #     # Create the final QA products and move to the webserver
+            #     log.info("Transferring QA products to webserver")
+            #     auto_pipe.make_qa_products(data_type=data_type)
 
-                auto_pipe.completions[data_type] = False
+            #     auto_pipe.completions[data_type] = False
 
             # Handle submissions
             # while any(list(auto_pipe.restarts.values())):

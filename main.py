@@ -128,9 +128,9 @@ async def consume(queue):
 
         log.info("Checking and waiting for job completion")
         # Return dictionary of jobs to restart.
-        await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
-                                              check_line_job=RUN_LINES,
-                                              sleeptime=1800)
+        # await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
+        #                                       check_line_job=RUN_LINES,
+        #                                       sleeptime=1800)
 
         # Handle submissions
         # while any(list(auto_pipe.restarts.values())):
@@ -154,48 +154,48 @@ async def consume(queue):
         #                                         check_line_job=RUN_LINES,
         #                                         sleeptime=1800)
 
-        # Create the flagging sheets in the google sheet
-        log.info("Creating flagging sheets")
-        await auto_pipe.make_flagging_sheet(data_type='continuum')
-        await auto_pipe.make_flagging_sheet(data_type='speclines')
+        # # Create the flagging sheets in the google sheet
+        # log.info("Creating flagging sheets")
+        # await auto_pipe.make_flagging_sheet(data_type='continuum')
+        # await auto_pipe.make_flagging_sheet(data_type='speclines')
 
-        log.info("Transferring pipeline products")
-        # Move pipeline products to QA webserver
+        # log.info("Transferring pipeline products")
+        # # Move pipeline products to QA webserver
 
-        if auto_pipe.completions['speclines']:
-            await auto_pipe.transfer_pipeline_products(data_type='speclines',
-                                                    startnode='cc-cedar',
-                                                    endnode='ingester')
+        # if auto_pipe.completions['speclines']:
+        #     await auto_pipe.transfer_pipeline_products(data_type='speclines',
+        #                                             startnode='cc-cedar',
+        #                                             endnode='ingester')
 
-            await auto_pipe.transfer_calibrated_data(data_type='speclines',
-                                                     clustername='cc-cedar')
+        #     await auto_pipe.transfer_calibrated_data(data_type='speclines',
+        #                                              clustername='cc-cedar')
 
-            log.info("Transferring QA products to webserver")
-            auto_pipe.make_qa_products(data_type='speclines')
-        else:
-            # This should be some sort of failure. Double-check
-            if auto_pipe.restarts['LINE_PIPE']:
-                log.info("speclines failed at some point. Transferring failed products")
+        #     log.info("Transferring QA products to webserver")
+        #     auto_pipe.make_qa_products(data_type='speclines')
+        # else:
+        #     # This should be some sort of failure. Double-check
+        #     if auto_pipe.restarts['LINE_PIPE']:
+        #         log.info("speclines failed at some point. Transferring failed products")
 
-                await auto_pipe.transfer_qa_failures(data_type='speclines')
+        #         await auto_pipe.transfer_qa_failures(data_type='speclines')
 
 
-        if auto_pipe.completions['continuum']:
-            await auto_pipe.transfer_pipeline_products(data_type='continuum',
-                                                    startnode='cc-cedar',
-                                                    endnode='ingester')
+        # if auto_pipe.completions['continuum']:
+        #     await auto_pipe.transfer_pipeline_products(data_type='continuum',
+        #                                             startnode='cc-cedar',
+        #                                             endnode='ingester')
 
-            await auto_pipe.transfer_calibrated_data(data_type='continuum',
-                                                     clustername='cc-cedar')
+        #     await auto_pipe.transfer_calibrated_data(data_type='continuum',
+        #                                              clustername='cc-cedar')
 
-            # Create the final QA products and move to the webserver
-            log.info("Transferring QA products to webserver")
-            auto_pipe.make_qa_products(data_type='continuum')
-        else:
-            if auto_pipe.restarts['CONTINUUM_PIPE']:
-                log.info("continuum failed at some point. Transferring failed products")
+        #     # Create the final QA products and move to the webserver
+        #     log.info("Transferring QA products to webserver")
+        #     auto_pipe.make_qa_products(data_type='continuum')
+        # else:
+        #     if auto_pipe.restarts['CONTINUUM_PIPE']:
+        #         log.info("continuum failed at some point. Transferring failed products")
 
-                await auto_pipe.transfer_qa_failures(data_type='continuum')
+        #         await auto_pipe.transfer_qa_failures(data_type='continuum')
 
         # Notify the queue that the item has been processed
         queue.task_done()
