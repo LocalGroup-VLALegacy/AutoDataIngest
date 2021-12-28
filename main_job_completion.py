@@ -16,6 +16,14 @@ from autodataingest.job_monitor import get_slurm_job_monitor, identify_completio
 from autodataingest.logging import setup_logging
 log = setup_logging()
 
+def return_job_type(row):
+    if row['JobType'] == "continuum_pipeline_default":
+        return "continuum"
+    elif row['JobType'] == "line_pipeline_default":
+        return "speclines"
+    else:
+        raise ValueError(f"Unable to interpret job type {row['JobType']}")
+
 
 async def produce(queue, sleeptime=60, longsleeptime=3600,
                   clustername='cc-cedar'):
@@ -40,18 +48,16 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
             log.info(f"Found completions for: {df_comp['EBID']}")
 
-            # NOTE: Add check of the last status in the sheet?
-            # Avoid duplicating completion jobs?
-
             if len(df_comp) == 1:
 
                 ebid = int(df_comp['EBID'])
                 job_id = int(df_comp['JobID'])
-                data_type = 'continuum' if df_comp['JobType'] == "continuum_default" else "speclines"
+                data_type = return_job_type(df_comp)
 
                 auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
                 auto_pipe.set_job_stats(job_id, data_type)
 
+                log.info(f"Adding to queue {ebid}:{data_type} for completed job {job_id}")
                 await queue.put([auto_pipe, data_type])
 
             else:
@@ -59,11 +65,12 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
                     ebid = int(row['EBID'])
                     job_id = int(row['JobID'])
-                    data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
+                    data_type = return_job_type(row)
 
                     auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
                     auto_pipe.set_job_stats(job_id, data_type)
 
+                    log.info(f"Adding to queue {ebid}:{data_type} for completed job {job_id}")
                     await queue.put([auto_pipe, data_type])
 
                     await asyncio.sleep(sleeptime)
@@ -86,7 +93,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                     auto_pipe.set_job_stats(job_id, "import_and_split")
 
                 else:
-                    data_type = 'continuum' if df_fail['JobType'] == "continuum_default" else "speclines"
+                    data_type = return_job_type(df_fail)
                     auto_pipe.set_job_status(data_type, job_status)
                     auto_pipe.set_job_stats(job_id, data_type)
 
@@ -105,7 +112,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                         auto_pipe.set_job_stats(job_id, "import_and_split")
 
                     else:
-                        data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
+                        data_type = return_job_type(row)
                         auto_pipe.set_job_status(data_type, job_status)
                         auto_pipe.set_job_stats(job_id, data_type)
 
