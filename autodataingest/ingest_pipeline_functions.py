@@ -941,6 +941,35 @@ class AutoPipeline(object):
                                     sheetname=self.sheetname,
                                     status_col=2)
 
+    def set_job_status(self, data_type, job_status):
+
+        if data_type == 'continuum':
+            status_col = 1
+        elif data_type == 'speclines':
+            status_col = 2
+        else:
+            raise ValueError(f"Unknown data_type passed: {data_type}")
+
+        if job_status == 'TIMEOUT':
+
+            update_track_status(self.ebid,
+                                message=f"ISSUE: job timed out",
+                                sheetname=self.sheetname,
+                                status_col=status_col)
+
+        if job_status in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
+
+            update_track_status(self.ebid,
+                                message=f"ISSUE: Needs manual check of job status",
+                                sheetname=self.sheetname,
+                                status_col=status_col)
+
+        if job_status == "COMPLETED":
+
+            update_track_status(self.ebid, message=f"Ready for QA",
+                                sheetname=self.sheetname,
+                                status_col=status_col)
+
 
     async def restart_job_submission(self, max_resubmission=1, clustername='cc-cedar',
                                      scripts_dir=Path('reduction_job_scripts/'),
@@ -1846,7 +1875,7 @@ class AutoPipeline(object):
                     sheetname=self.sheetname)
 
 
-    async def label_qa_failures(self, data_type='continuum'):
+    def label_qa_failures(self, data_type='continuum'):
 
         """
         Note failing tracks or those that require manual reduction attempts.
