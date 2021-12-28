@@ -980,7 +980,7 @@ class AutoPipeline(object):
 
         job_status, job_runtime =  job_check
 
-        log.info(f"Found continuum notification for {job_id} with status {job_status}")
+        log.info(f"Found notification for {job_id}:{job_type} with status {job_status}")
 
         if job_type == "continuum":
             update_cell(self.ebid, job_status,
