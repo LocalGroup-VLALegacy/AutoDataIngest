@@ -163,7 +163,7 @@ if __name__ == "__main__":
     log = logging.getLogger()
     log.setLevel(logging.INFO)
 
-    handler = logging.FileHandler(filename=f'logs/main_qa_to_webserver.log')
+    handler = logging.FileHandler(filename=f'logs/main_job_completion.log')
     file_formatter = logging.Formatter(fmt=LOGGER_FORMAT, datefmt=DATE_FORMAT)
     handler.setFormatter(file_formatter)
     log.addHandler(handler)
