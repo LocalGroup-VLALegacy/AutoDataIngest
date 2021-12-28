@@ -83,7 +83,6 @@ def identify_completions(df, running_tracks):
             log.error(f"Unable to find job ID {job_id} for EBID {this_ebid} {data_type}")
             continue
 
-        print(this_row)
         index = this_row.index[0]
 
         if this_row['State'].to_string(index=False) == "COMPLETED":
