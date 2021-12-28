@@ -9,7 +9,7 @@ def cedar_slurm_setup(job_time="72:00:00", mem="20000M",
                       job_type="import_and_split",
                       sendto="ekoch@ualberta.ca",
                       dependency=None,
-                      mail_complete=False,
+                      mail_complete=True,
                       mail_fail=True):
 
     '''
