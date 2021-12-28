@@ -107,6 +107,12 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                     data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
                     auto_pipe.set_job_status(data_type, job_status)
 
+    # Save the updated job status
+    previous_status_filename.unlink()
+    df.to_csv(previous_status_filename)
+
+    await asyncio.sleep(longsleeptime)
+
 
 async def consume(queue, sleeptime=60):
     while True:
