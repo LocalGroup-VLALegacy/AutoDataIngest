@@ -4,7 +4,7 @@ import pandas as pd
 
 from .ssh_utils import run_command
 
-from ..logging import setup_logging
+from .logging import setup_logging
 log = setup_logging()
 
 
