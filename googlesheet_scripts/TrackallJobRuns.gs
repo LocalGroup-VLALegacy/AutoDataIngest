@@ -54,6 +54,9 @@ function TrackJobRuns() {
           tmp = subject.match(/Name=(.\S+)/);
           var job_name = (tmp && tmp[1]) ? tmp[1] : 'No job name';
 
+          // Mark email as read
+          messages[0].markRead()
+
           // Get the job type:
           var job_type = null
           if (job_name.includes('line_pipeline')) {
