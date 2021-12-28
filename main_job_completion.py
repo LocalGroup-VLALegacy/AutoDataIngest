@@ -28,90 +28,92 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
     log.info(f"Checking job status from {clustername}")
 
     while True:
-        connect = setup_ssh_connection(clustername)
-        df = get_slurm_job_monitor(connect)
-        connect.close()
 
-        previous_status_filename = Path(f'{clustername}_{previous_status_suffix}.csv')
+        while True:
+            connect = setup_ssh_connection(clustername)
+            df = get_slurm_job_monitor(connect)
+            connect.close()
 
-        if previous_status_filename.exists():
-            df_previous = pd.read_csv(previous_status_filename)
-            break
-        else:
-            log.info("No previous status file found. Saving initial version.")
-            df.to_csv(previous_status_filename)
-            await asyncio.sleep(longsleeptime)
+            previous_status_filename = Path(f'{clustername}_{previous_status_suffix}.csv')
 
-    df_comp, df_fail = identify_completions(df, df_previous)
+            if previous_status_filename.exists():
+                df_previous = pd.read_csv(previous_status_filename)
+                break
+            else:
+                log.info("No previous status file found. Saving initial version.")
+                df.to_csv(previous_status_filename)
+                await asyncio.sleep(longsleeptime)
 
-    if len(df_comp) > 0:
+        df_comp, df_fail = identify_completions(df, df_previous)
 
-        log.info(f"Found completions for: {df_comp['EBID']}")
+        if len(df_comp) > 0:
 
-        auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-
-        # NOTE: Add check of the last status in the sheet?
-        # Avoid duplicating completion jobs?
-
-        if len(df_comp) == 1:
-
-            ebid = int(df_comp['EBID'])
-
-            data_type = 'continuum' if df_comp['JobType'] == "continuum_default" else "speclines"
-
-            await queue.put([auto_pipe, data_type])
-
-        else:
-            for index, row in df_comp.iteritems():
-
-                ebid = int(row['EBID'])
-
-                data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
-
-                await queue.put([auto_pipe, data_type])
-
-                await asyncio.sleep(sleeptime)
-
-    if len(df_fail) > 0:
-
-        log.info(f"Found failures for: {df_fail['EBID']}")
-
-        if len(df_fail) == 1:
-
-            ebid = int(df_fail['EBID'])
-            job_status = df_fail['State']
+            log.info(f"Found completions for: {df_comp['EBID']}")
 
             auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
-            if df_fail['JobType'] == "import_and_split":
-                auto_pipe.set_job_status('continuum', job_status)
-                auto_pipe.set_job_status('speclines', job_status)
+            # NOTE: Add check of the last status in the sheet?
+            # Avoid duplicating completion jobs?
+
+            if len(df_comp) == 1:
+
+                ebid = int(df_comp['EBID'])
+
+                data_type = 'continuum' if df_comp['JobType'] == "continuum_default" else "speclines"
+
+                await queue.put([auto_pipe, data_type])
 
             else:
-                data_type = 'continuum' if df_fail['JobType'] == "continuum_default" else "speclines"
-                auto_pipe.set_job_status(data_type, job_status)
+                for index, row in df_comp.iteritems():
 
-        else:
-            for index, row in df_fail.iteritems():
+                    ebid = int(row['EBID'])
 
-                ebid = int(row['EBID'])
-                job_status = row['State']
+                    data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
+
+                    await queue.put([auto_pipe, data_type])
+
+                    await asyncio.sleep(sleeptime)
+
+        if len(df_fail) > 0:
+
+            log.info(f"Found failures for: {df_fail['EBID']}")
+
+            if len(df_fail) == 1:
+
+                ebid = int(df_fail['EBID'])
+                job_status = df_fail['State']
 
                 auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
-                if row['JobType'] == "import_and_split":
+                if df_fail['JobType'] == "import_and_split":
                     auto_pipe.set_job_status('continuum', job_status)
                     auto_pipe.set_job_status('speclines', job_status)
 
                 else:
-                    data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
+                    data_type = 'continuum' if df_fail['JobType'] == "continuum_default" else "speclines"
                     auto_pipe.set_job_status(data_type, job_status)
 
-    # Save the updated job status
-    previous_status_filename.unlink()
-    df.to_csv(previous_status_filename)
+            else:
+                for index, row in df_fail.iteritems():
 
-    await asyncio.sleep(longsleeptime)
+                    ebid = int(row['EBID'])
+                    job_status = row['State']
+
+                    auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+
+                    if row['JobType'] == "import_and_split":
+                        auto_pipe.set_job_status('continuum', job_status)
+                        auto_pipe.set_job_status('speclines', job_status)
+
+                    else:
+                        data_type = 'continuum' if row['JobType'] == "continuum_default" else "speclines"
+                        auto_pipe.set_job_status(data_type, job_status)
+
+        # Save the updated job status
+        previous_status_filename.unlink()
+        df.to_csv(previous_status_filename)
+
+        await asyncio.sleep(longsleeptime)
 
 
 async def consume(queue, sleeptime=60):
