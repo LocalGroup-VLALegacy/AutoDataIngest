@@ -2,8 +2,10 @@
 from datetime import datetime, timedelta
 import pandas as pd
 
-# from .ssh_utils import run_command
-from autodataingest.ssh_utils import run_command
+from .ssh_utils import run_command
+
+from ..logging import setup_logging
+log = setup_logging()
 
 
 def get_slurm_job_monitor(connect, time_range_days=7, timeout=600):
@@ -60,18 +62,55 @@ def get_slurm_job_monitor(connect, time_range_days=7, timeout=600):
     return df
 
 
-def identify_completions(df_old, df_new):
 
-    diff = df_old.merge(df_new,
-                        indicator=True,
-                        how='right').loc[lambda x : x['_merge'] != 'both']
+def identify_completions(df, running_tracks):
+    '''
+    Search for completed/failed jobs that are listed as currently running.
+    '''
 
-    diff_comp = diff[diff['State'] == "COMPLETED"]
-    diff_fails = diff[(diff['State'] != "COMPLETED") & (diff['State'] != "RUNNING")]
+    comps = []
+    fails = []
 
-    # We also don't need to keep import/split completions, so filter those
-    # ones out:
-    diff_comp = diff_comp[diff_comp['JobType'] != 'import_and_split']
+    for this_track in running_tracks:
+        this_ebid, data_type, job_summ = this_track
 
-    return diff_comp, diff_fails
+        # CLUSTERNAME:JOBNUM
+        job_id = int(job_summ.split(":")[1])
+
+        this_row = df[df['JobID'] == job_id]
+
+        if len(this_row) == 0:
+            log.error(f"Unable to find job ID {job_id} for EBID {this_ebid} {data_type}")
+            continue
+
+        print(this_row)
+        index = this_row.index[0]
+
+        if this_row['State'].to_string(index=False) == "COMPLETED":
+            comps.append(index)
+        elif this_row['State'].to_string(index=False) in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
+            fails.append(index)
+        else:
+            # Pending or running.
+            pass
+
+    df_comp = df.iloc[comps]
+    df_fails = df.iloc[fails]
+
+    return df_comp, df_fails
+
+# def identify_completions(df_old, df_new):
+
+#     diff = df_old.merge(df_new,
+#                         indicator=True,
+#                         how='right').loc[lambda x : x['_merge'] != 'both']
+
+#     diff_comp = diff[diff['State'] == "COMPLETED"]
+#     diff_fails = diff[(diff['State'] != "COMPLETED") & (diff['State'] != "RUNNING")]
+
+#     # We also don't need to keep import/split completions, so filter those
+#     # ones out:
+#     diff_comp = diff_comp[diff_comp['JobType'] != 'import_and_split']
+
+#     return diff_comp, diff_fails
 

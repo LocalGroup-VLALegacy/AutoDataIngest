@@ -137,6 +137,33 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary', job_type=None):
     return new_tracks
 
 
+def find_running_tracks(sheetname='20A - OpLog Summary',
+                        status_check='Reduction running'):
+    """
+    Return the EBID and job type of tracks that were last actively running.
+    """
+
+    full_sheet = read_tracksheet()
+
+    # Find the right sheet according to sheetname
+
+    worksheet = full_sheet.worksheet(sheetname)
+
+    # Grab the track info.
+    tracks_info = worksheet.get_all_records()
+
+    running_tracks = []
+
+    for track in tracks_info:
+        # Check if the status is equal to `status_check`
+        if status_check in track['Status: continuum']:
+            running_tracks.append([track['EBID'], "continuum", track['Continuum job ID']])
+
+        if status_check in track['Status: speclines']:
+            running_tracks.append([track['EBID'], "speclines", track['Line job ID']])
+
+    return running_tracks
+
 
 def return_all_ebids(sheetname='20A - OpLog Summary'):
 
