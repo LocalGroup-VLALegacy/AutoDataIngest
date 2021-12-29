@@ -175,6 +175,27 @@ class AutoPipeline(object):
                             sheetname=self.sheetname,
                             status_col=2)
 
+    async def set_qa_queued_status(self, data_type='continuum'):
+        '''
+        Set a status to stop new tracks being re-added to the new track queue.
+        '''
+        ebid = self.ebid
+
+        log.info(f"Adding start status for {ebid}.")
+
+        # Continuum
+        if data_type == "continuum":
+            update_track_status(ebid, message="Queued for QA/product transfer",
+                                sheetname=self.sheetname,
+                                status_col=1)
+        # Lines
+        elif data_type == "speclines":
+            update_track_status(ebid, message="Queued for QA/product transfer",
+                                sheetname=self.sheetname,
+                                status_col=2)
+        else:
+            log.error(f"Unable to set QA queued status for {data_type} with EBID: {self.ebid}")
+
     async def archive_request_and_transfer(self, archive_kwargs={},
                                      timewindow=48 * 3600.,
                                      sleeptime=600,
