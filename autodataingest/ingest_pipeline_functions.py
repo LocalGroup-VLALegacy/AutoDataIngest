@@ -175,7 +175,7 @@ class AutoPipeline(object):
                             sheetname=self.sheetname,
                             status_col=2)
 
-    async def set_qa_queued_status(self, data_type='continuum'):
+    def set_qa_queued_status(self, data_type='continuum'):
         '''
         Set a status to stop new tracks being re-added to the new track queue.
         '''
