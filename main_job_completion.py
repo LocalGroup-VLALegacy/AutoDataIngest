@@ -62,6 +62,8 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                 await queue.put([auto_pipe, data_type])
 
                 await asyncio.sleep(sleeptime)
+        else:
+            log.info("No completions found.")
 
         if len(df_fail) > 0:
 
@@ -86,6 +88,8 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                     auto_pipe.set_job_stats(job_id, data_type)
 
                 await asyncio.sleep(sleeptime)
+        else:
+            log.info("No failures found.")
 
         await asyncio.sleep(longsleeptime)
 
