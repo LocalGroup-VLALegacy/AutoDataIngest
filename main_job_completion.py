@@ -48,75 +48,44 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
             log.info(f"Found completions for: {df_comp['EBID']}")
 
-            if len(df_comp) == 1:
+            for index, row in df_comp.iterrows():
 
-                ebid = int(df_comp['EBID'])
-                job_id = int(df_comp['JobID'])
-                data_type = return_job_type(df_comp)
+                ebid = int(row['EBID'])
+                job_id = int(row['JobID'])
+                data_type = return_job_type(row)
 
                 auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+                auto_pipe.set_qa_queued_status(data_type=data_type)
                 auto_pipe.set_job_stats(job_id, data_type)
 
                 log.info(f"Adding to queue {ebid}:{data_type} for completed job {job_id}")
                 await queue.put([auto_pipe, data_type])
 
-            else:
-                for index, row in df_comp.iterrows():
-
-                    ebid = int(row['EBID'])
-                    job_id = int(row['JobID'])
-                    data_type = return_job_type(row)
-
-                    auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-                    auto_pipe.set_job_stats(job_id, data_type)
-
-                    log.info(f"Adding to queue {ebid}:{data_type} for completed job {job_id}")
-                    await queue.put([auto_pipe, data_type])
-
-                    await asyncio.sleep(sleeptime)
+                await asyncio.sleep(sleeptime)
 
         if len(df_fail) > 0:
 
             log.info(f"Found failures for: {df_fail['EBID']}")
 
-            if len(df_fail) == 1:
+            for index, row in df_fail.iterrows():
 
-                ebid = int(df_fail['EBID'])
-                job_status = df_fail['State']
-                job_id = int(df_fail['JobID'])
+                ebid = int(row['EBID'])
+                job_status = row['State']
+                job_id = int(row['JobID'])
 
                 auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
-                if df_fail['JobType'] == "import_and_split":
+                if row['JobType'] == "import_and_split":
                     auto_pipe.set_job_status('continuum', job_status)
                     auto_pipe.set_job_status('speclines', job_status)
                     auto_pipe.set_job_stats(job_id, "import_and_split")
 
                 else:
-                    data_type = return_job_type(df_fail)
+                    data_type = return_job_type(row)
                     auto_pipe.set_job_status(data_type, job_status)
                     auto_pipe.set_job_stats(job_id, data_type)
 
-            else:
-                for index, row in df_fail.iterrows():
-
-                    ebid = int(row['EBID'])
-                    job_status = row['State']
-                    job_id = int(row['JobID'])
-
-                    auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-
-                    if row['JobType'] == "import_and_split":
-                        auto_pipe.set_job_status('continuum', job_status)
-                        auto_pipe.set_job_status('speclines', job_status)
-                        auto_pipe.set_job_stats(job_id, "import_and_split")
-
-                    else:
-                        data_type = return_job_type(row)
-                        auto_pipe.set_job_status(data_type, job_status)
-                        auto_pipe.set_job_stats(job_id, data_type)
-
-                    await asyncio.sleep(sleeptime)
+                await asyncio.sleep(sleeptime)
 
         await asyncio.sleep(longsleeptime)
 
