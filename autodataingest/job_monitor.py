@@ -68,6 +68,8 @@ def identify_completions(df, running_tracks):
     Search for completed/failed jobs that are listed as currently running.
     '''
 
+    fail_states = ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]
+
     comps = []
     fails = []
 
@@ -87,7 +89,7 @@ def identify_completions(df, running_tracks):
 
         if this_row['State'].to_string(index=False) == "COMPLETED":
             comps.append(index)
-        elif this_row['State'].to_string(index=False) in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
+        elif any([this_row['State'].to_string(index=False) == state for state in fail_states]):
             fails.append(index)
         else:
             # Pending or running.
