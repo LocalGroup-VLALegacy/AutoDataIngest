@@ -89,7 +89,7 @@ def identify_completions(df, running_tracks):
 
         if this_row['State'].to_string(index=False) == "COMPLETED":
             comps.append(index)
-        elif any([this_row['State'].to_string(index=False) == state for state in fail_states]):
+        elif this_row['State'].to_string(index=False) in fail_states:
             fails.append(index)
         else:
             # Pending or running.
