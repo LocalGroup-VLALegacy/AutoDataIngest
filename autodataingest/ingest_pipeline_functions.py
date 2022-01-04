@@ -978,7 +978,7 @@ class AutoPipeline(object):
                                 sheetname=self.sheetname,
                                 status_col=status_col)
 
-        if job_status in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
+        if job_status in ["FAILED", "OUT_OF_MEMORY", "CANCELLED"]:
 
             update_track_status(self.ebid,
                                 message=f"ISSUE: Needs manual check of job status",
