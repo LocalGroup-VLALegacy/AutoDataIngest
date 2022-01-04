@@ -75,6 +75,8 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                 job_status = row['State']
                 job_id = int(row['JobID'])
 
+                log.info(f"Failure on {ebid}, {job_status}, {job_id}")
+
                 auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
 
                 if row['JobType'] == "import_and_split":
@@ -90,6 +92,8 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                 await asyncio.sleep(sleeptime)
         else:
             log.info("No failures found.")
+
+        log.info("Finished parsing job statuses.")
 
         await asyncio.sleep(longsleeptime)
 
