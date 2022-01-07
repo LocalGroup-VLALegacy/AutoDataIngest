@@ -294,7 +294,7 @@ if __name__ == "__main__":
     # everywhere!
     REINDEX = False
 
-    NUM_CONSUMERS = 10
+    NUM_CONSUMERS = 2
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
