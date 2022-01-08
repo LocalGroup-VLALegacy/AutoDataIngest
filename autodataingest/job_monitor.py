@@ -68,7 +68,7 @@ def identify_completions(df, running_tracks):
     Search for completed/failed jobs that are listed as currently running.
     '''
 
-    fail_states = ["FAILED", "OUT_OF_MEMORY", "CANCELLED"]
+    fail_states = ["FAILED", "OUT_OF_MEMORY", "CANCELLED", "NODE_FAIL"]
 
     comps = []
     fails = []
