@@ -11,10 +11,17 @@ REQUIRE python>=3.7 for asyncio.
 import asyncio
 import time
 from pathlib import Path
+import astropy.units as u
 
 from autodataingest.gsheet_tracker.gsheet_functions import (find_rerun_status_tracks)
 
 from autodataingest.ingest_pipeline_functions import AutoPipeline
+
+from autodataingest.ssh_utils import setup_ssh_connection
+
+from autodataingest.job_monitor import (number_of_active_jobs,
+                                        get_lustre_storage_avail,
+                                        get_slurm_job_monitor)
 
 from autodataingest.logging import setup_logging
 log = setup_logging()
@@ -29,22 +36,53 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
     while True:
 
-        if ebid_list is None:
-            # If we get an API error for too many requests, just wait a bit and
-            # try again:
-            try:
-                all_ebids = find_rerun_status_tracks(sheetname=SHEETNAME, job_type=JOB_TYPE)
-            except Exception as e:
-                log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
-                await asyncio.sleep(long_sleep)
-                continue
-        else:
-            all_ebids = ebid_list
+        allow_newjobs = False
+
+        # Check the number of active jobs and storage usage.
+        # Skip new runs until there are fewer jobs or more storage space.
+        try:
+            connect = setup_ssh_connection(CLUSTERNAME)
+
+            df = get_slurm_job_monitor(connect)
+
+            num_jobs_active = number_of_active_jobs(df)
+
+            # Get storage space usage
+            free_space, free_filenum = get_lustre_storage_avail(connect, username=uname,
+                                                                diskname='/scratch')
+
+            connect.close()
+
+            status_check = (free_space >= MIN_STORAGE) & (free_filenum >= MIN_NUMFILES) & \
+                (num_jobs_active < MAX_NUMJOBS)
+
+            if status_check:
+                allow_newjobs = True
+
+        except Exception as err:
+            log.error(f"Encountered an error checking job/storage usage on {CLUSTERNAME}")
+            log.error(f"Error is: {err}")
+
+            await asyncio.sleep(long_sleep)
+            continue
+
+
+        # If we get an API error for too many requests, just wait a bit and
+        # try again:
+        try:
+            all_rerun_statuses = find_rerun_status_tracks(sheetname=SHEETNAME, job_type=JOB_TYPE)
+        except Exception as e:
+            log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
+            await asyncio.sleep(long_sleep)
+            continue
 
         if start_with_newest:
-            all_ebids = all_ebids[::-1]
+            all_rerun_statuses = all_rerun_statuses[::-1]
 
-        for ebid in all_ebids:
+        for rerun_stat in all_rerun_statuses:
+
+            ebid, run_types = rerun_stat
+
             if ebid in EBID_QUEUE_LIST:
                 log.info(f'Skipping new track with ID {ebid} because it is still in the queue.')
                 continue
@@ -57,8 +95,22 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
             EBID_QUEUE_LIST.append(ebid)
 
+            this_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+
+            # Disable new runs for restarts when allow_newjobs = False from above.
+            for this_run_type in run_types:
+                this_data_type, this_job_type = this_run_type
+
+                # Block new restarts if not allowing new jobs yet
+                if not allow_newjobs and this_job_type == "RESTART":
+
+                    if this_data_type == 'continuum':
+                        this_pipe._allow_continuum_run = False
+                    else:
+                        this_pipe._allow_speclines_run = False
+
             # put the item in the queue
-            await queue.put(AutoPipeline(ebid, sheetname=SHEETNAME))
+            await queue.put(this_pipe)
 
         if test_case_run_newest:
             break
@@ -79,8 +131,15 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
         # simulate i/o operation using sleep
         # await asyncio.sleep(1)
 
-        continuum_status = auto_pipe._qa_review_input(data_type='continuum')
-        speclines_status = auto_pipe._qa_review_input(data_type='speclines')
+        if auto_pipe._allow_continuum_run:
+            continuum_status = auto_pipe._qa_review_input(data_type='continuum')
+        else:
+            continuum_status = ""
+
+        if auto_pipe._allow_speclines_run:
+            speclines_status = auto_pipe._qa_review_input(data_type='speclines')
+        else:
+            speclines_status = ""
 
         # Check for completions:
         complete_continuum = continuum_status == "COMPLETE"
@@ -294,7 +353,13 @@ if __name__ == "__main__":
     # everywhere!
     REINDEX = False
 
+    # Number of jobs to run simultaneously
     NUM_CONSUMERS = 2
+
+    # Set limits allowed for new jobs to be started.
+    MIN_STORAGE = 4 * u.TB
+    MIN_NUMFILES = 1e6
+    MAX_NUMJOBS = 10
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
