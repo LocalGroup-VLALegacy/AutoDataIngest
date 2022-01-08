@@ -53,11 +53,16 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
             connect.close()
 
+            log.info(f"Free storage: {free_space} Free filnum: {free_filenum}")
+            log.info(f"Jobs running on {CLUSTERNAME}: {num_jobs_active}")
             status_check = (free_space >= MIN_STORAGE) & (free_filenum >= MIN_NUMFILES) & \
                 (num_jobs_active < MAX_NUMJOBS)
 
             if status_check:
                 allow_newjobs = True
+            else:
+                log.info("At job/storage limit. Will wait before starting new jobs.")
+
 
         except Exception as err:
             log.error(f"Encountered an error checking job/storage usage on {CLUSTERNAME}")
@@ -87,12 +92,6 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
                 log.info(f'Skipping new track with ID {ebid} because it is still in the queue.')
                 continue
 
-            # produce an item
-            log.info(f'Found new track with ID {ebid}')
-
-            # Put a small gap between starting to consume processes
-            await asyncio.sleep(sleeptime)
-
             EBID_QUEUE_LIST.append(ebid)
 
             this_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
@@ -101,8 +100,11 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
             for this_run_type in run_types:
                 this_data_type, this_job_type = this_run_type
 
+                log.info(f'Found new track with ID {ebid} {this_data_type} {this_job_type}')
+
                 # Block new restarts if not allowing new jobs yet
                 if not allow_newjobs and this_job_type == "RESTART":
+                    log.info(f"At job/storage limit. Will wait before starting new job.")
 
                     if this_data_type == 'continuum':
                         this_pipe._allow_continuum_run = False
@@ -111,6 +113,9 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
             # put the item in the queue
             await queue.put(this_pipe)
+
+            # Put a small gap between starting to consume processes
+            await asyncio.sleep(sleeptime)
 
         if test_case_run_newest:
             break
