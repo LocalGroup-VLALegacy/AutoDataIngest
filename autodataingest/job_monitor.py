@@ -38,6 +38,15 @@ def get_slurm_job_monitor(connect, time_range_days=7, timeout=600):
         if len(this_line) == 0:
             continue
 
+        # Some cancelled states will list: CANCELLED by NUM
+        # when it was cancelled due to a dependent job.
+        # Correct for those cases here.
+        if len(this_line) > 3:
+            if "CANCELLED" in this_line[2]:
+                this_line = this_line[:3]
+            else:
+                raise ValueError(f"Unsure of input line format: {this_line}")
+
         # Job num is int
         this_line[0] = int(this_line[0])
 
