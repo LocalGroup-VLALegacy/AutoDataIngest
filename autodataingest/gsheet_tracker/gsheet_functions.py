@@ -93,6 +93,8 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary', job_type=None):
 
     for track in tracks_info:
         # Check if the status is equal to `status_check`
+        run_types = []
+
         if len(track['Re-run\ncontinuum']) > 0 or len(track['Re-run\nspeclines']) > 0:
 
             time_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -100,39 +102,42 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary', job_type=None):
             append_this_track = False
 
             if len(track['Re-run\ncontinuum']) > 0:
-                if job_type is not 'ALL' and job_type not in track['Re-run\ncontinuum']:
-                    this_type = track['Re-run\ncontinuum']
-                    log.info(f"Skipping continuum job since it is a {this_type} not a  {job_type} job.")
+                this_type_cont = track['Re-run\ncontinuum']
+                if job_type is not 'ALL' and job_type not in this_type_cont:
+                    log.info(f"Skipping continuum job since it is a {this_type_cont} not a  {job_type} job.")
                 else:
 
                     append_this_track = True
 
-                    trigger_continuum = track['Re-run\ncontinuum']
-                    continuum_trigger = f"{trigger_continuum} at {time_stamp}"
+                    continuum_trigger = f"{this_type_cont} at {time_stamp}"
 
                     update_cell(track['EBID'],
                                 continuum_trigger,
                                 name_col='Prev continuum status',
                                 sheetname=sheetname)
 
+                    run_types.append(['continuum', this_type_cont])
+
             if len(track['Re-run\nspeclines']) > 0:
-                if job_type is not 'ALL' and job_type not in track['Re-run\nspeclines']:
-                    this_type = track['Re-run\nspeclines']
-                    log.info(f"Skipping line job since it isn't a {this_type} not a {job_type} job.")
+                this_type_line = track['Re-run\nspeclines']
+
+                if job_type is not 'ALL' and job_type not in this_type_line:
+                    log.info(f"Skipping line job since it isn't a {this_type_line} not a {job_type} job.")
                 else:
 
                     append_this_track = True
 
-                    trigger_speclines = track['Re-run\nspeclines']
-                    speclines_trigger = f"{trigger_speclines} at {time_stamp}"
+                    speclines_trigger = f"{this_type_line} at {time_stamp}"
 
                     update_cell(track['EBID'],
                                 speclines_trigger,
                                 name_col='Prev speclines status',
                                 sheetname=sheetname)
 
+                    run_types.append(['speclines', this_type_line])
+
             if append_this_track:
-                new_tracks.append(track['EBID'])
+                new_tracks.append([track['EBID'], run_types])
 
     return new_tracks
 

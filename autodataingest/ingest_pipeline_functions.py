@@ -82,6 +82,9 @@ class AutoPipeline(object):
         self.completions = {'continuum': False,
                             'speclines': False}
 
+        self._allow_speclines_run = True
+        self._allow_continuum_run = False
+
     def _grab_sheetdata(self):
         '''
         Get info from the google sheet. This is needed to allow for restarting at
