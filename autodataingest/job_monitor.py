@@ -1,6 +1,7 @@
 
 from datetime import datetime, timedelta
 import pandas as pd
+from astropy import units as u
 
 from .ssh_utils import run_command
 
@@ -124,3 +125,37 @@ def identify_completions(df, running_tracks):
 
 #     return diff_comp, diff_fails
 
+
+def get_lustre_storage_avail(connect, diskname='/scratch', timeout=600, username='ekoch'):
+    '''
+    Runs lfs quota to find current usage.
+    '''
+
+    cmd = f'lfs quota -u {username} {diskname}'
+
+    result = run_command(connect, cmd, test_connection=False,
+                         timeout=timeout)
+
+    # Parse the output into a table.
+    lines = result.stdout.split('\n')
+
+    # Expect format of:
+    # 'Disk quotas for usr...'
+    # Column headers
+    # Values
+
+    colnames = list(filter(None, lines[1].split(" ")))
+
+    usage_vals = list(filter(None, lines[2].split(" ")))
+
+    storage_used =  int(usage_vals[1]) * u.kB
+    storage_total = int(usage_vals[2]) * u.kB
+
+    storage_avail = (storage_total - storage_used).to(u.TB)
+
+    files_used =  int(usage_vals[5])
+    files_total = int(usage_vals[6])
+
+    files_avail = files_total - files_used
+
+    return storage_avail, files_avail
