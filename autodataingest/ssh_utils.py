@@ -135,6 +135,10 @@ def setup_ssh_connection(clustername, user='ekoch',
     Setup and test the ssh connection to the cluster.
     '''
 
+    if not clustername in CLUSTERADDRS:
+        raise ValueError(f"Given cluster name {clustername} is not defined in CLUSTERADDRS. "
+                         f"Valid names are: {list(CLUSTERADDRS.keys())}")
+
     retry_times = 0
     while True:
         try:
