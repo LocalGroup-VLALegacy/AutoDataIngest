@@ -110,6 +110,12 @@ def identify_completions(df, running_tracks):
 
     return df_comp, df_fails
 
+
+def number_of_active_jobs(df):
+
+    return (df['State'] == "RUNNING").sum() + (df['State'] == "PENDING").sum()
+
+
 # def identify_completions(df_old, df_new):
 
 #     diff = df_old.merge(df_new,
