@@ -146,12 +146,15 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
         else:
             speclines_status = ""
 
+        log.info(f"{auto_pipe.ebid} Found continuum status: {continuum_status}")
+        log.info(f"{auto_pipe.ebid} Found speclines status: {speclines_status}")
+
         # Check for completions:
         complete_continuum = continuum_status == "COMPLETE"
         complete_speclines = speclines_status == "COMPLETE"
 
         if complete_continuum or complete_speclines:
-            log.info("Found a completion job")
+            log.info(f"{auto_pipe.ebid} Found a completion job")
 
             data_types = []
             if complete_continuum:
@@ -172,7 +175,7 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
         manualcheck_speclines = speclines_status in manual_review_states
 
         if manualcheck_continuum or manualcheck_speclines:
-            log.info("Found a manual review job")
+            log.info(f"{auto_pipe.ebid} Found a manual review job")
 
             data_types = []
             if manualcheck_continuum:
@@ -190,7 +193,7 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
 
         if restart_continuum or restart_speclines:
 
-            log.info("Found a restart job")
+            log.info(f"{auto_pipe.ebid} Found a restart job")
 
             data_types = []
             if restart_continuum:
