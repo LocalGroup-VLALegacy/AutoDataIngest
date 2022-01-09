@@ -58,7 +58,7 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
             connect.close()
 
-            log.info(f"Free storage: {free_space} Free filnum: {free_filenum}")
+            log.info(f"Free storage: {free_space} Free file num: {free_filenum}")
             log.info(f"Jobs running on {CLUSTERNAME}: {num_jobs_active}")
             allow_newjobs = allow_newjobs_check(free_space, free_filenum, num_jobs_active)
 
