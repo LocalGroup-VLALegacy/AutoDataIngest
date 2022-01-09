@@ -27,6 +27,11 @@ from autodataingest.logging import setup_logging
 log = setup_logging()
 
 
+def allow_newjobs_check(free_space, free_filenum, num_jobs_active):
+    return (free_space >= MIN_STORAGE) & (free_filenum >= MIN_NUMFILES) & \
+        (num_jobs_active < MAX_NUMJOBS)
+
+
 async def produce(queue, sleeptime=120, start_with_newest=False,
                   ebid_list=None,
                   long_sleep=7200):
@@ -55,14 +60,10 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
             log.info(f"Free storage: {free_space} Free filnum: {free_filenum}")
             log.info(f"Jobs running on {CLUSTERNAME}: {num_jobs_active}")
-            status_check = (free_space >= MIN_STORAGE) & (free_filenum >= MIN_NUMFILES) & \
-                (num_jobs_active < MAX_NUMJOBS)
+            allow_newjobs = allow_newjobs_check(free_space, free_filenum, num_jobs_active)
 
-            if status_check:
-                allow_newjobs = True
-            else:
+            if not allow_newjobs:
                 log.info("At job/storage limit. Will wait before starting new jobs.")
-
 
         except Exception as err:
             log.error(f"Encountered an error checking job/storage usage on {CLUSTERNAME}")
@@ -71,9 +72,8 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
             await asyncio.sleep(long_sleep)
             continue
 
-
-        # If we get an API error for too many requests, just wait a bit and
-        # try again:
+        # Gather all rerun jobs statuses from the google sheet.
+        # If we get an API error for too many requests, just wait a bit and try again:
         try:
             all_rerun_statuses = find_rerun_status_tracks(sheetname=SHEETNAME, job_type=JOB_TYPE)
         except Exception as e:
@@ -84,6 +84,7 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
         if start_with_newest:
             all_rerun_statuses = all_rerun_statuses[::-1]
 
+        # Queue new jobs to run.
         for rerun_stat in all_rerun_statuses:
 
             ebid, run_types = rerun_stat
@@ -111,11 +112,20 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
                     else:
                         this_pipe._allow_speclines_run = False
 
+            # Update number of active jobs manually.
+            num_jobs_active += len(run_types)
+
             # put the item in the queue
             await queue.put(this_pipe)
 
             # Put a small gap between starting to consume processes
             await asyncio.sleep(sleeptime)
+
+            # If we've exceeded our allow jobs limit, break this loop.
+            if not allow_newjobs_check(free_space, free_filenum, num_jobs_active):
+                log.info("Queue in the spreadsheet exceeded our job limits."
+                         " Holding further job starts.")
+                break
 
         if test_case_run_newest:
             break
