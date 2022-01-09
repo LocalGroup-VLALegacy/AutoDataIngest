@@ -83,7 +83,7 @@ class AutoPipeline(object):
                             'speclines': False}
 
         self._allow_speclines_run = True
-        self._allow_continuum_run = False
+        self._allow_continuum_run = True
 
     def _grab_sheetdata(self):
         '''
