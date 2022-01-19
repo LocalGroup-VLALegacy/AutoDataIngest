@@ -425,7 +425,7 @@ if __name__ == "__main__":
     # Set limits allowed for new jobs to be started.
     MIN_STORAGE = 4 * u.TB
     MIN_NUMFILES = 1e5
-    MAX_NUMJOBS = 10
+    MAX_NUMJOBS = 15
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
