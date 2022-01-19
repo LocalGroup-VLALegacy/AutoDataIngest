@@ -41,6 +41,53 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
     while True:
 
+        # Pass through completions/failures first since they don't require reprocessing
+        try:
+            all_complete_statuses = find_rerun_status_tracks(sheetname=SHEETNAME,
+                                                             job_type="COMPLETE")
+        except Exception as e:
+            log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
+            await asyncio.sleep(long_sleep)
+            continue
+
+        for rerun_stat in all_complete_statuses:
+
+            ebid, run_types = rerun_stat
+
+            if ebid in EBID_QUEUE_LIST:
+                log.info(f'Skipping new track with ID {ebid} because it is still in the queue.')
+                continue
+
+            EBID_QUEUE_LIST.append(ebid)
+
+            for this_run_type in run_types:
+                this_data_type, this_job_type = this_run_type
+                log.info(f'Found new track with ID {ebid} {this_data_type} {this_job_type}')
+
+            this_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+
+            # Stop other jobs from running (i.e. disable restarting one part until
+            # the completion finishes first).
+
+            # Both are completions, run on through
+            if len(run_types) == 2:
+                await queue.put(this_pipe)
+                continue
+
+            # Set the opposite part of the completion to just not run to avoid restarts
+            this_data_type, this_job_type = run_types[0]
+
+            if this_data_type == 'continuum':
+                this_pipe._allow_speclines_run = False
+            else:
+                this_pipe._allow_continuum_run = False
+
+            # put the item in the queue
+            await queue.put(this_pipe)
+
+            await asyncio.sleep(sleeptime)
+
+        # NOW go through the process of finding new restart jobs and checking if they can run
         allow_newjobs = False
 
         # Check the number of active jobs and storage usage.
@@ -83,6 +130,7 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
         if start_with_newest:
             all_rerun_statuses = all_rerun_statuses[::-1]
+
 
         # Queue new jobs to run.
         for rerun_stat in all_rerun_statuses:
