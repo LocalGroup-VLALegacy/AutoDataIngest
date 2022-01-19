@@ -45,6 +45,11 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
         try:
             all_complete_statuses = find_rerun_status_tracks(sheetname=SHEETNAME,
                                                              job_type="COMPLETE")
+            # Append the failure cases:
+            for fail_state in ["MANUAL REVIEW", "HELP REQUESTED"]:
+                fail_status = find_rerun_status_tracks(sheetname=SHEETNAME, job_type=fail_state)
+                all_complete_statuses.extend(fail_status)
+
         except Exception as e:
             log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
             await asyncio.sleep(long_sleep)
@@ -87,6 +92,10 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
             await asyncio.sleep(sleeptime)
 
+        # Long wait to avoid overlaps
+        if len(all_complete_statuses) > 0:
+            await asyncio.sleep(long_sleep)
+
         # NOW go through the process of finding new restart jobs and checking if they can run
         allow_newjobs = False
 
@@ -122,7 +131,7 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
         # Gather all rerun jobs statuses from the google sheet.
         # If we get an API error for too many requests, just wait a bit and try again:
         try:
-            all_rerun_statuses = find_rerun_status_tracks(sheetname=SHEETNAME, job_type=JOB_TYPE)
+            all_rerun_statuses = find_rerun_status_tracks(sheetname=SHEETNAME, job_type="RESTART")
         except Exception as e:
             log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
             await asyncio.sleep(long_sleep)
@@ -420,7 +429,7 @@ if __name__ == "__main__":
     REINDEX = False
 
     # Number of jobs to run simultaneously
-    NUM_CONSUMERS = 2
+    NUM_CONSUMERS = 4
 
     # Set limits allowed for new jobs to be started.
     MIN_STORAGE = 4 * u.TB
