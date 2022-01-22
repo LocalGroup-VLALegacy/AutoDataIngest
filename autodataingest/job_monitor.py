@@ -9,7 +9,8 @@ from .logging import setup_logging
 log = setup_logging()
 
 
-def get_slurm_job_monitor(connect, time_range_days=7, timeout=600):
+def get_slurm_job_monitor(connect, time_range_days=7, timeout=600,
+                          raise_jobname_error=False):
     '''
     Return job statuses on clusters running slurm.
     '''
@@ -55,7 +56,11 @@ def get_slurm_job_monitor(connect, time_range_days=7, timeout=600):
         this_name = this_line[1]
         name_info = this_name.split('-%J')[0].split(".vla_pipeline.")
         if len(name_info) != 2:
-            raise ValueError(f"Check job name: {name_info}")
+            if raise_jobname_error:
+                raise ValueError(f"Check job name: {name_info}")
+            else:
+                log.warn(f"Unable to parse job with name: {name_info}")
+                continue
 
         track_name, job_type = name_info
 
