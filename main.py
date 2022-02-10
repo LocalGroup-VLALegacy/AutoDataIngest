@@ -36,11 +36,12 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
         # try again:
         new_ebids = []
 
-        for sheetname in sheetnames,
+        for sheetname in sheetnames:
             try:
                 sheet_new_ebids = find_new_tracks(sheetname=sheetname)
             except:
                 await asyncio.sleep(sleeptime * 10)
+                sheet_new_ebids = []
                 continue
 
             for this_new_ebid in sheet_new_ebids:
@@ -287,7 +288,7 @@ if __name__ == "__main__":
     RUN_CONTINUUM = True
     RUN_LINES = True
 
-    NUM_CONSUMERS = 3
+    NUM_CONSUMERS = 2
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
