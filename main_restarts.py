@@ -141,7 +141,7 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
         for sheetname in sheetnames:
             try:
-                sheet_all_rerun_statuses = find_rerun_status_tracks(sheetname=SHEETNAME,
+                sheet_all_rerun_statuses = find_rerun_status_tracks(sheetname=sheetname,
                                                                     job_type="RESTART")
             except Exception as e:
                 log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
