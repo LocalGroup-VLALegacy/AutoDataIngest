@@ -22,7 +22,8 @@ log = setup_logging()
 
 async def produce(queue, sleeptime=600, test_case_run_newest=False,
                   run_newest_first=False,
-                  long_sleep=7200):
+                  long_sleep=7200,
+                  sheetnames=['20A - OpLog Summary']):
     '''
     Check for new tracks from the google sheet.
     '''
@@ -33,11 +34,17 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
 
         # If we get an API error for too many requests, just wait a bit and
         # try again:
-        try:
-            new_ebids = find_new_tracks(sheetname=SHEETNAME)
-        except:
-            await asyncio.sleep(sleeptime * 10)
-            continue
+        new_ebids = []
+
+        for sheetname in sheetnames,
+            try:
+                sheet_new_ebids = find_new_tracks(sheetname=sheetname)
+            except:
+                await asyncio.sleep(sleeptime * 10)
+                continue
+
+            for this_new_ebid in sheet_new_ebids:
+                new_ebids.append([this_new_ebid, sheetname])
 
         # Switch order if running newest first.
         if run_newest_first:
@@ -49,7 +56,7 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
             log.info("Test case of 2 run only has been enabled.")
             new_ebids = new_ebids[-2:]
 
-        for ebid in new_ebids:
+        for ebid, sheetname in new_ebids:
             if ebid in EBID_QUEUE_LIST:
                 log.info(f'Skipping new track with ID {ebid} because it is still in the queue.')
                 continue
@@ -63,7 +70,7 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
             EBID_QUEUE_LIST.append(ebid)
 
             # put the item in the queue
-            this_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+            this_pipe = AutoPipeline(ebid, sheetname=sheetname)
             await this_pipe.initial_status()
 
             await queue.put(this_pipe)
@@ -288,7 +295,7 @@ if __name__ == "__main__":
 
     NRAODATAPATH = "/lustre/aoc/projects/20A-346/data_staged/"
 
-    SHEETNAME = '20A - OpLog Summary'
+    SHEETNAMES = ['20A - OpLog Summary', 'Archival Track Summary']
 
     # Ask for password that will be used for ssh connections where the key connection
     # is not working.
@@ -310,7 +317,8 @@ if __name__ == "__main__":
     loop.set_debug(False)
     loop.slow_callback_duration = 0.001
 
-    loop.run_until_complete(run(num_consume=NUM_CONSUMERS))
+    loop.run_until_complete(run(num_consume=NUM_CONSUMERS,
+                                sheetnames=SHEETNAMES))
     loop.close()
 
     del loop
