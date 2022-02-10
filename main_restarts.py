@@ -33,8 +33,8 @@ def allow_newjobs_check(free_space, free_filenum, num_jobs_active):
 
 
 async def produce(queue, sleeptime=120, start_with_newest=False,
-                  ebid_list=None,
-                  long_sleep=7200):
+                  long_sleep=7200,
+                  sheetnames=['20A - OpLog Summary']):
     '''
     Check for new tracks from the google sheet.
     '''
@@ -42,20 +42,27 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
     while True:
 
         # Pass through completions/failures first since they don't require reprocessing
-        try:
-            all_complete_statuses = find_rerun_status_tracks(sheetname=SHEETNAME,
-                                                             job_type="COMPLETE")
-            # Append the failure cases:
-            for fail_state in ["MANUAL REVIEW", "HELP REQUESTED"]:
-                fail_status = find_rerun_status_tracks(sheetname=SHEETNAME, job_type=fail_state)
-                all_complete_statuses.extend(fail_status)
+        all_complete_statuses = []
 
-        except Exception as e:
-            log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
-            await asyncio.sleep(long_sleep)
-            continue
+        for sheetname in sheetnames:
+            try:
+                sheet_all_complete_statuses = find_rerun_status_tracks(sheetname=sheetname,
+                                                                       job_type="COMPLETE")
 
-        for rerun_stat in all_complete_statuses:
+                # Append the failure cases:
+                for fail_state in ["MANUAL REVIEW", "HELP REQUESTED"]:
+                    fail_status = find_rerun_status_tracks(sheetname=sheetname, job_type=fail_state)
+                    sheet_all_complete_statuses.extend(fail_status)
+
+            except Exception as e:
+                log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
+                await asyncio.sleep(long_sleep)
+                continue
+
+            for this_status in sheet_all_complete_statuses:
+                all_complete_statuses.append([this_status, sheetname])
+
+        for rerun_stat, this_sheetname in all_complete_statuses:
 
             ebid, run_types = rerun_stat
 
@@ -69,7 +76,7 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
                 this_data_type, this_job_type = this_run_type
                 log.info(f'Found new track with ID {ebid} {this_data_type} {this_job_type}')
 
-            this_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+            this_pipe = AutoPipeline(ebid, sheetname=this_sheetname)
 
             # Stop other jobs from running (i.e. disable restarting one part until
             # the completion finishes first).
@@ -130,19 +137,25 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
         # Gather all rerun jobs statuses from the google sheet.
         # If we get an API error for too many requests, just wait a bit and try again:
-        try:
-            all_rerun_statuses = find_rerun_status_tracks(sheetname=SHEETNAME, job_type="RESTART")
-        except Exception as e:
-            log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
-            await asyncio.sleep(long_sleep)
-            continue
+        all_rerun_statuses = []
+
+        for sheetname in sheetnames:
+            try:
+                sheet_all_rerun_statuses = find_rerun_status_tracks(sheetname=SHEETNAME,
+                                                                    job_type="RESTART")
+            except Exception as e:
+                log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
+                await asyncio.sleep(long_sleep)
+                continue
+
+            for this_status in sheet_all_rerun_statuses:
+                all_rerun_statuses.append([this_status, sheetname])
 
         if start_with_newest:
             all_rerun_statuses = all_rerun_statuses[::-1]
 
-
         # Queue new jobs to run.
-        for rerun_stat in all_rerun_statuses:
+        for rerun_stat, this_sheetname in all_rerun_statuses:
 
             ebid, run_types = rerun_stat
 
@@ -152,7 +165,7 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
             EBID_QUEUE_LIST.append(ebid)
 
-            this_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
+            this_pipe = AutoPipeline(ebid, sheetname=this_sheetname)
 
             # Disable new runs for restarts when allow_newjobs = False from above.
             for this_run_type in run_types:
@@ -444,7 +457,7 @@ if __name__ == "__main__":
 
     COMPLETEDDATAPATH = "/project/rrg-eros-ab/ekoch/VLAXL/calibrated/"
 
-    SHEETNAME = '20A - OpLog Summary'
+    SHEETNAMES = ['20A - OpLog Summary', 'Archival Track Summary']
 
     # Ask for password that will be used for ssh connections where the key connection
     # is not working.
@@ -476,7 +489,8 @@ if __name__ == "__main__":
 
     loop.run_until_complete(run(start_with_newest=start_with_newest,
                                 ebid_list=MANUAL_EBID_LIST,
-                                num_consume=NUM_CONSUMERS))
+                                num_consume=NUM_CONSUMERS,
+                                sheetnames=SHEETNAMES))
     loop.close()
 
     del loop
