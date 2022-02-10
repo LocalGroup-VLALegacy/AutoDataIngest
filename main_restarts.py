@@ -472,9 +472,6 @@ if __name__ == "__main__":
     # Specify a target to grab the QA products and process
     TARGETS = ['IC10', 'NGC6822']
 
-    # MANUAL_EBID_LIST = [39591025]
-    MANUAL_EBID_LIST = None
-
     start_with_newest = False
 
     global EBID_QUEUE_LIST
@@ -488,7 +485,6 @@ if __name__ == "__main__":
     loop.slow_callback_duration = 0.001
 
     loop.run_until_complete(run(start_with_newest=start_with_newest,
-                                ebid_list=MANUAL_EBID_LIST,
                                 num_consume=NUM_CONSUMERS,
                                 sheetnames=SHEETNAMES))
     loop.close()
