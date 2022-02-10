@@ -47,6 +47,9 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
             for this_new_ebid in sheet_new_ebids:
                 new_ebids.append([this_new_ebid, sheetname])
 
+            await asyncio.sleep(120)
+
+
         # Switch order if running newest first.
         if run_newest_first:
             new_ebids = new_ebids[::-1]

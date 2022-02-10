@@ -62,6 +62,9 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
             for this_status in sheet_all_complete_statuses:
                 all_complete_statuses.append([this_status, sheetname])
 
+            await asyncio.sleep(120)
+
+
         for rerun_stat, this_sheetname in all_complete_statuses:
 
             ebid, run_types = rerun_stat
