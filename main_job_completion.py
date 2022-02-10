@@ -26,7 +26,8 @@ def return_job_type(row):
 
 
 async def produce(queue, sleeptime=60, longsleeptime=3600,
-                  clustername='cc-cedar'):
+                  clustername='cc-cedar',
+                  sheetnames=['20A - OpLog Summary']):
     '''
     Check for new tracks from the google sheet.
     '''
@@ -35,63 +36,78 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
     while True:
 
-        running_tracks = find_running_tracks(sheetname=SHEETNAME)
+        running_tracks = dict.fromkeys(sheetnames)
+
+        for sheetname in sheetnames:
+
+            sheet_running_tracks = find_running_tracks(sheetname=sheetname)
+
+            running_tracks[sheetname] = sheet_running_tracks
+
+            await asyncio.sleep(120)
 
         connect = setup_ssh_connection(clustername)
         df = get_slurm_job_monitor(connect)
         connect.close()
 
         log.info("Checking for completed jobs")
-        df_comp, df_fail = identify_completions(df, running_tracks)
 
-        if len(df_comp) > 0:
+        for sheetname in sheetnames:
 
-            log.info(f"Found completions for: {df_comp['EBID']}")
+            log.info(f"Job searches for {sheetname}")
 
-            for index, row in df_comp.iterrows():
+            df_comp, df_fail = identify_completions(df, running_tracks[sheetname])
 
-                ebid = int(row['EBID'])
-                job_id = int(row['JobID'])
-                data_type = return_job_type(row)
+            if len(df_comp) > 0:
 
-                auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-                auto_pipe.set_qa_queued_status(data_type=data_type)
-                auto_pipe.set_job_stats(job_id, data_type)
+                log.info(f"Found completions for: {df_comp['EBID']}")
 
-                log.info(f"Adding to queue {ebid}:{data_type} for completed job {job_id}")
-                await queue.put([auto_pipe, data_type])
+                for index, row in df_comp.iterrows():
 
-                await asyncio.sleep(sleeptime)
-        else:
-            log.info("No completions found.")
-
-        if len(df_fail) > 0:
-
-            log.info(f"Found failures for: {df_fail['EBID']}")
-
-            for index, row in df_fail.iterrows():
-
-                ebid = int(row['EBID'])
-                job_status = row['State']
-                job_id = int(row['JobID'])
-
-                log.info(f"Failure on {ebid}, {job_status}, {job_id}")
-
-                auto_pipe = AutoPipeline(ebid, sheetname=SHEETNAME)
-
-                if row['JobType'] == "import_and_split":
-                    auto_pipe.set_job_status('continuum', job_status)
-                    auto_pipe.set_job_status('speclines', job_status)
-                    auto_pipe.set_job_stats(job_id, "import_and_split")
-
-                else:
+                    ebid = int(row['EBID'])
+                    job_id = int(row['JobID'])
                     data_type = return_job_type(row)
-                    auto_pipe.set_job_status(data_type, job_status)
+
+                    auto_pipe = AutoPipeline(ebid, sheetname=sheetname)
+                    auto_pipe.set_qa_queued_status(data_type=data_type)
                     auto_pipe.set_job_stats(job_id, data_type)
 
-                await asyncio.sleep(sleeptime)
-        else:
-            log.info("No failures found.")
+                    log.info(f"Adding to queue {ebid}:{data_type} for completed job {job_id}")
+                    await queue.put([auto_pipe, data_type])
+
+                    await asyncio.sleep(sleeptime)
+            else:
+                log.info("No completions found.")
+
+            if len(df_fail) > 0:
+
+                log.info(f"Found failures for: {df_fail['EBID']}")
+
+                for index, row in df_fail.iterrows():
+
+                    ebid = int(row['EBID'])
+                    job_status = row['State']
+                    job_id = int(row['JobID'])
+
+                    log.info(f"Failure on {ebid}, {job_status}, {job_id}")
+
+                    auto_pipe = AutoPipeline(ebid, sheetname=sheetname)
+
+                    if row['JobType'] == "import_and_split":
+                        auto_pipe.set_job_status('continuum', job_status)
+                        auto_pipe.set_job_status('speclines', job_status)
+                        auto_pipe.set_job_stats(job_id, "import_and_split")
+
+                    else:
+                        data_type = return_job_type(row)
+                        auto_pipe.set_job_status(data_type, job_status)
+                        auto_pipe.set_job_stats(job_id, data_type)
+
+                    await asyncio.sleep(sleeptime)
+            else:
+                log.info("No failures found.")
+
+            await asyncio.sleep(120)
 
         log.info("Finished parsing job statuses.")
 
@@ -178,8 +194,7 @@ if __name__ == "__main__":
 
     uname = 'ekoch'
 
-    SHEETNAME = '20A - OpLog Summary'
-    # SHEETNAME = 'Archival Track Summary'
+    SHEETNAMES = ['20A - OpLog Summary', 'Archival Track Summary']
 
     DO_DATA_TRANSFER = True
 
@@ -192,7 +207,8 @@ if __name__ == "__main__":
         loop.set_debug(True)
         loop.slow_callback_duration = 0.001
 
-        loop.run_until_complete(run(clustername=CLUSTERNAME))
+        loop.run_until_complete(run(clustername=CLUSTERNAME,
+                                    sheetnames=SHEETNAMES))
         loop.close()
 
         del loop
