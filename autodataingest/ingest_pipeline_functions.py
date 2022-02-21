@@ -1388,6 +1388,11 @@ class AutoPipeline(object):
 
         task_weblog2 = subprocess.run(task_command, capture_output=True)
 
+        # Update the weblog file permissions for the webserver
+        # We restrict the permission via the webserver on transfer.
+        task_command = ['chmod', '-R', '777', "weblog"]
+        task_weblogchmod = subprocess.run(task_command, capture_output=True)
+
         if verbose:
             log.info(f"The extracted files are: {os.listdir()}")
 
@@ -1417,6 +1422,15 @@ class AutoPipeline(object):
         # qaplotter.make_all_plots(flagging_sheet_link=flagging_sheet_link,
         #                          show_target_linesonly=True)
 
+        # Clean up the original txt files and images. These are kept in
+        # the tar files and do not need to be duplicated on the webserver.
+        task_command = ['rm', '-r', "quicklook_images"]
+        task_cleanup = subprocess.run(task_command, capture_output=True)
+        task_command = ['rm', '-r', "final_caltable_txt"]
+        task_cleanup = subprocess.run(task_command, capture_output=True)
+        task_command = ['rm', '-r', "scan_plots_txt"]
+        task_cleanup = subprocess.run(task_command, capture_output=True)
+
         # Return the original directory
         os.chdir(cur_dir)
 
@@ -1429,7 +1443,7 @@ class AutoPipeline(object):
         # Open permission for the webserver to read and access the files
         # Allow write so that the webserver's rsync can remove the source
         # files after transfer. Then we don't keep 2 copies everytime.
-        task_command = ['chmod', '-R', 'o+w', temp_path]
+        task_command = ['chmod', '-R', '777', temp_path]
 
         task_chmod = subprocess.run(task_command, capture_output=True)
         log.debug(f"The task was: {task_command}")
