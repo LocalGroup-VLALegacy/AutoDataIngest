@@ -1427,7 +1427,9 @@ class AutoPipeline(object):
         new_qa_path =  uniquify_folder(new_qa_path)
 
         # Open permission for the webserver to read and access the files
-        task_command = ['chmod', '-R', 'o+rx', temp_path]
+        # Allow write so that the webserver's rsync can remove the source
+        # files after transfer. Then we don't keep 2 copies everytime.
+        task_command = ['chmod', '-R', 'o+w', temp_path]
 
         task_chmod = subprocess.run(task_command, capture_output=True)
         log.debug(f"The task was: {task_command}")
