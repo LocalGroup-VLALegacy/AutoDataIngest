@@ -1390,7 +1390,7 @@ class AutoPipeline(object):
 
         # Update the weblog file permissions for the webserver
         # We restrict the permission via the webserver on transfer.
-        task_command = ['chmod', '-R', '777', "weblog"]
+        task_command = ['chmod', '-R', '775', "weblog"]
         task_weblogchmod = subprocess.run(task_command, capture_output=True)
 
         if verbose:
@@ -1443,7 +1443,7 @@ class AutoPipeline(object):
         # Open permission for the webserver to read and access the files
         # Allow write so that the webserver's rsync can remove the source
         # files after transfer. Then we don't keep 2 copies everytime.
-        task_command = ['chmod', '-R', '777', temp_path]
+        task_command = ['chmod', '-R', '775', temp_path]
 
         task_chmod = subprocess.run(task_command, capture_output=True)
         log.debug(f"The task was: {task_command}")
