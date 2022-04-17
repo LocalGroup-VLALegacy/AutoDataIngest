@@ -97,10 +97,10 @@ async def globus_wait_for_completion(task_id, sleeptime=900,
                 await asyncio.sleep(sleeptime)
 
 
-def globus_check_exists(ebid, nodename='nrao-aoc',
-                        use_startnode_datapath=True,
-                        raise_error=False,
-                        print_output=False):
+def globus_ebid_check_exists(ebid, nodename='nrao-aoc',
+                             use_startnode_datapath=True,
+                             raise_error=False,
+                             print_output=False):
     '''
     Check if a file exists in a given folder and node name.
     '''
