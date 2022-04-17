@@ -102,7 +102,7 @@ def globus_ebid_check_exists(ebid, nodename='nrao-aoc',
                              raise_error=False,
                              print_output=False):
     '''
-    Check if a file exists in a given folder and node name.
+    Check if an SDM file exists in a given folder and node name.
     '''
 
     try:
