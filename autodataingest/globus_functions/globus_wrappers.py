@@ -97,6 +97,47 @@ async def globus_wait_for_completion(task_id, sleeptime=900,
                 await asyncio.sleep(sleeptime)
 
 
+def globus_check_exists(ebid, nodename='nrao-aoc',
+                        use_startnode_datapath=True,
+                        raise_error=False,
+                        print_output=False):
+    '''
+    Check if a file exists in a given folder and node name.
+    '''
+
+    try:
+        do_authenticate_globus()
+    except ValueError:
+        log.exception(f"Auto authentication of {nodename} failed. Try manual login.")
+
+    # Based on SDM name where the execution block is unique.
+    search_string = f'.eb{ebid}.'
+
+    # Want to return the task_id in the command line output.
+    if use_startnode_datapath:
+        input_cmd = f"{ENDPOINT_INFO[nodename]['endpoint_id']}:{ENDPOINT_INFO[nodename]['data_path']}/"
+    else:
+        input_cmd = f"{ENDPOINT_INFO[nodename]['endpoint_id']}:"
+
+    # Check if the input file/folder exists:
+    task_command = ['globus', 'ls', "/".join(input_cmd.split("/")[:-1])]
+
+    log.info(f"Submitting cmd: {task_command}")
+
+    task_check = subprocess.run(task_command, capture_output=True)
+
+    if print_output:
+        log.info(task_check.stdout.decode('utf-8'))
+
+    if search_string not in task_check.stdout.decode('utf-8'):
+        if raise_error:
+            raise ValueError(f"The EBID {search_string} does not exist at {input_cmd}.")
+        else:
+            return False
+
+    return True
+
+
 def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
                   endnode='cc-cedar',
                   wait_for_completion=False,
