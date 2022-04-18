@@ -152,6 +152,7 @@ if __name__ == "__main__":
     # SHEETNAME = 'Archival Track Summary'
 
     DO_DATA_TRANSFER = True
+    # DO_DATA_TRANSFER = False
 
     # Specify a target to grab the QA products and process
     TARGETS = ['IC10', 'NGC6822', 'M31', 'M33', 'IC1613', 'WLM']
