@@ -23,7 +23,7 @@ log = setup_logging()
 
 async def produce(queue, sleeptime=600, test_case_run_newest=False,
                   run_newest_first=False,
-                  long_sleep=7200,
+                  long_sleep=3600 * 6,
                   sheetnames=['20A - OpLog Summary']):
     '''
     Check for new tracks from the google sheet.
