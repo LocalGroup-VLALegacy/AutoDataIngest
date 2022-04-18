@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks)
+from autodataingest.globus_functions import globus_ebid_check_exists
 
 from autodataingest.ingest_pipeline_functions import AutoPipeline
 
@@ -66,7 +67,11 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
                 continue
 
             # produce an item
-            log.info(f'Found new track with ID {ebid}')
+            log.info(f'Found new track with ID {ebid} on sheet {sheetname}')
+
+            track_name = globus_ebid_check_exists(ebid)
+            if track_name is None:
+                log.info(f"EBID {ebid} is still staging. Skipping.")
 
             # Put a small gap between starting to consume processes
             await asyncio.sleep(sleeptime)
@@ -75,6 +80,7 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
 
             # put the item in the queue
             this_pipe = AutoPipeline(ebid, sheetname=sheetname)
+            this_pipe.track_name = track_name
             await this_pipe.initial_status()
 
             await queue.put(this_pipe)
