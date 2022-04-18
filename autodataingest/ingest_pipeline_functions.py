@@ -199,14 +199,16 @@ class AutoPipeline(object):
         else:
             log.error(f"Unable to set QA queued status for {data_type} with EBID: {self.ebid}")
 
-    async def archive_request_and_transfer(self, archive_kwargs={},
-                                     timewindow=48 * 3600.,
-                                     sleeptime=600,
-                                     clustername='cc-cedar',
-                                     do_cleanup=True,
-                                     default_project_code='20A-346',
-                                     targets_to_check=['M31', 'M33', 'NGC6822', 'IC10', 'IC1613', 'WLM',
-                                                       'NGC604', 'M33_Sarm', 'NGC300']):
+    async def archive_request_and_transfer(self,
+                                           do_archiverequest=False,
+                                           archive_kwargs={},
+                                           timewindow=48 * 3600.,
+                                           sleeptime=600,
+                                           clustername='cc-cedar',
+                                           do_cleanup=True,
+                                           default_project_code='20A-346',
+                                           targets_to_check=['M31', 'M33', 'NGC6822', 'IC10', 'IC1613', 'WLM',
+                                                             'NGC604', 'M33_Sarm', 'NGC300']):
         """
         Step 1.
 
@@ -221,47 +223,54 @@ class AutoPipeline(object):
             # Otherwise default to the XL code
             project_code = default_project_code
 
-        # First check for an archive notification within the last
-        # 48 hr. If one is found, don't re-request the track.
-        out = check_for_archive_notification(ebid, timewindow=timewindow,
-                                             project_id=project_code)
+        if do_archiverequest:
 
-        if out is None:
+            # First check for an archive notification within the last
+            # 48 hr. If one is found, don't re-request the track.
+            out = check_for_archive_notification(ebid, timewindow=timewindow,
+                                                project_id=project_code)
 
-            log.info(f'Sending archive request for {ebid}')
+            if out is None:
 
-            if not 'project_code' in archive_kwargs:
-                archive_kwargs['project_code'] = project_code
+                log.info(f'Sending archive request for {ebid}')
 
-            archive_copy_SDM(ebid, **archive_kwargs)
+                if not 'project_code' in archive_kwargs:
+                    archive_kwargs['project_code'] = project_code
+
+                archive_copy_SDM(ebid, **archive_kwargs)
+
+            else:
+                log.info(f"Found recent archive request for {ebid}.")
+
+            # Continuum
+            update_track_status(ebid, message="Archive download staged",
+                                sheetname=self.sheetname,
+                                status_col=1)
+            # Lines
+            update_track_status(ebid, message="Archive download staged",
+                                sheetname=self.sheetname,
+                                status_col=2)
+
+            # Wait for the notification email that the data is ready for transfer
+            while out is None:
+                out = check_for_archive_notification(ebid, timewindow=timewindow,
+                                                    project_id=project_code)
+
+                await asyncio.sleep(sleeptime)
+
+            # We should have the path on AOC and the full MS name
+            # from the email.
+            path_to_data, track_name = out
+
+            self.track_name = track_name
 
         else:
-            log.info(f"Found recent archive request for {ebid}.")
+            # This should now be wrapped into a prior check on the file existence.
+            assert self.track_name is not None
 
-        # Continuum
-        update_track_status(ebid, message="Archive download staged",
-                            sheetname=self.sheetname,
-                            status_col=1)
-        # Lines
-        update_track_status(ebid, message="Archive download staged",
-                            sheetname=self.sheetname,
-                            status_col=2)
-
-        # Wait for the notification email that the data is ready for transfer
-        while out is None:
-            out = check_for_archive_notification(ebid, timewindow=timewindow,
-                                                 project_id=project_code)
-
-            await asyncio.sleep(sleeptime)
-
-        # We should have the path on AOC and the full MS name
-        # from the email.
-        path_to_data, track_name = out
-
-        self.track_name = track_name
 
         # Update track name in sheet:
-        update_cell(ebid, track_name,
+        update_cell(ebid, self.track_name,
                     # num_col=3,
                     name_col="Trackname",
                     sheetname=self.sheetname)
@@ -336,7 +345,7 @@ class AutoPipeline(object):
         # Remove the data staged at NRAO to avoid exceeding our storage quota
         if do_cleanup:
             log.info(f"Cleaning up {ebid} on nrao-aoc")
-            cleanup_source(track_name, node='nrao-aoc')
+            cleanup_source(self.track_name, node='nrao-aoc')
 
 
     async def setup_for_reduction_pipeline(self, clustername='cc-cedar',
