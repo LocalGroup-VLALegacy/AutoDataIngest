@@ -133,9 +133,18 @@ def globus_ebid_check_exists(ebid, nodename='nrao-aoc',
         if raise_error:
             raise ValueError(f"The EBID {search_string} does not exist at {input_cmd}.")
         else:
-            return False
+            return None
 
-    return True
+    # Extract and return the full trackname
+    trackname = None
+    for out in task_check.stdout.decode('utf-8').split('\n'):
+        if search_string in out:
+            trackname = out
+
+            if ".tar" in trackname:
+                trackname = trackname[:-4]
+
+    return trackname
 
 
 def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
