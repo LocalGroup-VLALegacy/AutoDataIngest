@@ -72,6 +72,7 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
             track_name = globus_ebid_check_exists(ebid)
             if track_name is None:
                 log.info(f"EBID {ebid} is still staging. Skipping.")
+                continue
 
             # Put a small gap between starting to consume processes
             await asyncio.sleep(sleeptime)
