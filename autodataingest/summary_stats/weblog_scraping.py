@@ -146,7 +146,8 @@ def make_config_flagging_summary_plots(project='20A-346',
         tab = make_flagging_statistics(project=project,
                                        target='all',
                                        config=config,
-                                       finalqa_only=finalqa_only)
+                                       finalqa_only=finalqa_only,
+                                       data_type=data_type)
 
         if print_stats:
             print(f"Config: {config}")
@@ -166,14 +167,17 @@ def make_config_flagging_summary_plots(project='20A-346',
         else:
             mask = np.ones(tab.index.shape, dtype=bool)
 
-        ax.plot(xvals[mask], yvals[mask], label=config)
+        ax.scatter(xvals[mask], yvals[mask], label=config)
 
     ax.set_ylim([0., 100.])
     ax.legend(frameon=True)
+
+    ax.set_ylabel("Average Flag Percent")
+    ax.set_xlabel("SPW")
 
     ax.axhline(highflag_line, color='k', linestyle='--')
 
     ax.grid(True)
 
     plt.savefig(f"{project}_{data_type}_{out_name}")
-
+    plt.close()
