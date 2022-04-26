@@ -313,7 +313,7 @@ class AutoPipeline(object):
         # Do globus transfer:
 
         log.info(f"Transferring {self.track_folder_name} to {clustername}.")
-        transfer_taskid = transfer_file(track_name, self.track_folder_name,
+        transfer_taskid = transfer_file(self.track_name, self.track_folder_name,
                                         startnode='nrao-aoc',
                                         endnode=clustername,
                                         wait_for_completion=False)

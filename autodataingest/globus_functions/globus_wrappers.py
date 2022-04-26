@@ -169,6 +169,8 @@ def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
     mkdir_command = ["globus", "mkdir",
                      f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{track_folder_name}"]
 
+    log.info(f"Making data directory on {endnode}: {mkdir_command}")
+
     out = subprocess.run(mkdir_command, capture_output=True)
 
     # Want to return the task_id in the command line output.
@@ -177,6 +179,8 @@ def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
 
     # task_command = f"$(globus transfer {input_cmd} {output_cmd} --jmes path 'task_id' --format=UNIX)"
     task_command = ['globus', 'transfer', input_cmd, output_cmd]
+
+    log.info(f"Submitting command: {task_command}")
 
     task_transfer = subprocess.run(task_command, capture_output=True)
 
