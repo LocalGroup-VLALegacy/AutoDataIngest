@@ -1278,16 +1278,28 @@ class AutoPipeline(object):
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
         log.info(f"Globus transfer {transfer_taskid} completed!")
 
-    async def make_flagging_sheet(self, data_type='continuum'):
+    async def make_flagging_sheet(self, data_type='continuum',
+                                  use_flagging_template=True):
         '''
         Create the flagging sheet and remember the URLs to use as links.
         '''
 
         from autodataingest.gsheet_tracker.gsheet_flagging import make_new_flagsheet
 
+        if use_flagging_template:
+            if data_type == "continuum":
+                template_name = "TEMPLATE-CONTINUUM"
+            elif data_type == "speclines":
+                template_name = "TEMPLATE-SPECLINES"
+            else:
+                raise ValueError(f"Unable to interpret data_type: {data_type}")
+        else:
+            # Otherwise use the blank template.
+            template_name = "TEMPLATE"
+
         new_flagsheet = make_new_flagsheet(self.track_name, self.target, self.config,
                                            data_type=data_type,
-                                           template_name='TEMPLATE')
+                                           template_name=template_name)
 
         # make_new_flagsheet already checks for continuum vs. speclines
         # Make the equiv google docs link, not the API version
