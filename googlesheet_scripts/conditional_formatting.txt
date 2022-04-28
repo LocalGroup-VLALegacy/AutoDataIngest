@@ -1,0 +1,23 @@
+
+This is just to record the custom conditional formatting checks in
+the flagging spreadsheet:
+
+General issue with the row:
+
+A1:G120,H1:H5,I1:R120,H7:H120
+
+=ArrayFormula(mmult(n(iferror(ISERROR($A1:1))),sequence(columns($A1:1),1)^0))
+
+CASA time string format checks:
+
+Start:
+J7:J120
+
+End:
+K7:K120
+
+Check for format YYYY/MM/DD/HH:mm:ss
+(Decimal points won't work!)
+
+=IF(ISBLANK($J7), FALSE, not(REGEXMATCH(TO_TEXT($J7), "^\d{4}/(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/(?:[01]\d|2[0-3]):([0-5][0-9]):([0-5][0-9])")))
+
