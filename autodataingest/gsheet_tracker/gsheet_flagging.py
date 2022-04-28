@@ -268,7 +268,7 @@ def make_new_flagsheet(trackname, target, config,
         return gsheet.worksheet(new_sheet_name)
 
     worksheet = orig_worksheet.duplicate(new_sheet_name=new_sheet_name,
-                                         insert_sheet_index=2)
+                                         insert_sheet_index=4)
 
     # Insert new metadata
     worksheet.update_cell(1, 5, trackname)
