@@ -277,14 +277,16 @@ class AutoPipeline(object):
 
         # Scrap the VLA archive for target and config w/ astroquery
         # This will query the archive for the list of targets until the output has a matching EBID.
-        target, datasize = match_ebid_to_source(ebid,
-                                                targets=targets_to_check,
-                                                project_code=self.project_code,
-                                                verbose=False)
+        # target, datasize = match_ebid_to_source(ebid,
+        #                                         targets=targets_to_check,
+        #                                         project_code=self.project_code,
+        #                                         verbose=False)
 
-        self.target = target
+        assert self.target is not None
+        # self.target = target
 
-        log.info(f"Found target {target} with size {datasize} for {ebid}")
+        # log.info(f"Found target {target} with size {datasize} for {ebid}")
+        log.info(f"Found target {target} for {ebid}")
 
         # Add track target to the sheet
         update_cell(ebid, target,
@@ -293,10 +295,10 @@ class AutoPipeline(object):
                     sheetname=self.sheetname)
 
         # And the data size
-        update_cell(ebid, datasize.rstrip('GB'),
-                    # num_col=14,
-                    name_col="Data Size",
-                    sheetname=self.sheetname)
+        # update_cell(ebid, datasize.rstrip('GB'),
+        #             # num_col=14,
+        #             name_col="Data Size",
+        #             sheetname=self.sheetname)
 
         # We want to easily track (1) target, (2) config, and (3) track name
         # We'll combine these for our folder names where the data will get placed
