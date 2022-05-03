@@ -286,7 +286,7 @@ class AutoPipeline(object):
         # self.target = target
 
         # log.info(f"Found target {target} with size {datasize} for {ebid}")
-        log.info(f"Found target {target} for {ebid}")
+        log.info(f"Found target {self.target} for {ebid}")
 
         # Add track target to the sheet
         update_cell(ebid, target,
