@@ -289,10 +289,10 @@ class AutoPipeline(object):
         log.info(f"Found target {self.target} for {ebid}")
 
         # Add track target to the sheet
-        update_cell(ebid, target,
-                    # num_col=4,
-                    name_col="Target",
-                    sheetname=self.sheetname)
+        # update_cell(ebid, target,
+        #             # num_col=4,
+        #             name_col="Target",
+        #             sheetname=self.sheetname)
 
         # And the data size
         # update_cell(ebid, datasize.rstrip('GB'),
