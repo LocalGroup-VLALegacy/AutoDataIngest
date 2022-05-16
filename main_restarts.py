@@ -138,11 +138,16 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
             await asyncio.sleep(long_sleep)
             continue
 
+
+        await asyncio.sleep(sleeptime)
         # Gather all rerun jobs statuses from the google sheet.
         # If we get an API error for too many requests, just wait a bit and try again:
         all_rerun_statuses = []
 
         for sheetname in sheetnames:
+
+            log.info(f"Job checking in sheet {sheetname}")
+
             try:
                 sheet_all_rerun_statuses = find_rerun_status_tracks(sheetname=sheetname,
                                                                     job_type="RESTART")
@@ -150,6 +155,8 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
                 log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
                 await asyncio.sleep(long_sleep)
                 continue
+
+            await asyncio.sleep(sleeptime)
 
             for this_status in sheet_all_rerun_statuses:
                 all_rerun_statuses.append([this_status, sheetname])
@@ -428,8 +435,8 @@ if __name__ == "__main__":
     CLUSTER_SCHEDCMD = "sbatch"
 
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '80:00:00'
-    CLUSTER_LINE_JOBTIME = '80:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '70:00:00'
+    CLUSTER_LINE_JOBTIME = '70:00:00'
 
     CLUSTER_SPLIT_MEM = '20000M'
     CLUSTER_CONTINUUM_MEM = '24000M'
