@@ -117,7 +117,7 @@ async def consume(queue):
                                                                      'lustre_path': NRAODATAPATH},
                                                     sleeptime=600,
                                                     clustername=CLUSTERNAME,
-                                                    do_cleanup=False)
+                                                    do_cleanup=True)
 
         log.info(f"Setting up scripts for reduction.")
         await auto_pipe.setup_for_reduction_pipeline(clustername=CLUSTERNAME,
