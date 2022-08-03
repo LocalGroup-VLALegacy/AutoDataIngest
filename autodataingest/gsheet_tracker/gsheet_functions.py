@@ -13,6 +13,7 @@ import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
 import string
 from datetime import datetime
+from pathlib import Path
 
 from ..logging import setup_logging
 log = setup_logging()
@@ -359,3 +360,38 @@ def return_cell(ebid,
     cell = worksheet.cell(ebid_cell.row, column)
 
     return cell.value
+
+
+def download_refant_summsheet(ebid,
+                              output_folder,
+                              data_type='continuum',
+                              sheetname='20A - OpLog Summary'):
+    '''
+    Does the same thing as gsheet_flagging.download_refant but pulls the refant ignore
+    from the master status sheet, not the flagging sheets.
+
+
+    '''
+
+    full_sheet = read_tracksheet()
+    worksheet = full_sheet.worksheet(sheetname)
+
+    refant_ignore_cell = return_cell(ebid,
+                                     name_col="Avoid as refant")
+
+    if refant_ignore_cell is None:
+        log.info(f"No refant ignore found in the flagging sheet for {ebid}")
+        return None
+
+    trackname = return_cell(ebid, name_col="Trackname")
+
+    outfilename = Path(output_folder) / f"{trackname}_{data_type}_refantignore.txt"
+
+    if outfilename.exists():
+        outfilename.unlink()
+
+    with open(outfilename, "w") as outfile:
+
+        outfile.write(refant_ignore_cell)
+
+    return outfilename
