@@ -373,17 +373,15 @@ def download_refant_summsheet(ebid,
 
     '''
 
-    full_sheet = read_tracksheet()
-    worksheet = full_sheet.worksheet(sheetname)
-
     refant_ignore_cell = return_cell(ebid,
-                                     name_col="Avoid as refant")
+                                     name_col="Avoid as refant",
+                                     sheetname=sheetname)
 
     if refant_ignore_cell is None:
         log.info(f"No refant ignore found in the flagging sheet for {ebid}")
         return None
 
-    trackname = return_cell(ebid, name_col="Trackname")
+    trackname = return_cell(ebid, name_col="Trackname", sheetname=sheetname)
 
     outfilename = Path(output_folder) / f"{trackname}_{data_type}_refantignore.txt"
 
