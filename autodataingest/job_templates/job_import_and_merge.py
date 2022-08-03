@@ -70,12 +70,12 @@ if [ -f manual_flagging_continuum.txt ]; then
 fi
 
 # Copy refant ignore files if they are present:
-if [ -f refant_ignore_speclines.txt ]; then
-    cp refant_ignore_speclines.txt $TRACK_FOLDER"_speclines"/refant_ignore.txt
+if [ -f refantignore_speclines.txt ]; then
+    cp refantignore_speclines.txt $TRACK_FOLDER"_speclines"/refant_ignore.txt
 fi
 
-if [ -f refant_ignore_continuum.txt ]; then
-    cp refant_ignore_continuum.txt $TRACK_FOLDER"_continuum"/refant_ignore.txt
+if [ -f refantignore_continuum.txt ]; then
+    cp refantignore_continuum.txt $TRACK_FOLDER"_continuum"/refant_ignore.txt
 fi
 
 echo "casa split finished."
