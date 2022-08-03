@@ -127,6 +127,10 @@ async def consume(queue):
         await auto_pipe.get_flagging_files(data_type='continuum')
         await auto_pipe.get_flagging_files(data_type='speclines')
 
+        # Grab any refantignore files as specified in the summary sheet
+        await auto_pipe.get_refantignore_files(data_type='continuum')
+        await auto_pipe.get_refantignore_files(data_type='speclines')
+
         log.info(f"Submitting pipeline jobs to {CLUSTERNAME}")
         await auto_pipe.initial_job_submission(
                                 clustername=CLUSTERNAME,

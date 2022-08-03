@@ -20,10 +20,9 @@ log = setup_logging()
 from autodataingest.email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification, add_jobtimes)
 
 from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
-                                             update_cell, return_cell)
+                                             update_cell, return_cell, download_refant_summsheet)
 
-from autodataingest.gsheet_tracker.gsheet_flagging import (download_flagsheet_to_flagtxt,
-                                                           download_refant)
+from autodataingest.gsheet_tracker.gsheet_flagging import (download_flagsheet_to_flagtxt)
 
 from autodataingest.globus_functions import (transfer_file, transfer_pipeline,
                                cleanup_source, globus_wait_for_completion,
@@ -1545,8 +1544,6 @@ class AutoPipeline(object):
         if not data_type in ['continuum', 'speclines']:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
 
-        from autodataingest.gsheet_tracker.gsheet_flagging import download_flagsheet_to_flagtxt
-
         flag_repo_path = Path(output_folder) / self.project_code
         flag_repo_path.mkdir(parents=True, exist_ok=True)
 
@@ -1591,16 +1588,37 @@ class AutoPipeline(object):
             connect.close()
             del connect
 
+
+    async def get_refantignore_files(self,
+                                     clustername='cc-cedar',
+                                     data_type='continuum',
+                                     output_folder=os.path.expanduser('FlagRepository'),
+                                     scripts_dir=Path('reduction_job_scripts/'),
+                                     **ssh_kwargs,
+                                     ):
+
+        flag_repo_path = Path(output_folder) / self.project_code
+        flag_repo_path.mkdir(parents=True, exist_ok=True)
+
+        flag_repo_path_type = flag_repo_path / data_type
+        flag_repo_path_type.mkdir(parents=True, exist_ok=True)
+
+
         # Also grab and copy over the refant file:
-        refant_filename = download_refant(self.track_name,
-                                            self.target,
-                                            self.config,
-                                            flag_repo_path_type,
-                                            data_type=data_type,)
+        refant_filename = download_refant_summsheet(self.ebid,
+                                                    flag_repo_path_type,
+                                                    data_type=data_type,)
 
         if refant_filename is None:
             log.info(f"Unable to find a refant ignore file for {self.track_name}")
         else:
+
+            # Copy to the same folder that job scripts are/will be in
+            track_scripts_dir = scripts_dir / self.track_folder_name
+
+            if not track_scripts_dir.exists():
+                track_scripts_dir.mkdir()
+
             newfilename = track_scripts_dir / f'refantignore_{data_type}.txt'
 
             task_command = ['cp', refant_filename, newfilename]
@@ -1620,7 +1638,6 @@ class AutoPipeline(object):
             connect.close()
             del connect
 
-        # TODO: If changed, make git commit and push
 
     async def rerun_job_submission(self,
                                    clustername='cc-cedar',
@@ -1666,6 +1683,10 @@ class AutoPipeline(object):
         # Download manual flagging files from the google sheet.
         await self.get_flagging_files(clustername=clustername,
                                       data_type=data_type)
+
+        # Download manual flagging files from the google sheet.
+        await self.get_refantignore_files(clustername=clustername,
+                                          data_type=data_type)
 
         await self.setup_for_reduction_pipeline(clustername=clustername,
                                                 pipeline_branch=pipeline_branch)
