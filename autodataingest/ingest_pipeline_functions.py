@@ -1603,11 +1603,13 @@ class AutoPipeline(object):
         flag_repo_path_type = flag_repo_path / data_type
         flag_repo_path_type.mkdir(parents=True, exist_ok=True)
 
+        log.info(f"Downloading refant ignore request for: {self.track_name}")
 
         # Also grab and copy over the refant file:
         refant_filename = download_refant_summsheet(self.ebid,
                                                     flag_repo_path_type,
-                                                    data_type=data_type,)
+                                                    data_type=data_type,
+                                                    sheetname=self.sheetname)
 
         if refant_filename is None:
             log.info(f"Unable to find a refant ignore file for {self.track_name}")
