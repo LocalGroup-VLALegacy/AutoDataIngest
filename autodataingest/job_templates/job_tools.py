@@ -110,9 +110,11 @@ def cedar_casa_startupfile(casa6=True):
     return filename
 
 
-def path_to_casa(version='6.2'):
+def path_to_casa(version='6.4'):
 
-    if version == '6.2':
+    if version == '6.4':
+        return "casa-6.4.1-12-pipeline-2022.2.0.64"
+    elif version == '6.2':
         return "casa-6.2.1-7-pipeline-2021.2.0.128"
     elif version == '6.1':
         return "casa-6.1.2-7-pipeline-2020.1.0.36"

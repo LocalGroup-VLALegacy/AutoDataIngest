@@ -17,7 +17,7 @@ def cedar_submission_script(target_name="M31", config="C",
                             slurm_kwargs={},
                             setup_kwargs={},
                             run_casa6=True,
-                            casa_version=6.2):
+                            casa_version='6.4'):
 
     # Add in default info to set the log file, job name, etc
     slurm_kwargs['job_name'] = f"{target_name}_{config}_{trackname}"

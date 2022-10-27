@@ -283,7 +283,7 @@ if __name__ == "__main__":
 
     # Name of branch or tag to use for the reduction pipeline
     PIPELINE_BRANCHNAME = 'main'
-    CASA_VERSION = "6.2"
+    CASA_VERSION = "6.4"
 
     # Configuration parameters:
     CLUSTERNAME = 'cc-cedar'
