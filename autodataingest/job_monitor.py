@@ -91,6 +91,10 @@ def identify_completions(df, running_tracks):
     for this_track in running_tracks:
         this_ebid, data_type, job_summ = this_track
 
+        if job_summ == "":
+            log.error(f"No job ID is in the spreadsheet. Check this status manually.")
+            continue
+
         # CLUSTERNAME:JOBNUM
         job_id = int(job_summ.split(":")[1])
 
