@@ -22,7 +22,7 @@ dest_ep=e8fc98cc-9ca8-11eb-92cd-6b08dd67ff48
 
 # Get current list of MS files on the drive after deleting the previous list.
 rm drive_files.txt
-rclone lsf vlaxl_gdrive:MeasurementSets >> drive_files.txt
+rclone lsf lglbs_gdrive:MeasurementSets >> drive_files.txt
 
 # Get list of MS files on project space
 rm cedar_files.txt
@@ -69,7 +69,7 @@ for filename in $FILENAMES; do
 
     # Upload to gdrive
     echo "Uploading ${filename} to gdrive at $(date)"
-    flock -n /tmp/google_drv_sync.lock /usr/bin/rclone copy --retries 5 $filename vlaxl_gdrive:MeasurementSets/
+    flock -n /tmp/google_drv_sync.lock /usr/bin/rclone copy --retries 5 $filename lglbs_gdrive:MeasurementSets/
     echo "Finished uploading ${filename} to gdrive at $(date)"
 
     echo "Removing ${filename} at $(date)"
