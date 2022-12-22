@@ -64,7 +64,11 @@ def get_slurm_job_monitor(connect, time_range_days=7, timeout=600,
 
         track_name, job_type = name_info
 
-        ebid = int(track_name.split(".")[2].split('eb')[1])
+        try:
+            ebid = int(track_name.split(".")[2].split('eb')[1])
+        except IndexError:
+            log.warn(f"Unable to parse job with name: {name_info}")
+            continue
 
         this_line.extend([track_name, ebid, job_type])
 
