@@ -96,6 +96,8 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary', job_type=None):
         # Check if the status is equal to `status_check`
         run_types = []
 
+        time.sleep(5)
+
         if len(track['Re-run\ncontinuum']) > 0 or len(track['Re-run\nspeclines']) > 0:
 
             time_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
