@@ -144,7 +144,7 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary',
             if append_this_track:
                 new_tracks.append([track['EBID'], run_types])
 
-        if len(new_tracks) => max_per_exec:
+        if len(new_tracks) >= max_per_exec:
             log.info(f"Hit maximum jobs per execution to submit: {max_per_spec}")
             break
 
