@@ -72,7 +72,9 @@ def find_new_tracks(sheetname='20A - OpLog Summary', status_check=''):
     return new_tracks
 
 
-def find_rerun_status_tracks(sheetname='20A - OpLog Summary', job_type=None):
+def find_rerun_status_tracks(sheetname='20A - OpLog Summary',
+                             job_type=None,
+                             max_per_exec=10):
     """
     Find new tracks where an updated run status has been indicated. Fill in last given
     status with a timestamp in the sheet.
@@ -141,6 +143,10 @@ def find_rerun_status_tracks(sheetname='20A - OpLog Summary', job_type=None):
 
             if append_this_track:
                 new_tracks.append([track['EBID'], run_types])
+
+        if len(new_tracks) => max_per_exec:
+            log.info(f"Hit maximum jobs per execution to submit: {max_per_spec}")
+            break
 
     return new_tracks
 
