@@ -24,9 +24,30 @@ dest_ep=e8fc98cc-9ca8-11eb-92cd-6b08dd67ff48
 rm drive_files.txt
 rclone lsf lglbs_gdrive:MeasurementSets >> drive_files.txt
 
+# If the gdrive pull failed, check for an empty txt file
+# Otherwise it will try to download EVERYTHING!
+if [ -s drive_files.txt ]; then
+    echo "Successful connection to gdrive."
+    rm gdrive_fail.txt
+else
+    echo "Unable to connect to gdrive."
+    touch gdrive_fail.txt
+    exit 1
+fi
+
 # Get list of MS files on project space
 rm cedar_files.txt
 /home/datamanager/.local/bin/globus ls $source_ep:projects/rrg-eros-ab/ekoch/VLAXL/calibrated/ >> cedar_files.txt
+
+# Check if globus call failed:
+if [ -s cedar_files.txt ]; then
+    echo "Successful connection to cedar."
+    rm cedar_fail.txt
+else
+    echo "Unable to connect to cedar."
+    touch cedar_fail.txt
+    exit 1
+fi
 
 if cmp -s drive_files.txt cedar_files.txt; then
     echo "No new MS files found"
