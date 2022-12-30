@@ -21,6 +21,10 @@ if len(diff_files) == 0:
 # 2. Batch source/dest formatted file for globus to use.
 
 for filename in diff_files:
+    # the archive folder is where we have older MS files to reduce the number
+    # of items in the calibrated folder. This avoids timeouts with globus.
+    if "archive" in filename:
+        continue
     print(filename, file=open('new_ms_files.txt', 'a'))
 
 # 2. Now create the batch format:
