@@ -100,7 +100,7 @@ fi
 echo "Finished transferring at $(date)"
 
 # Upload to gdrive then delete from here
-for filename in $FILENAMES; do
+for filename in *.tar; do
 
     # Upload to gdrive
     echo "Uploading ${filename} to gdrive at $(date)"
