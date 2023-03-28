@@ -58,9 +58,23 @@ fi
 rm new_ms_files.txt batch_files.txt
 /home/datamanager/miniconda3/envs/py37/bin/python ~/AutoDataIngest/sync_to_gdrive_diffchecker.py
 
+# To avoid keeping too many files on disk, set a max number of files
+# for each execution.
+MAX_FILES=8
+
+filenum=0
+
 FILENAMES=$(cat new_ms_files.txt)
 for filename in $FILENAMES; do
     echo "$filename $filename" >> batch_files.txt
+
+    filenum=$((filenum + 1))
+
+    if [ "$filename" -eq $MAX_FILES ]; then
+        echo "Reach max number of files to transfer: ${MAX_FILES}"
+        break
+    fi
+
 done
 
 # diff drive_files.txt cedar_files.txt >> new_ms_files.txt
