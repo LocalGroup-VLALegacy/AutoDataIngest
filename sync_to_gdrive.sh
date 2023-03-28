@@ -70,7 +70,7 @@ for filename in $FILENAMES; do
 
     filenum=$((filenum + 1))
 
-    if [ "$filename" -eq $MAX_FILES ]; then
+    if [ "$filenum" -eq $MAX_FILES ]; then
         echo "Reach max number of files to transfer: ${MAX_FILES}"
         break
     fi
