@@ -464,9 +464,9 @@ def check_tracks_on_disk(source_name, local_path,
     for this_track in track_names:
 
         has_cont = [ii for ii, this_file in enumerate(local_ms_files) if
-                    (this_track in this_file) and ("continuum" in this_file)]
+                    (this_track in this_file.name) and ("continuum" in this_file.name)]
         has_lines = [ii for ii, this_file in enumerate(local_ms_files) if
-                    (this_track in this_file) and ("speclines" in this_file)]
+                    (this_track in this_file.name) and ("speclines" in this_file.name)]
 
         if len(has_cont) == 1:
             local_ms_files.pop(has_cont[0])
