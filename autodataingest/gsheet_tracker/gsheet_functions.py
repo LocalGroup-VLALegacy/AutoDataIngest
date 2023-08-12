@@ -441,7 +441,6 @@ def get_tracknames(source_name,
                 if 'imaging' not in track['Status: speclines']:
                     continue
 
-            print(track['Trackname'])
             track_names.append(track['Trackname'])
 
     return track_names
