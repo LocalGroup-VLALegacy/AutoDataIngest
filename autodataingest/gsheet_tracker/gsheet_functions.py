@@ -461,20 +461,24 @@ def check_tracks_on_disk(source_name, local_path,
 
     local_ms_files = list(local_path.glob(f"{source_name}*ms.split.tar"))
 
+    these_files =[]
+
     for this_track in track_names:
 
         has_cont = [ii for ii, this_file in enumerate(local_ms_files) if
                     (this_track in this_file.name) and ("continuum" in this_file.name)]
-        has_lines = [ii for ii, this_file in enumerate(local_ms_files) if
-                    (this_track in this_file.name) and ("speclines" in this_file.name)]
 
         if len(has_cont) == 1:
-            local_ms_files.pop(has_cont[0])
+            local_ms_files.append(has_cont[0])
             continuum_ondisk.append(True)
         elif len(has_cont) > 1:
             raise ValueError(f"Shouldn't have multiple continuum matches. Check {this_track}")
         else:
             continuum_ondisk.append(False)
+
+
+        has_lines = [ii for ii, this_file in enumerate(local_ms_files) if
+                    (this_track in this_file.name) and ("speclines" in this_file.name)]
 
         if len(has_lines) == 1:
             local_ms_files.pop(has_lines[0])
@@ -491,4 +495,6 @@ def check_tracks_on_disk(source_name, local_path,
     tab['continuum_ondisk'] = continuum_ondisk
     tab['speclines_ondisk'] = speclines_ondisk
 
-    return tab, local_ms_files
+    unmatched_files = local_ms_files
+
+    return tab, unmatched_files
