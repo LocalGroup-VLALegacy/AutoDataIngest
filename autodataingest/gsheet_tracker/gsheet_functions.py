@@ -435,12 +435,13 @@ def get_tracknames(source_name,
                     continue
 
             if completed_status:
-                if track['Status: continuum'] != 'Ready for Imaging':
+                if 'imaging' not in track['Status: continuum']:
                     continue
 
-                if track['Status: speclines'] != 'Ready for Imaging':
+                if 'imaging' not in track['Status: speclines']:
                     continue
 
+            print(track['Trackname'])
             track_names.append(track['Trackname'])
 
     return track_names
