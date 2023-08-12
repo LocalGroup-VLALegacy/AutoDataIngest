@@ -401,3 +401,94 @@ def download_refant_summsheet(ebid,
         outfile.write(refant_ignore_cell)
 
     return outfilename
+
+
+def get_tracknames(source_name,
+                   sheetnames=['20A - OpLog Summary',
+                               'Archival Track Summary'],
+                   config='all',
+                   completed_status=True):
+    """
+    Check which tracks are contained or not in a local directory.
+    """
+
+    full_sheet = read_tracksheet()
+
+    # Find the right sheet according to sheetname
+
+    track_names = []
+
+    for sheetname in sheetnames:
+
+        worksheet = full_sheet.worksheet(sheetname)
+
+        # Grab the track info.
+        tracks_info = worksheet.get_all_records()
+
+        for track in tracks_info:
+
+            if source_name not in track['Target']:
+                continue
+
+            if config != "all":
+                if track['Configuration'] != config:
+                    continue
+
+            if completed_status:
+                if track['Status: continuum'] != 'Ready for Imaging':
+                    continue
+
+                if track['Status: speclines'] != 'Ready for Imaging':
+                    continue
+
+            track_names.append(track['Trackname'])
+
+    return track_names
+
+
+def check_tracks_on_disk(source_name, local_path,
+                         sheetnames=['20A - OpLog Summary',
+                                     'Archival Track Summary'],
+                         config='all',
+                         completed_status=True):
+
+    track_names = get_tracknames(source_name, sheetnames=sheetnames,
+                                 config=config,
+                                 completed_status=completed_status)
+
+    continuum_ondisk = []
+    speclines_ondisk = []
+
+    local_ms_files = local_path.glob(f"{source_name}*ms.split.tar")
+
+    for this_track in track_names:
+
+        has_cont = [ii for ii, this_file in enumerate(local_ms_files) if
+                    (this_track in this_file) and ("continuum" in this_file)]
+        has_lines = [ii for ii, this_file in enumerate(local_ms_files) if
+                    (this_track in this_file) and ("speclines" in this_file)]
+
+        if len(has_cont) == 1:
+            local_ms_files.pop(has_cont[0])
+            continuum_ondisk.append(True)
+        elif len(has_cont) > 1:
+            raise ValueError(f"Shouldn't have multiple continuum matches. Check {this_track}")
+        else:
+            continuum_ondisk.append(False)
+
+        if len(has_lines) == 1:
+            local_ms_files.pop(has_lines[0])
+            speclines_ondisk.append(True)
+        elif len(has_lines) > 1:
+            raise ValueError(f"Shouldn't have multiple line matches. Check {this_track}")
+        else:
+            speclines_ondisk.append(False)
+
+    from astropy.table import Table
+
+    tab = Table()
+    tab['tracknames'] = track_names
+    tab['continuum_ondisk'] = continuum_ondisk
+    tab['speclines_ondisk'] = speclines_ondisk
+
+    return tab, local_ms_files
