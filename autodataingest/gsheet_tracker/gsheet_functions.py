@@ -459,7 +459,7 @@ def check_tracks_on_disk(source_name, local_path,
     continuum_ondisk = []
     speclines_ondisk = []
 
-    local_ms_files = local_path.glob(f"{source_name}*ms.split.tar")
+    local_ms_files = list(local_path.glob(f"{source_name}*ms.split.tar"))
 
     for this_track in track_names:
 
