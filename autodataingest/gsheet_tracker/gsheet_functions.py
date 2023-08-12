@@ -469,7 +469,7 @@ def check_tracks_on_disk(source_name, local_path,
                     (this_track in this_file.name) and ("continuum" in this_file.name)]
 
         if len(has_cont) == 1:
-            local_ms_files.append(has_cont[0])
+            local_ms_files.pop(has_cont[0])
             continuum_ondisk.append(True)
         elif len(has_cont) > 1:
             raise ValueError(f"Shouldn't have multiple continuum matches. Check {this_track}")
