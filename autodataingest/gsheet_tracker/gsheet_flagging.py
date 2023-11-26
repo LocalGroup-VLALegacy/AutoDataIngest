@@ -239,6 +239,74 @@ def download_refant(trackname, target, config,
 #         # You hit the read quota limit without some pausing
 #         time.sleep(waittime)
 
+def copy_to_sheets_by_target(output_folder_id="1vXje7cR4BdMo2tWms_Y29VpwtA0XhUkD",
+                             waittime=10,
+                             target_names=['M31', 'M33', 'NGC6822', 'WLM', 'IC10', 'IC1613',
+                                           'NGC4254', 'NGC628', 'NGC1087', 'NGC3627']):
+    """
+    Copy sheets from the master sheet to new sheets per
+    target. This is intended to limit the number of active tabs
+    we have on the main flagging sheet.
+    """
+
+    gc = do_authentication_gspread()
+
+    gsheet = gc.open("SB_Issue_Tracking")
+
+    skip_list = ['FRONT',
+                 'TEMPLATE',
+                 'TEMPLATE-SPECLINES',
+                 'TEMPLATE-CONTINUUM',
+                 "Testing"]
+
+    # Grab all sheet names
+    worksheet_names = [worksheet.title for worksheet in gsheet.worksheets()
+                       if worksheet.title not in skip_list]
+
+    target_sheets = {}
+
+    for this_target in target_names:
+        this_target_sheets = list(filter(lambda x: this_target in x, worksheet_names))
+        print(f"Found {len(this_target_sheets)} for target {this_target}")
+
+        target_sheets[this_target] = this_target_sheets
+
+    # Filter out any sheet not classified into the "other" category
+    all_target_sheets = sum([sheets for target, sheets in target_sheets.items()],
+                             [])
+
+    other_sheets = list(set(worksheet_names) - set(all_target_sheets))
+    if len(other_sheets) > 0:
+        print(f"Found {len(other_sheets)} for the 'other' category")
+        target_sheets['other'] = other_sheets
+
+    for this_target in target_names:
+
+        target_sheet_name = f"{this_target}_SB_Issue_Tracking"
+
+        try:
+            this_sheet = gc.open(target_sheet_name, folder_id=output_folder_id)
+        except:
+            # Make a new sheet
+            this_sheet = gc.create(target_sheet_name, folder_id=output_folder_id)
+
+        # Check whether that sheet already exists. If so, skip it.
+        existing_worksheet_names = [worksheet.title for worksheet in this_sheet.worksheets()
+                                    if worksheet.title not in skip_list]
+        # Copy all the sheets to the new one.
+        for sheetname in target_sheets[this_target]:
+            if sheetname in existing_worksheet_names:
+                # print(f"Skipping {sheetname} because it already exists.")
+                continue
+
+            this_worksheet = gsheet.worksheet(sheetname)
+            this_worksheet.copy_to(this_sheet.id)
+            this_sheet.worksheet(f"Copy of {sheetname}").update_title(sheetname)
+
+        print(f"Finished copying sheets for target {this_target}")
+        # You hit the read quota limit without some pausing
+        time.sleep(waittime)
+
 
 def make_new_flagsheet(trackname, target, config,
                        data_type='continuum',
