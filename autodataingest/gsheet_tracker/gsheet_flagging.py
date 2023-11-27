@@ -333,6 +333,7 @@ def clear_completed_flags(target_names=None,
         target_names = all_target_names
 
     gsheet = read_flagsheet()
+    wsheet_names = [sheet.title for sheet in gsheet.worksheets()]
 
     full_sheet = read_tracksheet()
 
@@ -360,14 +361,18 @@ def clear_completed_flags(target_names=None,
 
             if 'imaging' in track['Status: continuum']:
                 wsheet_name = f"{target}_{config}_{abbrev_tname}_continuum"
+
                 if not test_run:
                     # Delete it!
-                    try:
-                        this_wsheet = gsheet.worksheet(wsheet_name)
-                        gsheet.del_worksheet(this_wsheet)
-                    except Exception as exc:
-                        traceback.print_exc()
-                        print(f"Unable to delete: {wsheet_name}")
+                    if wsheet_name in wsheet_names:
+                        try:
+                            this_wsheet = gsheet.worksheet(wsheet_name)
+                            gsheet.del_worksheet(this_wsheet)
+                        except Exception as exc:
+                            traceback.print_exc()
+                            print(f"Unable to delete: {wsheet_name}")
+                    else:
+                        print(f"Cannot find sheet with name: {wsheet_name}")
 
                     time.sleep(5)
 
@@ -375,12 +380,15 @@ def clear_completed_flags(target_names=None,
                 wsheet_name = f"{target}_{config}_{abbrev_tname}_speclines"
                 if not test_run:
                     # Delete it!
-                    try:
-                        this_wsheet = gsheet.worksheet(wsheet_name)
-                        gsheet.del_worksheet(this_wsheet)
-                    except Exception as exc:
-                        traceback.print_exc()
-                        print(f"Unable to delete: {wsheet_name}")
+                    if wsheet_name in wsheet_names:
+                        try:
+                            this_wsheet = gsheet.worksheet(wsheet_name)
+                            gsheet.del_worksheet(this_wsheet)
+                        except Exception as exc:
+                            traceback.print_exc()
+                            print(f"Unable to delete: {wsheet_name}")
+                    else:
+                        print(f"Cannot find sheet with name: {wsheet_name}")
 
                     time.sleep(5)
 
