@@ -3,7 +3,7 @@
 Functions for handling our google sheet with track flagging.
 '''
 
-from .gsheet_functions import do_authentication_gspread
+from .gsheet_functions import do_authentication_gspread, read_tracksheet
 
 from qaplotter.utils import datetime_from_msname
 
@@ -239,15 +239,24 @@ def download_refant(trackname, target, config,
 #         # You hit the read quota limit without some pausing
 #         time.sleep(waittime)
 
+all_target_names = ['NGC6822', 'WLM', 'IC10', 'IC1613',
+                    'NGC4254', 'NGC628', 'NGC1087', 'NGC3627',
+                    'M33', 'M31']
+
+
 def copy_to_sheets_by_target(output_folder_id="1vXje7cR4BdMo2tWms_Y29VpwtA0XhUkD",
-                             waittime=10,
-                             target_names=['M31', 'M33', 'NGC6822', 'WLM', 'IC10', 'IC1613',
-                                           'NGC4254', 'NGC628', 'NGC1087', 'NGC3627']):
+                             waittime=60, waittime_per_wsheet=3,
+                             target_names=['NGC6822', 'WLM', 'IC10', 'IC1613',
+                                           'NGC4254', 'NGC628', 'NGC1087', 'NGC3627',
+                                           'M33', 'M31'],
+                             make_other_sheets=False):
     """
     Copy sheets from the master sheet to new sheets per
     target. This is intended to limit the number of active tabs
     we have on the main flagging sheet.
     """
+
+    import time
 
     gc = do_authentication_gspread()
 
@@ -265,7 +274,7 @@ def copy_to_sheets_by_target(output_folder_id="1vXje7cR4BdMo2tWms_Y29VpwtA0XhUkD
 
     target_sheets = {}
 
-    for this_target in target_names:
+    for this_target in all_target_names:
         this_target_sheets = list(filter(lambda x: this_target in x, worksheet_names))
         print(f"Found {len(this_target_sheets)} for target {this_target}")
 
@@ -276,7 +285,7 @@ def copy_to_sheets_by_target(output_folder_id="1vXje7cR4BdMo2tWms_Y29VpwtA0XhUkD
                              [])
 
     other_sheets = list(set(worksheet_names) - set(all_target_sheets))
-    if len(other_sheets) > 0:
+    if len(other_sheets) > 0 and make_other_sheets:
         print(f"Found {len(other_sheets)} for the 'other' category")
         target_sheets['other'] = other_sheets
 
@@ -295,6 +304,8 @@ def copy_to_sheets_by_target(output_folder_id="1vXje7cR4BdMo2tWms_Y29VpwtA0XhUkD
                                     if worksheet.title not in skip_list]
         # Copy all the sheets to the new one.
         for sheetname in target_sheets[this_target]:
+            time.sleep(waittime_per_wsheet)
+
             if sheetname in existing_worksheet_names:
                 # print(f"Skipping {sheetname} because it already exists.")
                 continue
@@ -306,6 +317,56 @@ def copy_to_sheets_by_target(output_folder_id="1vXje7cR4BdMo2tWms_Y29VpwtA0XhUkD
         print(f"Finished copying sheets for target {this_target}")
         # You hit the read quota limit without some pausing
         time.sleep(waittime)
+
+
+def clear_completed_flags(sheetnames=['20A - OpLog Summary',
+                                      'Archival Track Summary'],
+                          test_run=True):
+    '''
+    Clear flagging sheets that have been completed.
+    '''
+
+    gsheet = read_flagsheet()
+
+    full_sheet = read_tracksheet()
+
+    for sheetname in sheetnames:
+
+        worksheet = full_sheet.worksheet(sheetname)
+
+        # Grab the track info.
+        tracks_info = worksheet.get_all_records()
+
+        for track in tracks_info:
+
+            if track['Target'] not in all_target_names:
+                continue
+
+            trackname = track['Trackname']
+            target = track['Target']
+            config = track['Configuration']
+
+            # Abbrev. name b/c it hits the charac. limit
+            # projcode_mjd_ebid
+            abbrev_tname = "_".join([trackname.split('.')[0],
+                                     trackname.split('.')[3],
+                                     trackname.split('.')[2][2:]])
+
+            if 'imaging' in track['Status: continuum']:
+                wsheet_name = f"{target}_{config}_{abbrev_tname}_continuum"
+                if not test_run:
+                    # Delete it!
+                    gsheet.del_worksheet(wsheet_name)
+                print(wsheet_name)
+                print(gsheet.worksheet(wsheet_name))
+                print(argh)
+
+            if 'imaging' in track['Status: speclines']:
+                wsheet_name = f"{target}_{config}_{abbrev_tname}_speclines"
+                if not test_run:
+                    # Delete it!
+                    gsheet.del_worksheet(wsheet_name)
+
 
 
 def make_new_flagsheet(trackname, target, config,
