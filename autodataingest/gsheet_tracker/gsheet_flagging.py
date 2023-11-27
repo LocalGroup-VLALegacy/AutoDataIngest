@@ -360,15 +360,21 @@ def clear_completed_flags(target_names=None,
                 wsheet_name = f"{target}_{config}_{abbrev_tname}_continuum"
                 if not test_run:
                     # Delete it!
-                    this_wsheet = gsheet.worksheet(wsheet_name)
-                    gsheet.del_worksheet(this_wsheet)
+                    try:
+                        this_wsheet = gsheet.worksheet(wsheet_name)
+                        gsheet.del_worksheet(this_wsheet)
+                    except:
+                        print(f"Cannot find {wsheet_name} to delete")
 
             if 'imaging' in track['Status: speclines']:
                 wsheet_name = f"{target}_{config}_{abbrev_tname}_speclines"
                 if not test_run:
                     # Delete it!
-                    this_wsheet = gsheet.worksheet(wsheet_name)
-                    gsheet.del_worksheet(this_wsheet)
+                    try:
+                        this_wsheet = gsheet.worksheet(wsheet_name)
+                        gsheet.del_worksheet(this_wsheet)
+                    except:
+                        print(f"Cannot find {wsheet_name} to delete")
 
 
 def make_new_flagsheet(trackname, target, config,
