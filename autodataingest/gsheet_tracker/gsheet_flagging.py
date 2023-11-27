@@ -12,6 +12,8 @@ import numpy as np
 from pathlib import Path
 import os
 import filecmp
+import traceback
+import sys
 
 import gspread
 from gspread_formatting import cellFormat, color, textFormat, format_cell_range
@@ -363,10 +365,11 @@ def clear_completed_flags(target_names=None,
                     try:
                         this_wsheet = gsheet.worksheet(wsheet_name)
                         gsheet.del_worksheet(this_wsheet)
-                    except:
-                        print(f"Cannot find {wsheet_name} to delete")
+                    except Exception as exc:
+                        traceback.print_exc()
+                        print(f"Unable to delete: {wsheet_name}")
 
-                    time.sleep(2)
+                    time.sleep(5)
 
             if 'imaging' in track['Status: speclines']:
                 wsheet_name = f"{target}_{config}_{abbrev_tname}_speclines"
@@ -376,10 +379,10 @@ def clear_completed_flags(target_names=None,
                         this_wsheet = gsheet.worksheet(wsheet_name)
                         gsheet.del_worksheet(this_wsheet)
                     except Exception as exc:
-                        print(f"Hit exception {exc}")
-                        print(f"Cannot find {wsheet_name} to delete")
+                        traceback.print_exc()
+                        print(f"Unable to delete: {wsheet_name}")
 
-                    time.sleep(2)
+                    time.sleep(5)
 
     time.sleep(30)
 
