@@ -251,7 +251,8 @@ def copy_to_sheets_by_target(output_folder_id="1vXje7cR4BdMo2tWms_Y29VpwtA0XhUkD
                              target_names=['NGC6822', 'WLM', 'IC10', 'IC1613',
                                            'NGC4254', 'NGC628', 'NGC1087', 'NGC3627',
                                            'M33', 'M31'],
-                             make_other_sheets=False):
+                             make_other_sheets=False,
+                             test_run=True):
     """
     Copy sheets from the master sheet to new sheets per
     target. This is intended to limit the number of active tabs
@@ -290,6 +291,10 @@ def copy_to_sheets_by_target(output_folder_id="1vXje7cR4BdMo2tWms_Y29VpwtA0XhUkD
     if len(other_sheets) > 0 and make_other_sheets:
         print(f"Found {len(other_sheets)} for the 'other' category")
         target_sheets['other'] = other_sheets
+
+    if test_run:
+        print(f"Test run enabled. Exiting.")
+        return
 
     for this_target in target_names:
 
