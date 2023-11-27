@@ -319,12 +319,16 @@ def copy_to_sheets_by_target(output_folder_id="1vXje7cR4BdMo2tWms_Y29VpwtA0XhUkD
         time.sleep(waittime)
 
 
-def clear_completed_flags(sheetnames=['20A - OpLog Summary',
+def clear_completed_flags(target_names=None,
+                          sheetnames=['20A - OpLog Summary',
                                       'Archival Track Summary'],
                           test_run=True):
     '''
     Clear flagging sheets that have been completed.
     '''
+
+    if target_names is None:
+        target_names = all_target_names
 
     gsheet = read_flagsheet()
 
@@ -339,7 +343,7 @@ def clear_completed_flags(sheetnames=['20A - OpLog Summary',
 
         for track in tracks_info:
 
-            if track['Target'] not in all_target_names:
+            if track['Target'] not in target_names:
                 continue
 
             trackname = track['Trackname']
@@ -357,16 +361,12 @@ def clear_completed_flags(sheetnames=['20A - OpLog Summary',
                 if not test_run:
                     # Delete it!
                     gsheet.del_worksheet(wsheet_name)
-                print(wsheet_name)
-                print(gsheet.worksheet(wsheet_name))
-                print(argh)
 
             if 'imaging' in track['Status: speclines']:
                 wsheet_name = f"{target}_{config}_{abbrev_tname}_speclines"
                 if not test_run:
                     # Delete it!
                     gsheet.del_worksheet(wsheet_name)
-
 
 
 def make_new_flagsheet(trackname, target, config,
