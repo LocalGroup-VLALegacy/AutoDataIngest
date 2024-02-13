@@ -26,4 +26,4 @@ JOB_CREATION_FUNCTIONS = \
                   'LINE_PIPE': jobs_line.cedar_submission_script}}
 
 CLUSTERADDRS = \
-    {'cc-cedar': 'cedar.computecanada.ca'}
+    {'cc-cedar': 'robot.cedar.alliancecan.ca'}
