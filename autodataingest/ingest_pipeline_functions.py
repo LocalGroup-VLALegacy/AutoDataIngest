@@ -694,6 +694,19 @@ class AutoPipeline(object):
         log.info(f"Finished submitting pipeline for {self.ebid} on {clustername}")
 
     def set_job_status(self, data_type, job_status):
+        """
+        Function to set the status of a job based on data type and job status.
+
+        Parameters:
+            data_type (str): The type of data being processed.
+            job_status (str): The status of the job.
+
+        Raises:
+            ValueError: If an unknown data_type is passed.
+
+        Returns:
+            None
+        """
 
         if data_type == 'continuum':
             status_col = 1
@@ -758,205 +771,6 @@ class AutoPipeline(object):
         else:
             log.error(f"Unable to interpret job_type {job_type}")
 
-
-    async def restart_job_submission(self, max_resubmission=1, clustername='cc-cedar',
-                                     scripts_dir=Path('reduction_job_scripts/'),
-                                     split_type='all',
-                                     clusteracct=None,
-                                     split_time=None,
-                                     continuum_time=None,
-                                     line_time=None,
-                                     scheduler_cmd="",
-                                     **ssh_kwargs):
-
-        """
-        Step 3b.
-
-        Resubmit incomplete jobs.
-        """
-
-        # Check that the restart dictionary is defined
-        if not hasattr(self, 'restarts'):
-            raise ValueError("restarts is not defined. get_job_notifications must be run first.")
-
-        if clusteracct is not None:
-            acct_str = f"--account={clusteracct}"
-        else:
-            acct_str = ""
-
-        chdir_cmd = f"cd scratch/VLAXL_reduction/{self.track_folder_name}/"
-
-        # Setup connection:
-        log.info(f"Starting connection to {clustername} for {self.track_folder_name}")
-
-        # NOTE: update this below
-        XXXXXXXX
-
-        connect = await self.setup_ssh_connection(clustername, op_key='SUBMIT', **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-        connect.open()
-        log.info(f"Opened connection to {clustername}")
-
-        # Restart split submission
-        if self.restarts['IMPORT_SPLIT']:
-            log.info(f"Attempting to restart the import/split job for {self.track_folder_name}")
-
-            self._restart_split_count += 1
-
-            if self._restart_split_count > max_resubmission:
-                log.info("Reached maximum resubmission attempts for split jobs.")
-                log.info(f"Manual review of failure is required for {self.ebid}")
-
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
-                                    sheetname=self.sheetname,
-                                    status_col=1)
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
-                                    sheetname=self.sheetname,
-                                    status_col=2)
-
-                return
-
-            # All files should already exist for restarts.
-
-            job_split_filename = f"{self.track_folder_name}_{split_type}_job_import_and_split.sh"
-
-            if split_time is not None:
-                time_str = f"--time={split_time}"
-            else:
-                time_str = ""
-
-            # NOTE: change the options to be in the generated submission script directly.
-            XXXXXXX
-            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_split_filename}"
-
-            log.info(f"Submitting command: {submit_cmd}")
-
-            try:
-                # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                import_jobid = await run_job_submission(connect, f"{chdir_cmd} {submit_cmd}",
-                                                        self.track_name, 'import_and_split')
-            except ValueError as exc:
-                import_jobid = None
-                raise ValueError(f"Failed to submit split job! See stderr: {exc}")
-
-            # Record the job ID so we can check for completion.
-            self.importsplit_jobid = import_jobid
-
-            log.info(f"Re-submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
-
-            update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}",
-                        name_col="Split Job ID",
-                        sheetname=self.sheetname)
-
-        # Restart continuum submission
-        if self.restarts['CONTINUUM_PIPE']:
-            log.info(f"Attempting to restart the continuum pipeline job for {self.track_folder_name}")
-
-            self._restart_continuum_count += 1
-
-            if self._restart_continuum_count > max_resubmission:
-                log.info("Reached maximum resubmission attempts for continuum jobs.")
-                log.info(f"Manual review of failure is required for {self.ebid}")
-
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
-                                    sheetname=self.sheetname,
-                                    status_col=1)
-
-            else:
-                job_continuum_filename = f"{self.track_folder_name}_job_continuum.sh"
-
-                if continuum_time is not None:
-                    time_str = f"--time={continuum_time}"
-                else:
-                    time_str = ""
-
-                submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_continuum_filename}"
-
-                log.info(f"Submitting command: {submit_cmd}")
-
-                try:
-                    # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                    continuum_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                               self.track_name, 'continuum_pipeline')
-                except ValueError as exc:
-                    continuum_jobid = None
-                    raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
-
-                # Record the job ID so we can check for completion.
-                self.continuum_jobid = continuum_jobid
-
-                log.info(f"Resubmitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
-
-                update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}",
-                            name_col="Continuum job ID",
-                            sheetname=self.sheetname)
-
-                # Continuum
-                update_track_status(self.ebid,
-                                    message=f"Reduction running on {clustername}",
-                                    sheetname=self.sheetname,
-                                    status_col=1)
-
-        # Restart lines submission
-        if self.restarts['LINE_PIPE']:
-            log.info(f"Attempting to restart the line pipeline job for {self.track_folder_name}")
-
-            self._restart_line_count += 1
-
-            if self._restart_line_count > max_resubmission:
-                log.info("Reached maximum resubmission attempts for line jobs.")
-                log.info(f"Manual review of failure is required for {self.ebid}")
-
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
-                                    sheetname=self.sheetname,
-                                    status_col=2)
-
-            else:
-
-                job_line_filename = f"{self.track_folder_name}_job_line.sh"
-
-                if line_time is not None:
-                    time_str = f"--time={line_time}"
-                else:
-                    time_str = ""
-
-                submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_line_filename}"
-
-                log.info(f"Submitting command: {submit_cmd}")
-
-                try:
-                    # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                    line_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                    self.track_name, 'line_pipeline')
-                except ValueError as exc:
-                    line_jobid = None
-                    raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
-
-                # Record the job ID so we can check for completion.
-                self.line_jobid = line_jobid
-
-                log.info(f"Resubmitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
-
-                update_cell(self.ebid, f"{clustername}:{self.line_jobid}",
-                            # num_col=24,
-                            name_col='Line job ID',
-                            sheetname=self.sheetname)
-
-                # Lines
-                update_track_status(self.ebid,
-                                    message=f"Reduction running on {clustername}",
-                                    sheetname=self.sheetname,
-                                    status_col=2)
-
-        if connect.is_connected:
-            connect.close()
-            del connect
-
-        log.info("Completed job resubmission")
 
     async def transfer_pipeline_products(self, data_type='speclines',
                                          startnode='cc-cedar',
