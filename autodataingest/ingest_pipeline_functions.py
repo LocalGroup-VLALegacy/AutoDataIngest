@@ -42,7 +42,7 @@ from autodataingest.archive_request import archive_copy_SDM
 # Import dictionary defining the job creation script functions for each
 # cluster.
 from autodataingest.cluster_configs import (JOB_CREATION_FUNCTIONS, CLUSTERADDRS,
-                                            ENDPOINT_INFO)
+                                            ENDPOINT_INFO, CLUSTER_AUTO_KEYS)
 
 from autodataingest.utils import uniquify, uniquify_folder
 
@@ -143,7 +143,9 @@ class AutoPipeline(object):
 
         return self.track_name.split(".")[0]
 
-    async def setup_ssh_connection(self, clustername, user='ekoch',
+    async def setup_ssh_connection(self, clustername,
+                                   op_key='SUBMIT',
+                                   user='ekoch',
                                    max_retry_connection=10,
                                    connection_timeout=60,
                                    reconnect_waittime=900):
@@ -151,7 +153,13 @@ class AutoPipeline(object):
         Setup and test the ssh connection to the cluster.
         '''
 
-        connect = setup_ssh_connection(clustername, user=user,
+        # Direct connection to the correct key for the requested operation
+        if op_key not in CLUSTER_AUTO_KEYS.keys():
+            raise KeyError(f"{op_key} is not in the keys of CLUSTER_AUTO_KEYS: {CLUSTER_AUTO_KEYS.keys()}")
+
+        connect = setup_ssh_connection(clustername,
+                                       CLUSTER_AUTO_KEYS[op_key],
+                                       user=user,
                                        max_retry_connection=max_retry_connection,
                                        connection_timeout=connection_timeout,
                                        reconnect_waittime=reconnect_waittime)
@@ -349,7 +357,7 @@ class AutoPipeline(object):
             cleanup_source(self.track_name, node='nrao-aoc')
 
 
-    async def setup_for_reduction_pipeline(self, clustername='cc-cedar',
+    async def setup_for_reduction_pipeline(self,
                                            pipeline_branch='main',
                                            **ssh_kwargs):
 
@@ -370,35 +378,47 @@ class AutoPipeline(object):
         log.info("Downloading updates of antenna corrections to 'VLA_antcorr_tables'")
         download_vla_antcorr(data_folder="VLA_antcorr_tables")
 
-        log.info(f"Starting connection to {clustername}")
-
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-
         ssh_retry_times = 0
 
         while True:
             try:
                 with time_limit(self._ssh_max_connect_time):
 
-                    connect.open()
-                    log.info(f"Opened connection to {clustername} on try {ssh_retry_times}")
+                    cluster_key = "cedar-robot-jobsetup"
+                    log.info(f"Starting connection to {cluster_key} on try {ssh_retry_times}")
+
+                    connect = await self.setup_ssh_connection(cluster_key,
+                                                              **ssh_kwargs)
+
+                    log.info(f"Returned connection for {cluster_key}")
 
                     # Grab the repo; this is where we can also specify a version number, too
-                    cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
+                    cd_location = f'scratch/VLAXL_reduction/{self.track_folder_name}/'
 
-                    log.info(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
+                    log.info(f"Cloning ReductionPipeline to {cluster_key} at {cd_location}")
 
-                    git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
-                    git_checkout_command = f'git checkout {pipeline_branch}'
-                    full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command} ; cd ReductionPipeline ; {git_checkout_command}'
+                    full_command = f'{cd_location} {pipeline_branch}'
                     result = run_command(connect, full_command)
 
+                    connect.close()
+
                     # Move the antenna correction folder over:
-                    log.info(f"Copying antenna corrections to {clustername}")
-                    result = connect.run(f"{cd_command}/VLA_antcorr_tables || mkdir scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables")
+                    cluster_key = "cedar-robot-generic"
+                    log.info(f"Copying antenna corrections to {cluster_key}")
+                    log.info(f"Starting connection to {cluster_key} on try {ssh_retry_times}")
+
+                    connect = await self.setup_ssh_connection(cluster_key,
+                                                              **ssh_kwargs)
+
+                    log.info(f"Returned connection for {cluster_key}")
+
+                    antcorr_location = f"{cd_location}/VLA_antcorr_tables"
+                    result = connect.run(f"mkdir -p {antcorr_location}")
                     for file in glob("VLA_antcorr_tables/*.txt"):
-                        result = connect.put(file, remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables/")
+                        result = connect.put(file, remote=f"{antcorr_location}/")
+                    connect.close()
+
+                    del connect
 
                     break
 
@@ -411,27 +431,15 @@ class AutoPipeline(object):
 
                 await asyncio.sleep(self._ssh_retry_waitime)
 
-                connect.close()
-                del connect
-                connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-                log.info(f"Remade connection for {clustername} on try {ssh_retry_times}")
-
-                continue
-
-        # if connect.is_connected:
-        connect.close()
-        del connect
-
 
     async def initial_job_submission(self,
-                                    clustername='cc-cedar',
+                                     clustername='cc-cedar',
                                     scripts_dir=Path('reduction_job_scripts/'),
                                     split_type='all',
                                     reindex=False,
                                     casa_version="6.2",
                                     submit_continuum_pipeline=True,
                                     submit_line_pipeline=True,
-                                    clusteracct=None,
                                     split_time=None,
                                     continuum_time=None,
                                     line_time=None,
@@ -457,7 +465,9 @@ class AutoPipeline(object):
 
         """
 
-        log.info(f"Starting job submission of {self.ebid} on {clustername}.")
+        cluster_key = "cedar-robot-generic"
+
+        log.info(f"Starting job submission of {self.ebid} on {cluster_key}.")
 
         # Create local folder where our job submission scripts will be saved to prior to
         # transfer
@@ -467,11 +477,10 @@ class AutoPipeline(object):
             track_scripts_dir.mkdir()
 
         # Setup connection:
-        log.info(f"Starting connection to {clustername}")
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-        connect.open()
-        log.info(f"Opened connection to {clustername}")
+        log.info(f"Starting connection to {cluster_key}")
+
+        connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+        log.info(f"Returned connection for {cluster_key}")
 
         # Create 1. job to import and split.
         log.info(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
@@ -481,6 +490,13 @@ class AutoPipeline(object):
         if (track_scripts_dir / job_split_filename).exists():
             (track_scripts_dir / job_split_filename).unlink()
 
+        slurm_split_kwargs = {}
+
+        if split_time is not None:
+            slurm_split_kwargs['job_time'] = split_time
+        if split_mem is not None:
+            slurm_split_kwargs['mem'] = split_mem
+
         # Create the job script.
         print(JOB_CREATION_FUNCTIONS[clustername]['IMPORT_SPLIT'](
                 target_name=self.track_folder_name.split('_')[0],
@@ -488,41 +504,37 @@ class AutoPipeline(object):
                 trackname=self.track_folder_name.split('_')[2],
                 split_type=split_type,
                 reindex=reindex,
-                slurm_kwargs={},
+                slurm_kwargs=slurm_split_kwargs,
                 setup_kwargs={},
                 casa_version=casa_version),
             file=open(track_scripts_dir / job_split_filename, 'a'))
 
         # Move the job script to the cluster:
-        log.info(f"Moving import/split job file for {self.ebid} to {clustername}")
+        log.info(f"Moving import/split job file for {self.ebid} to {cluster_key}")
         result = connect.put(track_scripts_dir / job_split_filename,
-                                  remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
+                             remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
-        chdir_cmd = f"cd scratch/VLAXL_reduction/{self.track_folder_name}/"
+        # Setup connection:
+        cluster_key_submit = 'cedar-submitter'
+        log.info(f"Starting connection to {cluster_key_submit}")
 
-        if clusteracct is not None:
-            acct_str = f"--account={clusteracct}"
-        else:
-            acct_str = ""
+        connect_submit = await self.setup_ssh_connection(cluster_key_submit, **ssh_kwargs)
+        log.info(f"Returned connection for {cluster_key_submit}")
 
-        if split_time is not None:
-            time_str = f"--time={split_time}"
-        else:
-            time_str = ""
+        # arg0
+        chdir_cmd = f"scratch/VLAXL_reduction/{self.track_folder_name}/"
 
-        if split_mem is not None:
-            mem_str = f"--mem={split_mem}"
-        else:
-            mem_str = ""
-
-        submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {mem_str} {job_split_filename}"
-
-        log.info(f"Submitting command: {submit_cmd}")
+        log.info(f"Submitting job file: {job_split_filename}")
 
         try:
+            # Try to avoid needing an extra sacct run in run_job_submission
+
+            result = connect_submit.run(f"{chdir_cmd} {job_split_filename}")
+            split_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
             # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-            split_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                  self.track_name, 'import_and_split')
+            # split_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
+            #                                       self.track_name, 'import_and_split')
         except ValueError as exc:
             split_jobid = None
             raise ValueError(f"Failed to submit split job! See stderr: {exc}")
@@ -551,11 +563,20 @@ class AutoPipeline(object):
             if (track_scripts_dir / job_continuum_filename).exists():
                 (track_scripts_dir / job_continuum_filename).unlink()
 
+
+            slurm_continuum_kwargs = {}
+
+            if continuum_time is not None:
+                slurm_continuum_kwargs['job_time'] = continuum_time
+
+            if continuum_mem is not None:
+                slurm_continuum_kwargs['mem'] = continuum_mem
+
             print(JOB_CREATION_FUNCTIONS[clustername]['CONTINUUM_PIPE'](
                     target_name=self.track_folder_name.split('_')[0],
                     config=self.track_folder_name.split('_')[1],
                     trackname=self.track_folder_name.split('_')[2],
-                    slurm_kwargs={},
+                    slurm_kwargs=slurm_continuum_kwargs,
                     setup_kwargs={},
                     conditional_on_jobnum=self.importsplit_jobid,
                     casa_version=casa_version),
@@ -566,24 +587,15 @@ class AutoPipeline(object):
             result = connect.put(track_scripts_dir / job_continuum_filename,
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
-            if continuum_time is not None:
-                time_str = f"--time={continuum_time}"
-            else:
-                time_str = ""
-
-            if continuum_mem is not None:
-                mem_str = f"--mem={continuum_mem}"
-            else:
-                mem_str = ""
-
-            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {mem_str} {job_continuum_filename}"
-
-            log.info(f"Submitting command: {submit_cmd}")
+            log.info(f"Submitting job file: {job_continuum_filename}")
 
             try:
+                result = connect_submit.run(f"{chdir_cmd} {job_continuum_filename}")
+                continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
                 # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                continuum_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                           self.track_name, 'continuum_pipeline')
+                # continuum_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
+                #                                            self.track_name, 'continuum_pipeline')
             except ValueError as exc:
                 continuum_jobid = None
                 raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
@@ -617,11 +629,18 @@ class AutoPipeline(object):
             if (track_scripts_dir / job_line_filename).exists():
                 (track_scripts_dir / job_line_filename).unlink()
 
+            slurm_line_kwargs = {}
+            if line_time is not None:
+                slurm_line_kwargs['job_time'] = line_time
+
+            if line_mem is not None:
+                slurm_line_kwargs['mem'] = line_mem
+
             print(JOB_CREATION_FUNCTIONS[clustername]['LINE_PIPE'](
                     target_name=self.track_folder_name.split('_')[0],
                     config=self.track_folder_name.split('_')[1],
                     trackname=self.track_folder_name.split('_')[2],
-                    slurm_kwargs={},
+                    slurm_kwargs=slurm_line_kwargs,
                     setup_kwargs={},
                     conditional_on_jobnum=self.importsplit_jobid,
                     casa_version=casa_version),
@@ -632,19 +651,7 @@ class AutoPipeline(object):
             result = connect.put(track_scripts_dir / job_line_filename,
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
-            if line_time is not None:
-                time_str = f"--time={line_time}"
-            else:
-                time_str = ""
-
-            if line_mem is not None:
-                mem_str = f"--mem={line_mem}"
-            else:
-                mem_str = ""
-
-            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {mem_str} {job_line_filename}"
-
-            log.info(f"Submitting command: {submit_cmd}")
+            log.info(f"Submitting job file: {job_line_filename}")
 
             # Lines
             update_track_status(self.ebid,
@@ -653,9 +660,12 @@ class AutoPipeline(object):
                                 status_col=2)
 
             try:
+                result = connect_submit.run(f"{chdir_cmd} {job_line_filename}")
+                line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
                 # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                line_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                      self.track_name, 'line_pipeline')
+                # line_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
+                #                                       self.track_name, 'line_pipeline')
             except ValueError as exc:
                 line_jobid = None
                 raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
@@ -676,6 +686,10 @@ class AutoPipeline(object):
         if connect.is_connected:
             connect.close()
             del connect
+
+        if connect_submit.is_connected:
+            connect_submit.close()
+            del connect_submit
 
     async def get_job_notifications(self,
                             importsplit_jobid=None,
@@ -1070,7 +1084,11 @@ class AutoPipeline(object):
 
         # Setup connection:
         log.info(f"Starting connection to {clustername} for {self.track_folder_name}")
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
+
+        # NOTE: update this below
+        XXXXXXXX
+
+        connect = await self.setup_ssh_connection(clustername, op_key='SUBMIT', **ssh_kwargs)
         log.info(f"Returned connection for {clustername}")
         connect.open()
         log.info(f"Opened connection to {clustername}")
@@ -1105,14 +1123,16 @@ class AutoPipeline(object):
             else:
                 time_str = ""
 
+            # NOTE: change the options to be in the generated submission script directly.
+            XXXXXXX
             submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_split_filename}"
 
             log.info(f"Submitting command: {submit_cmd}")
 
             try:
                 # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                import_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                self.track_name, 'import_and_split')
+                import_jobid = await run_job_submission(connect, f"{chdir_cmd} {submit_cmd}",
+                                                        self.track_name, 'import_and_split')
             except ValueError as exc:
                 import_jobid = None
                 raise ValueError(f"Failed to submit split job! See stderr: {exc}")
@@ -1577,6 +1597,9 @@ class AutoPipeline(object):
 
             log.info(f"Starting connection to {clustername}")
 
+            # NOTE: transfer job key
+            XXXXXXXX
+
             connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
             log.info(f"Returned connection for {clustername}")
             connect.open()
@@ -1628,6 +1651,9 @@ class AutoPipeline(object):
             task_copy = subprocess.run(task_command, capture_output=True)
 
             log.info(f"Starting connection to {clustername}")
+
+            # NOTE: transfer job key
+            XXXXXXXXX
 
             connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
             log.info(f"Returned connection for {clustername}")
@@ -1729,6 +1755,9 @@ class AutoPipeline(object):
         '''
 
         log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
+
+        # NOTE: job cleanup key
+        XXXXXXXXXXX
 
         connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
         log.info(f"Returned connection for {clustername}")
@@ -1966,6 +1995,10 @@ class AutoPipeline(object):
 
         # Clean up temp ms.tar file on project space.
         log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
+
+        # NOTE: job key for final cleanup
+        XXXXXXXXXXX
+
         connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
         log.info(f"Returned connection for {clustername}")
         connect.open()
