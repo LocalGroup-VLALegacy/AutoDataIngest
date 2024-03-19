@@ -111,17 +111,21 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
         # Check the number of active jobs and storage usage.
         # Skip new runs until there are fewer jobs or more storage space.
+        cluster_key_status = 'cedar-robot-jobstatus'
+        cluster_key_quota = 'cedar-robot-lfsquota'
+
         try:
-            connect = setup_ssh_connection(CLUSTERNAME)
+            connect = setup_ssh_connection(cluster_key_status)
 
             df = get_slurm_job_monitor(connect)
+            connect.close()
 
             num_jobs_active = number_of_active_jobs(df)
 
             # Get storage space usage
-            free_space, free_filenum = get_lustre_storage_avail(connect, username=uname,
+            connect = setup_ssh_connection(cluster_key_quota)
+            free_space, free_filenum = get_lustre_storage_avail(connect,
                                                                 diskname='/scratch')
-
             connect.close()
 
             log.info(f"Free storage: {free_space} Free file num: {free_filenum}")
