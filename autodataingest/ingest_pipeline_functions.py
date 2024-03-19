@@ -1259,40 +1259,36 @@ class AutoPipeline(object):
 
         log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
 
-        # NOTE: job cleanup key
-        XXXXXXXXXXX
+        cluster_key = 'cedar-robot-generic'
 
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-        connect.open()
-        log.info(f"Opened connection to {clustername}")
+        connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+        log.info(f"Returned connection for {cluster_key}")
 
         if not do_remove_whole_track:
             # Change to the track directory, then delete the request data type folder
             # (continuum or speclines)
 
-            cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
+            path_to_track = f"scratch/VLAXL_reduction/{self.track_folder_name}/"
 
-            log.info(f"Cleaning up {data_type} on {clustername} at {cd_command}")
+            log.info(f"Cleaning up {data_type} on {clustername} at {path_to_track}")
 
             # A successful job will end with a .ms.tar file.
             if do_only_remove_ms:
-                rm_command = f"rm -rf {self.track_folder_name}_{data_type}/*.ms*.tar"
+                rm_command = f"rm -rf {path_to_track}/{self.track_folder_name}_{data_type}/*.ms*.tar"
             else:
-                rm_command = f"rm -rf {self.track_folder_name}_{data_type}"
+                rm_command = f"rm -rf {path_to_track}/{self.track_folder_name}_{data_type}"
 
         else:
 
-            cd_command = f'cd scratch/VLAXL_reduction/'
+            path_to_scratch = f'cd scratch/VLAXL_reduction/'
 
-            log.info(f"Final clean up on {clustername} for track {cd_command}")
+            log.info(f"Final clean up on {clustername} for track {path_to_scratch}")
 
-            rm_command = f"rm -rf {self.track_folder_name}"
+            rm_command = f"rm -rf {path_to_scratch}/{self.track_folder_name}"
 
-        full_command = f'{cd_command} && {rm_command}'
-        result = run_command(connect, full_command, allow_failure=True)
+        result = run_command(connect, rm_command, allow_failure=True)
 
-        log.info(f"Finished clean up on {clustername} for track {cd_command}")
+        log.info(f"Finished clean up on {clustername} with {rm_command}")
 
         if do_cleanup_tempstorage:
             log.info(f"Cleaning up temp project space on {clustername} for track {cd_command}")
@@ -1303,7 +1299,7 @@ class AutoPipeline(object):
 
             result = run_command(connect, rm_command, allow_failure=True)
 
-            log.info(f"Finished temp project clean up on {clustername} for track {cd_command}")
+            log.info(f"Finished temp project clean up on {clustername} for track {rm_command}")
 
         connect.close()
         del connect
