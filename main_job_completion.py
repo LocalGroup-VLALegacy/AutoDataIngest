@@ -9,7 +9,7 @@ from autodataingest.ingest_pipeline_functions import AutoPipeline
 
 from autodataingest.ssh_utils import setup_ssh_connection
 
-from autodataingest.gsheet_tracker.gsheet_functions import (find_running_tracks, update_track_status)
+from autodataingest.gsheet_tracker.gsheet_functions import find_running_tracks
 
 from autodataingest.job_monitor import get_slurm_job_monitor, identify_completions
 
@@ -46,7 +46,8 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
             await asyncio.sleep(120)
 
-        connect = setup_ssh_connection(clustername)
+        cluster_key = 'cedar-robot-jobstatus'
+        connect = setup_ssh_connection(cluster_key)
         df = get_slurm_job_monitor(connect)
         connect.close()
 
@@ -137,7 +138,6 @@ async def consume(queue, sleeptime=60):
         log.info(f"Creating flagging sheet for {data_type} (if needed)")
 
         # Create the flagging sheets in the google sheet
-        # await auto_pipe.make_flagging_sheet(data_type='continuum')
         await auto_pipe.make_flagging_sheet(data_type=data_type)
 
         # Create the final QA products and move to the webserver
@@ -146,9 +146,6 @@ async def consume(queue, sleeptime=60):
 
         log.info(f"Updating track status")
         auto_pipe.set_job_status(data_type, "COMPLETED")
-        # update_track_status(auto_pipe.ebid, message=f"Ready for QA",
-        #                     sheetname=auto_pipe.sheetname,
-        #                     status_col=1 if data_type == 'continuum' else 2)
 
         await asyncio.sleep(sleeptime)
 

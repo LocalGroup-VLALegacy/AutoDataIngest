@@ -21,9 +21,11 @@ def get_slurm_job_monitor(connect, time_range_days=7, timeout=600,
     start_time = time_now - time_week
     start_time_str = start_time.strftime("%Y-%m-%d")
 
-    slurm_cmd = f'sacct --format="JobID,JobName%110,State%20" --starttime={start_time_str} | grep -v "^[0-9]*\."'
+    # See status_robot.sh for more info
 
-    result = run_command(connect, slurm_cmd, test_connection=False,
+    # slurm_cmd = f'sacct --format="JobID,JobName%110,State%20" --starttime={start_time_str} | grep -v "^[0-9]*\."'
+
+    result = run_command(connect, start_time_str, test_connection=False,
                          timeout=timeout)
 
     # Parse the output into a table.
