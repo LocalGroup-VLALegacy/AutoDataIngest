@@ -42,7 +42,7 @@ from autodataingest.archive_request import archive_copy_SDM
 # Import dictionary defining the job creation script functions for each
 # cluster.
 from autodataingest.cluster_configs import (JOB_CREATION_FUNCTIONS, CLUSTERADDRS,
-                                            ENDPOINT_INFO, CLUSTER_AUTO_KEYS)
+                                            ENDPOINT_INFO)
 
 from autodataingest.utils import uniquify, uniquify_folder
 
@@ -74,15 +74,6 @@ class AutoPipeline(object):
         self._restart_continuum_count = 0
 
         self._grab_sheetdata()
-
-        # TODO: add flags that can provide the stage we need to run from.
-        # This enables easy restarting of tracks partially processed.
-
-        self.completions = {'continuum': False,
-                            'speclines': False}
-
-        self._allow_speclines_run = True
-        self._allow_continuum_run = True
 
     def _grab_sheetdata(self):
         '''
