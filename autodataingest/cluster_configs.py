@@ -25,5 +25,15 @@ JOB_CREATION_FUNCTIONS = \
                   'CONTINUUM_PIPE': jobs_continuum.cedar_submission_script,
                   'LINE_PIPE': jobs_line.cedar_submission_script}}
 
+# Note that these are now broken down by job execution type
+# These are defined in the ssh config file.
+# CLUSTERADDRS = \
+#     {'cc-cedar': 'robot.cedar.alliancecan.ca'}
+
 CLUSTERADDRS = \
-    {'cc-cedar': 'robot.cedar.alliancecan.ca'}
+    {'cedar-submitter': 'cedar-submitter',
+     'cedar-robot-generic': 'cedar-robot-generic',
+     'cedar-robot-jobsetup': 'cedar-robot-jobsetup',
+     'cedar-robot-jobstatus': 'cedar-robot-jobstatus',
+     'cedar-robot-lfsquota': 'cedar-robot-lfsquota',
+     }
