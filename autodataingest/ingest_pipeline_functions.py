@@ -144,8 +144,6 @@ class AutoPipeline(object):
         return self.track_name.split(".")[0]
 
     async def setup_ssh_connection(self, clustername,
-                                   op_key='SUBMIT',
-                                   user='ekoch',
                                    max_retry_connection=10,
                                    connection_timeout=60,
                                    reconnect_waittime=900):
@@ -153,13 +151,7 @@ class AutoPipeline(object):
         Setup and test the ssh connection to the cluster.
         '''
 
-        # Direct connection to the correct key for the requested operation
-        if op_key not in CLUSTER_AUTO_KEYS.keys():
-            raise KeyError(f"{op_key} is not in the keys of CLUSTER_AUTO_KEYS: {CLUSTER_AUTO_KEYS.keys()}")
-
         connect = setup_ssh_connection(clustername,
-                                       CLUSTER_AUTO_KEYS[op_key],
-                                       user=user,
                                        max_retry_connection=max_retry_connection,
                                        connection_timeout=connection_timeout,
                                        reconnect_waittime=reconnect_waittime)
