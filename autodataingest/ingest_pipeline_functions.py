@@ -979,9 +979,6 @@ class AutoPipeline(object):
 
         log.info(task_qaplot_make.stdout)
 
-        # qaplotter.make_all_plots(flagging_sheet_link=flagging_sheet_link,
-        #                          show_target_linesonly=True)
-
         # Clean up the original txt files and images. These are kept in
         # the tar files and do not need to be duplicated on the webserver.
         task_command = ['rm', '-r', "quicklook_images"]
@@ -1073,11 +1070,6 @@ class AutoPipeline(object):
                                  scripts_dir=Path('reduction_job_scripts/'),
                                  **ssh_kwargs,
                                  ):
-        '''
-        1. Download the flagging file
-        TODO:
-        2. Copy to git repo, make commit, push to gihub
-        '''
 
         if not data_type in ['continuum', 'speclines']:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
@@ -1113,18 +1105,14 @@ class AutoPipeline(object):
 
             task_copy = subprocess.run(task_command, capture_output=True)
 
-            log.info(f"Starting connection to {clustername}")
+            cluster_key = 'cedar-robot-generic'
+            log.info(f"Starting connection to {cluster_key}")
 
-            # NOTE: transfer job key
-            XXXXXXXX
-
-            connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-            log.info(f"Returned connection for {clustername}")
-            connect.open()
-            log.info(f"Opened connection to {clustername}")
+            connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+            log.info(f"Returned connection for {cluster_key}")
 
             result = connect.put(newfilename,
-                                remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
+                                 remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
 
             connect.close()
             del connect
