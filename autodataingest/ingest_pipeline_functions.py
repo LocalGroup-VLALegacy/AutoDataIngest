@@ -1156,15 +1156,12 @@ class AutoPipeline(object):
 
             task_copy = subprocess.run(task_command, capture_output=True)
 
-            log.info(f"Starting connection to {clustername}")
+            cluster_key = 'cedar-robot-generic'
 
-            # NOTE: transfer job key
-            XXXXXXXXX
+            log.info(f"Starting connection to {cluster_key}")
 
-            connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-            log.info(f"Returned connection for {clustername}")
-            connect.open()
-            log.info(f"Opened connection to {clustername}")
+            connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+            log.info(f"Returned connection for {cluster_key}")
 
             result = connect.put(newfilename,
                                 remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
