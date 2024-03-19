@@ -1495,13 +1495,9 @@ class AutoPipeline(object):
         # Clean up temp ms.tar file on project space.
         log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
 
-        # NOTE: job key for final cleanup
-        XXXXXXXXXXX
-
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-        connect.open()
-        log.info(f"Opened connection to {clustername}")
+        cluster_key = 'cedar-robot-generic'
+        connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+        log.info(f"Returned connection for {cluster_key}")
 
         # NOTE: Keep the original delete here for now, since failures are allowed.
         # Remove after transition to the split data products.
@@ -1509,12 +1505,10 @@ class AutoPipeline(object):
                              f"{self.track_folder_name}.ms.split.tar",
                              f"{self.track_folder_name}.ms.split_calibrators.tar"]:
 
-            cd_command = f"cd {staging_dir}"
-            rm_command = f"rm -rf {product_name}"
-            full_command = f'{cd_command} && {rm_command}'
+            rm_command = f"rm -rf {staging_dir}/{product_name}"
 
-            result = run_command(connect, full_command, allow_failure=True)
-            log.info(f"Finished cleaning up temp ms file up on {clustername} for track {cd_command}")
+            result = run_command(connect, rm_command, allow_failure=True)
+            log.info(f"Finished cleaning up temp ms file up on {clustername} with: {rm_command}")
 
         connect.close()
         del connect
