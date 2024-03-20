@@ -80,29 +80,28 @@ async def consume(queue, sleeptime=60):
                 if DO_DATA_TRANSFER:
                     await auto_pipe.transfer_calibrated_data(data_type=data_type,
                                                             clustername='cc-cedar')
-                    # continue
 
-                # Move pipeline products to QA webserver
-                await auto_pipe.transfer_pipeline_products(data_type=data_type,
-                                                        startnode=CLUSTERNAME,
-                                                        endnode='ingester')
+                if DO_PIPELINE_PRODS:
+                    # Move pipeline products to QA webserver
+                    await auto_pipe.transfer_pipeline_products(data_type=data_type,
+                                                            startnode=CLUSTERNAME,
+                                                            endnode='ingester')
 
-                await asyncio.sleep(sleeptime)
+                    await asyncio.sleep(sleeptime)
 
-                log.info(f"Creating flagging sheet for {data_type} (if needed)")
+                    log.info(f"Creating flagging sheet for {data_type} (if needed)")
 
-                # Create the flagging sheets in the google sheet
-                # await auto_pipe.make_flagging_sheet(data_type='continuum')
-                await auto_pipe.make_flagging_sheet(data_type=data_type)
+                    # Create the flagging sheets in the google sheet
+                    await auto_pipe.make_flagging_sheet(data_type=data_type)
 
-                # Create the final QA products and move to the webserver
-                log.info(f"Creating QA products")
-                auto_pipe.make_qa_products(data_type=data_type)
+                    # Create the final QA products and move to the webserver
+                    log.info(f"Creating QA products")
+                    auto_pipe.make_qa_products(data_type=data_type)
 
-                log.info(f"Updating track status")
-                update_track_status(auto_pipe.ebid, message=f"Ready for QA",
-                                    sheetname=auto_pipe.sheetname,
-                                    status_col=1 if data_type == 'continuum' else 2)
+                    log.info(f"Updating track status")
+                    update_track_status(auto_pipe.ebid, message=f"Ready for QA",
+                                        sheetname=auto_pipe.sheetname,
+                                        status_col=1 if data_type == 'continuum' else 2)
 
                 await asyncio.sleep(sleeptime)
 
@@ -151,22 +150,26 @@ if __name__ == "__main__":
     SHEETNAME = '20A - OpLog Summary'
     # SHEETNAME = 'Archival Track Summary'
 
-    DO_DATA_TRANSFER = True
-    # DO_DATA_TRANSFER = False
+    # DO_DATA_TRANSFER = True
+    DO_DATA_TRANSFER = False
+
+    DO_PIPELINE_PRODS = True
+    # DO_PIPELINE_PRODS = False
 
     # Specify a target to grab the QA products and process
-    TARGETS = ['IC10', 'NGC6822', 'M31', 'M33', 'IC1613', 'WLM']
+    TARGETS = ['IC10', 'NGC6822', 'M31', 'M33', 'IC1613', 'WLM',
+               'NGC4254', 'NGC628', 'NGC3627', 'NGC1087', 'IC342']
 
 
     MANUAL_EBID_LIST = []
 
     # ebid, continuum, lines
 
-    MANUAL_EBID_LIST.append([40264132, True, False])
+    # MANUAL_EBID_LIST.append([43832945, True, False])
 
-    # MANUAL_EBID_LIST.append([41031266, False, True])
+    MANUAL_EBID_LIST.append([43829088, False, True])
 
-    # MANUAL_EBID_LIST.append([40729151, True, True])
+    # MANUAL_EBID_LIST.append([43832945, True, True])
 
 
     start_with_newest = False
