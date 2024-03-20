@@ -375,8 +375,8 @@ if __name__ == "__main__":
     CLUSTER_SCHEDCMD = "sbatch"
 
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '70:00:00'
-    CLUSTER_LINE_JOBTIME = '70:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '72:00:00'
+    CLUSTER_LINE_JOBTIME = '72:00:00'
 
     CLUSTER_SPLIT_MEM = '20000M'
     CLUSTER_CONTINUUM_MEM = '24000M'
@@ -403,24 +403,11 @@ if __name__ == "__main__":
     sname = 'ualberta.ca'
     EMAILADDR = f"{uname}@{sname}"
 
-    NRAODATAPATH = "/lustre/aoc/projects/20A-346/data_staged/"
-
     COMPLETEDDATAPATH = "/project/rrg-eros-ab/ekoch/VLAXL/calibrated/"
 
     SHEETNAMES = ['20A - OpLog Summary', 'Archival Track Summary']
 
-    # Ask for password that will be used for ssh connections where the key connection
-    # is not working.
-    from getpass import unix_getpass
-
-    password = unix_getpass()
-
     test_case_run_newest = False
-
-    run_newest_first = True
-
-    # Specify a target to grab the QA products and process
-    TARGETS = ['IC10', 'NGC6822']
 
     start_with_newest = False
 
