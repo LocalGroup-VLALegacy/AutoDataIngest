@@ -48,7 +48,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
         cluster_key = 'cedar-robot-jobstatus'
         connect = setup_ssh_connection(cluster_key)
-        df = get_slurm_job_monitor(connect)
+        df = get_slurm_job_monitor(connect, time_range_days=TIME_RANGE_DAYS)
         connect.close()
 
         log.info("Checking for completed jobs")
@@ -194,6 +194,9 @@ if __name__ == "__main__":
     SHEETNAMES = ['20A - OpLog Summary', 'Archival Track Summary']
 
     DO_DATA_TRANSFER = True
+
+    # Time range to check for job completion
+    TIME_RANGE_DAYS = 14
 
     while True:
 
