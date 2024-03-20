@@ -17,7 +17,7 @@ source ~/.bashrc
 
 cd /home/datamanager/space/vlaxl/calibrated/
 
-source_ep=c99fd40c-5545-11e7-beb6-22000b9a448b
+source_ep=8dec4129-9ab4-451d-a45f-5b4b8471f7a3
 dest_ep=e8fc98cc-9ca8-11eb-92cd-6b08dd67ff48
 
 # Get current list of MS files on the drive after deleting the previous list.
