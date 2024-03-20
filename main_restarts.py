@@ -111,17 +111,21 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
 
         # Check the number of active jobs and storage usage.
         # Skip new runs until there are fewer jobs or more storage space.
+        cluster_key_status = 'cedar-robot-jobstatus'
+        cluster_key_quota = 'cedar-robot-lfsquota'
+
         try:
-            connect = setup_ssh_connection(CLUSTERNAME)
+            connect = setup_ssh_connection(cluster_key_status)
 
             df = get_slurm_job_monitor(connect)
+            connect.close()
 
             num_jobs_active = number_of_active_jobs(df)
 
             # Get storage space usage
-            free_space, free_filenum = get_lustre_storage_avail(connect, username=uname,
+            connect = setup_ssh_connection(cluster_key_quota)
+            free_space, free_filenum = get_lustre_storage_avail(connect,
                                                                 diskname='/scratch')
-
             connect.close()
 
             log.info(f"Free storage: {free_space} Free file num: {free_filenum}")
@@ -310,70 +314,6 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
 
                 await asyncio.sleep(sleeptime)
 
-            # Wait for job completion
-            # await auto_pipe.get_job_notifications(check_continuum_job=restart_continuum,
-            #                                       check_line_job=restart_speclines,
-            #                                       sleeptime=1800)
-
-            # log.info("Received job notifications for {auto_pipe.track_folder_name}")
-
-            # # If completed, finish off before the others are done:
-            # for data_type in auto_pipe.completions:
-
-            #     if not auto_pipe.completions[data_type]:
-            #         continue
-
-            #     await auto_pipe.transfer_pipeline_products(data_type=data_type,
-            #                                                startnode=CLUSTERNAME,
-            #                                                endnode='ingester')
-
-            #     await auto_pipe.transfer_calibrated_data(data_type=data_type,
-            #                                              clustername=CLUSTERNAME)
-
-            #     # Create the flagging sheets in the google sheet
-            #     await auto_pipe.make_flagging_sheet(data_type=data_type)
-
-            #     # Create the final QA products and move to the webserver
-            #     log.info("Transferring QA products to webserver")
-            #     auto_pipe.make_qa_products(data_type=data_type)
-
-            #     auto_pipe.completions[data_type] = False
-
-            # Handle submissions
-            # while any(list(auto_pipe.restarts.values())):
-            #     log.info(f"Checking and resubmitting pipeline jobs to {CLUSTERNAME}")
-            #     log.info(f"Resubmissions only for failed/timeout pipeline jobs ")
-            #     await auto_pipe.restart_job_submission(
-            #                             max_resubmission=1,
-            #                             clustername=CLUSTERNAME,
-            #                             scripts_dir=Path('reduction_job_scripts/'),
-            #                             submit_continuum_pipeline=restart_continuum,
-            #                             submit_line_pipeline=restart_speclines,
-            #                             clusteracct=CLUSTERACCOUNT,
-            #                             split_time=CLUSTER_SPLIT_JOBTIME,
-            #                             continuum_time=CLUSTER_CONTINUUM_JOBTIME,
-            #                             line_time=CLUSTER_LINE_JOBTIME,
-            #                             scheduler_cmd=CLUSTER_SCHEDCMD,)
-
-            #     log.info("Checking and waiting for job completion")
-            #     # Return dictionary of jobs to restart.
-            #     await auto_pipe.get_job_notifications(check_continuum_job=RUN_CONTINUUM,
-            #                                           check_line_job=RUN_LINES,
-            #                                           sleeptime=1800)
-
-            # # Move pipeline products to QA webserver
-            # for data_type in auto_pipe.completions:
-
-            #     await auto_pipe.transfer_pipeline_products(data_type=data_type,
-            #                                                startnode=CLUSTERNAME,
-            #                                                endnode='ingester')
-
-            #     # Create the flagging sheets in the google sheet
-            #     await auto_pipe.make_flagging_sheet(data_type=data_type)
-
-            #     # Create the final QA products and move to the webserver
-            #     auto_pipe.make_qa_products(data_type=data_type)
-
         log.info('Completed {}...'.format(auto_pipe.ebid))
 
         # Notify the queue that the item has been processed
@@ -435,8 +375,8 @@ if __name__ == "__main__":
     CLUSTER_SCHEDCMD = "sbatch"
 
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '70:00:00'
-    CLUSTER_LINE_JOBTIME = '70:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '72:00:00'
+    CLUSTER_LINE_JOBTIME = '72:00:00'
 
     CLUSTER_SPLIT_MEM = '20000M'
     CLUSTER_CONTINUUM_MEM = '24000M'
@@ -463,24 +403,11 @@ if __name__ == "__main__":
     sname = 'ualberta.ca'
     EMAILADDR = f"{uname}@{sname}"
 
-    NRAODATAPATH = "/lustre/aoc/projects/20A-346/data_staged/"
-
     COMPLETEDDATAPATH = "/project/rrg-eros-ab/ekoch/VLAXL/calibrated/"
 
     SHEETNAMES = ['20A - OpLog Summary', 'Archival Track Summary']
 
-    # Ask for password that will be used for ssh connections where the key connection
-    # is not working.
-    from getpass import unix_getpass
-
-    password = unix_getpass()
-
     test_case_run_newest = False
-
-    run_newest_first = True
-
-    # Specify a target to grab the QA products and process
-    TARGETS = ['IC10', 'NGC6822']
 
     start_with_newest = False
 
