@@ -137,7 +137,7 @@ async def consume(queue):
                                 scripts_dir=Path('reduction_job_scripts/'),
                                 submit_continuum_pipeline=RUN_CONTINUUM,
                                 submit_line_pipeline=RUN_LINES,
-                                clusteracct=CLUSTERACCOUNT,
+                                # clusteracct=CLUSTERACCOUNT,
                                 split_time=CLUSTER_SPLIT_JOBTIME,
                                 continuum_time=CLUSTER_CONTINUUM_JOBTIME,
                                 line_time=CLUSTER_LINE_JOBTIME,
@@ -223,8 +223,8 @@ if __name__ == "__main__":
     CLUSTER_SCHEDCMD = "sbatch"
 
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '68:00:00'
-    CLUSTER_LINE_JOBTIME = '68:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '96:00:00'
+    CLUSTER_LINE_JOBTIME = '96:00:00'
 
     CLUSTER_SPLIT_MEM = '32000M'
     CLUSTER_CONTINUUM_MEM = '24000M'
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     RUN_CONTINUUM = True
     RUN_LINES = True
 
-    NUM_CONSUMERS = 2
+    NUM_CONSUMERS = 1
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
@@ -245,9 +245,9 @@ if __name__ == "__main__":
 
     # Ask for password that will be used for ssh connections where the key connection
     # is not working.
-    from getpass import unix_getpass
+    # from getpass import unix_getpass
 
-    password = unix_getpass()
+    # password = unix_getpass()
 
     test_case_run_newest = False
 

@@ -96,12 +96,15 @@ async def consume(queue, sleeptime=60):
 
                     # Create the final QA products and move to the webserver
                     log.info(f"Creating QA products")
-                    auto_pipe.make_qa_products(data_type=data_type)
+                    has_completed = auto_pipe.make_qa_products(data_type=data_type)
 
-                    log.info(f"Updating track status")
-                    update_track_status(auto_pipe.ebid, message=f"Ready for QA",
-                                        sheetname=auto_pipe.sheetname,
-                                        status_col=1 if data_type == 'continuum' else 2)
+                    if has_completed:
+                        log.info(f"Updating track status")
+                        update_track_status(auto_pipe.ebid, message=f"Ready for QA",
+                                            sheetname=auto_pipe.sheetname,
+                                            status_col=1 if data_type == 'continuum' else 2)
+                    else:
+                        log.info(f"Transfer or product creation failed for {auto_pipe.ebid}. Exiting.")
 
                 await asyncio.sleep(sleeptime)
 
@@ -147,29 +150,30 @@ if __name__ == "__main__":
 
     uname = 'ekoch'
 
-    SHEETNAME = '20A - OpLog Summary'
-    # SHEETNAME = 'Archival Track Summary'
+    # SHEETNAME = '20A - OpLog Summary'
+    SHEETNAME = 'Archival Track Summary'
 
-    # DO_DATA_TRANSFER = True
-    DO_DATA_TRANSFER = False
+    DO_DATA_TRANSFER = True
+    # DO_DATA_TRANSFER = False
 
     DO_PIPELINE_PRODS = True
     # DO_PIPELINE_PRODS = False
 
     # Specify a target to grab the QA products and process
     TARGETS = ['IC10', 'NGC6822', 'M31', 'M33', 'IC1613', 'WLM',
-               'NGC4254', 'NGC628', 'NGC3627', 'NGC1087', 'IC342']
+               'NGC4254', 'NGC628', 'NGC3627', 'NGC1087', 'IC342',
+               'HVC']
 
 
     MANUAL_EBID_LIST = []
 
     # ebid, continuum, lines
 
-    # MANUAL_EBID_LIST.append([43832945, True, False])
+    MANUAL_EBID_LIST.append([43817526, True, False])
 
-    MANUAL_EBID_LIST.append([43829088, False, True])
+    # MANUAL_EBID_LIST.append([43933810, False, True])
 
-    # MANUAL_EBID_LIST.append([43832945, True, True])
+    # MANUAL_EBID_LIST.append([43161764, True, True])
 
 
     start_with_newest = False

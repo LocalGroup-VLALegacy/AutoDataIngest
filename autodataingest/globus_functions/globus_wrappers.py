@@ -294,6 +294,7 @@ def transfer_general(filename, output_destination,
     # Check if the input file/folder exists:
     task_command = ['globus', 'ls', "/".join(input_cmd.split("/")[:-1])]
 
+    log.info(f"Full globus command is: {task_command}")
     task_check = subprocess.run(task_command, capture_output=True)
 
     base_filename = filename.split('/')[0]

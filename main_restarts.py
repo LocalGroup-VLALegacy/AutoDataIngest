@@ -32,7 +32,7 @@ def allow_newjobs_check(free_space, free_filenum, num_jobs_active):
         (num_jobs_active < MAX_NUMJOBS)
 
 
-async def produce(queue, sleeptime=120, start_with_newest=False,
+async def produce(queue, sleeptime=600, start_with_newest=False,
                   long_sleep=7200,
                   sheetnames=['20A - OpLog Summary']):
     '''
@@ -62,7 +62,7 @@ async def produce(queue, sleeptime=120, start_with_newest=False,
             for this_status in sheet_all_complete_statuses:
                 all_complete_statuses.append([this_status, sheetname])
 
-            await asyncio.sleep(120)
+            await asyncio.sleep(sleeptime)
 
 
         for rerun_stat, this_sheetname in all_complete_statuses:
@@ -300,7 +300,7 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
 
                 await auto_pipe.rerun_job_submission(clustername=CLUSTERNAME,
                                                     data_type=data_type,
-                                                    clusteracct=CLUSTERACCOUNT,
+                                                    # clusteracct=CLUSTERACCOUNT,
                                                     split_time=CLUSTER_SPLIT_JOBTIME,
                                                     line_time=CLUSTER_LINE_JOBTIME,
                                                     continuum_time=CLUSTER_LINE_JOBTIME,
@@ -375,8 +375,8 @@ if __name__ == "__main__":
     CLUSTER_SCHEDCMD = "sbatch"
 
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '72:00:00'
-    CLUSTER_LINE_JOBTIME = '72:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '120:00:00'
+    CLUSTER_LINE_JOBTIME = '120:00:00'
 
     CLUSTER_SPLIT_MEM = '20000M'
     CLUSTER_CONTINUUM_MEM = '24000M'
@@ -392,12 +392,12 @@ if __name__ == "__main__":
     REINDEX = False
 
     # Number of jobs to run simultaneously
-    NUM_CONSUMERS = 4
+    NUM_CONSUMERS = 1
 
     # Set limits allowed for new jobs to be started.
     MIN_STORAGE = 3 * u.TB
     MIN_NUMFILES = 1e5
-    MAX_NUMJOBS = 25
+    MAX_NUMJOBS = 35
 
     uname = 'ekoch'
     sname = 'ualberta.ca'
@@ -406,6 +406,8 @@ if __name__ == "__main__":
     COMPLETEDDATAPATH = "/project/rrg-eros-ab/ekoch/VLAXL/calibrated/"
 
     SHEETNAMES = ['20A - OpLog Summary', 'Archival Track Summary']
+    # SHEETNAMES = ['20A - OpLog Summary']
+    # SHEETNAMES = ['Archival Track Summary']
 
     test_case_run_newest = False
 

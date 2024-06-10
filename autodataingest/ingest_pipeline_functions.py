@@ -344,6 +344,7 @@ class AutoPipeline(object):
 
 
     async def setup_for_reduction_pipeline(self,
+                                           clustername='cc-cedar',
                                            pipeline_branch='main',
                                            **ssh_kwargs):
 
@@ -358,6 +359,8 @@ class AutoPipeline(object):
         TODO: Allow setting a version for the pipeline repo.
         3. Updates + transfers offline copies of the antenna positions corrections.
         """
+
+        log.info(f"Setting up pipeline on {clustername} for EBID {self.ebid}")
 
         # Before running any reduction, update the antenna correction files
         # and copy that folder to each folder where the pipeline is run
@@ -419,7 +422,7 @@ class AutoPipeline(object):
 
 
     async def initial_job_submission(self,
-                                     clustername='cc-cedar',
+                                    clustername='cc-cedar',
                                     scripts_dir=Path('reduction_job_scripts/'),
                                     split_type='all',
                                     reindex=False,
@@ -523,6 +526,10 @@ class AutoPipeline(object):
             #                                       self.track_name, 'import_and_split')
         except ValueError as exc:
             split_jobid = None
+
+            connect_submit.close()
+            del connect_submit
+
             raise ValueError(f"Failed to submit split job! See stderr: {exc}")
 
         # Record the job ID so we can check for completion.
@@ -871,7 +878,7 @@ class AutoPipeline(object):
 
         if not os.path.exists(product_file):
             log.warning(f"Unable to find products file at {product_file}")
-            return
+            return False
 
         # Make a temp folder to extract into:
         temp_path = product_file.with_suffix("")
@@ -1025,6 +1032,8 @@ class AutoPipeline(object):
             update_track_status(self.ebid, message=f"Ready for QA",
                                 sheetname=self.sheetname,
                                 status_col=1 if data_type == 'continuum' else 2)
+
+        return True
 
 
     @property
@@ -1214,7 +1223,7 @@ class AutoPipeline(object):
                                         reindex=reindex,
                                         submit_continuum_pipeline=True if data_type == 'continuum' else False,
                                         submit_line_pipeline=True if data_type == 'speclines' else False,
-                                        clusteracct=clusteracct,
+                                        # clusteracct=clusteracct,
                                         split_time=split_time,
                                         continuum_time=continuum_time,
                                         line_time=line_time,
@@ -1277,7 +1286,7 @@ class AutoPipeline(object):
         log.info(f"Finished clean up on {clustername} with {rm_command}")
 
         if do_cleanup_tempstorage:
-            log.info(f"Cleaning up temp project space on {clustername} for track {cd_command}")
+            log.info(f"Cleaning up temp project space on {clustername} for track {self.ebid}")
 
             rm_command = f"rm -r {temp_project_dir}/{self.track_folder_name}.{data_type}.ms*.tar"
 
@@ -1322,8 +1331,17 @@ class AutoPipeline(object):
                                            use_rootname=True)
 
         if transfer_taskid is None:
-            log.debug(f"No transfer task ID returned. Check existence of {filename}."
+            log.info(f"No transfer task ID returned. Check existence of {filename}."
                   " Exiting completion process.")
+
+            update_track_status(self.ebid,
+                    message=f"ISSUE: globus transfer failed.",
+                    sheetname=self.sheetname,
+                    status_col=1 if data_type == 'continuum' else 2)
+
+            raise ValueError(f"No transfer task ID returned. Check existence of {filename}."
+                  " Exiting completion process.")
+
             return
 
         self.transfer_taskid = transfer_taskid
@@ -1349,6 +1367,15 @@ class AutoPipeline(object):
         if transfer_taskid_cals is None:
             log.debug(f"No transfer task ID returned. Check existence of {filename_cals}."
                   " Exiting completion process.")
+
+            update_track_status(self.ebid,
+                    message=f"ISSUE: globus transfer failed.",
+                    sheetname=self.sheetname,
+                    status_col=1 if data_type == 'continuum' else 2)
+
+            raise ValueError(f"No transfer task ID returned. Check existence of {filename_cals}."
+                  " Exiting completion process.")
+
             return
 
         log.info(f"The globus transfer ID for cals is: {transfer_taskid_cals}")
