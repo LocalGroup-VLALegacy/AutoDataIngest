@@ -75,12 +75,6 @@ class AutoPipeline(object):
 
         self._grab_sheetdata()
 
-        # TODO: add flags that can provide the stage we need to run from.
-        # This enables easy restarting of tracks partially processed.
-
-        self.completions = {'continuum': False,
-                            'speclines': False}
-
         self._allow_speclines_run = True
         self._allow_continuum_run = True
 
@@ -143,7 +137,7 @@ class AutoPipeline(object):
 
         return self.track_name.split(".")[0]
 
-    async def setup_ssh_connection(self, clustername, user='ekoch',
+    async def setup_ssh_connection(self, clustername,
                                    max_retry_connection=10,
                                    connection_timeout=60,
                                    reconnect_waittime=900):
@@ -151,7 +145,7 @@ class AutoPipeline(object):
         Setup and test the ssh connection to the cluster.
         '''
 
-        connect = setup_ssh_connection(clustername, user=user,
+        connect = setup_ssh_connection(clustername,
                                        max_retry_connection=max_retry_connection,
                                        connection_timeout=connection_timeout,
                                        reconnect_waittime=reconnect_waittime)
@@ -349,7 +343,8 @@ class AutoPipeline(object):
             cleanup_source(self.track_name, node='nrao-aoc')
 
 
-    async def setup_for_reduction_pipeline(self, clustername='cc-cedar',
+    async def setup_for_reduction_pipeline(self,
+                                           clustername='cc-cedar',
                                            pipeline_branch='main',
                                            **ssh_kwargs):
 
@@ -365,15 +360,12 @@ class AutoPipeline(object):
         3. Updates + transfers offline copies of the antenna positions corrections.
         """
 
+        log.info(f"Setting up pipeline on {clustername} for EBID {self.ebid}")
+
         # Before running any reduction, update the antenna correction files
         # and copy that folder to each folder where the pipeline is run
         log.info("Downloading updates of antenna corrections to 'VLA_antcorr_tables'")
         download_vla_antcorr(data_folder="VLA_antcorr_tables")
-
-        log.info(f"Starting connection to {clustername}")
-
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
 
         ssh_retry_times = 0
 
@@ -381,24 +373,41 @@ class AutoPipeline(object):
             try:
                 with time_limit(self._ssh_max_connect_time):
 
-                    connect.open()
-                    log.info(f"Opened connection to {clustername} on try {ssh_retry_times}")
+                    cluster_key = "cedar-robot-jobsetup"
+                    log.info(f"Starting connection to {cluster_key} on try {ssh_retry_times}")
+
+                    connect = await self.setup_ssh_connection(cluster_key,
+                                                              **ssh_kwargs)
+
+                    log.info(f"Returned connection for {cluster_key}")
 
                     # Grab the repo; this is where we can also specify a version number, too
-                    cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
+                    cd_location = f'scratch/VLAXL_reduction/{self.track_folder_name}/'
 
-                    log.info(f"Cloning ReductionPipeline to {clustername} at {cd_command}")
+                    log.info(f"Cloning ReductionPipeline to {cluster_key} at {cd_location}")
 
-                    git_clone_command = 'git clone https://github.com/LocalGroup-VLALegacy/ReductionPipeline.git'
-                    git_checkout_command = f'git checkout {pipeline_branch}'
-                    full_command = f'{cd_command} ; rm -r ReductionPipeline ; {git_clone_command} ; cd ReductionPipeline ; {git_checkout_command}'
+                    full_command = f'{cd_location} {pipeline_branch}'
                     result = run_command(connect, full_command)
 
+                    connect.close()
+
                     # Move the antenna correction folder over:
-                    log.info(f"Copying antenna corrections to {clustername}")
-                    result = connect.run(f"{cd_command}/VLA_antcorr_tables || mkdir scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables")
+                    cluster_key = "cedar-robot-generic"
+                    log.info(f"Copying antenna corrections to {cluster_key}")
+                    log.info(f"Starting connection to {cluster_key} on try {ssh_retry_times}")
+
+                    connect = await self.setup_ssh_connection(cluster_key,
+                                                              **ssh_kwargs)
+
+                    log.info(f"Returned connection for {cluster_key}")
+
+                    antcorr_location = f"{cd_location}/VLA_antcorr_tables"
+                    result = connect.run(f"mkdir -p {antcorr_location}")
                     for file in glob("VLA_antcorr_tables/*.txt"):
-                        result = connect.put(file, remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/VLA_antcorr_tables/")
+                        result = connect.put(file, remote=f"{antcorr_location}/")
+                    connect.close()
+
+                    del connect
 
                     break
 
@@ -411,17 +420,6 @@ class AutoPipeline(object):
 
                 await asyncio.sleep(self._ssh_retry_waitime)
 
-                connect.close()
-                del connect
-                connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-                log.info(f"Remade connection for {clustername} on try {ssh_retry_times}")
-
-                continue
-
-        # if connect.is_connected:
-        connect.close()
-        del connect
-
 
     async def initial_job_submission(self,
                                     clustername='cc-cedar',
@@ -431,7 +429,6 @@ class AutoPipeline(object):
                                     casa_version="6.2",
                                     submit_continuum_pipeline=True,
                                     submit_line_pipeline=True,
-                                    clusteracct=None,
                                     split_time=None,
                                     continuum_time=None,
                                     line_time=None,
@@ -457,7 +454,9 @@ class AutoPipeline(object):
 
         """
 
-        log.info(f"Starting job submission of {self.ebid} on {clustername}.")
+        cluster_key = "cedar-robot-generic"
+
+        log.info(f"Starting job submission of {self.ebid} on {cluster_key}.")
 
         # Create local folder where our job submission scripts will be saved to prior to
         # transfer
@@ -467,11 +466,10 @@ class AutoPipeline(object):
             track_scripts_dir.mkdir()
 
         # Setup connection:
-        log.info(f"Starting connection to {clustername}")
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-        connect.open()
-        log.info(f"Opened connection to {clustername}")
+        log.info(f"Starting connection to {cluster_key}")
+
+        connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+        log.info(f"Returned connection for {cluster_key}")
 
         # Create 1. job to import and split.
         log.info(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
@@ -481,6 +479,13 @@ class AutoPipeline(object):
         if (track_scripts_dir / job_split_filename).exists():
             (track_scripts_dir / job_split_filename).unlink()
 
+        slurm_split_kwargs = {}
+
+        if split_time is not None:
+            slurm_split_kwargs['job_time'] = split_time
+        if split_mem is not None:
+            slurm_split_kwargs['mem'] = split_mem
+
         # Create the job script.
         print(JOB_CREATION_FUNCTIONS[clustername]['IMPORT_SPLIT'](
                 target_name=self.track_folder_name.split('_')[0],
@@ -488,43 +493,43 @@ class AutoPipeline(object):
                 trackname=self.track_folder_name.split('_')[2],
                 split_type=split_type,
                 reindex=reindex,
-                slurm_kwargs={},
+                slurm_kwargs=slurm_split_kwargs,
                 setup_kwargs={},
                 casa_version=casa_version),
             file=open(track_scripts_dir / job_split_filename, 'a'))
 
         # Move the job script to the cluster:
-        log.info(f"Moving import/split job file for {self.ebid} to {clustername}")
+        log.info(f"Moving import/split job file for {self.ebid} to {cluster_key}")
         result = connect.put(track_scripts_dir / job_split_filename,
-                                  remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
+                             remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
-        chdir_cmd = f"cd scratch/VLAXL_reduction/{self.track_folder_name}/"
+        # Setup connection:
+        cluster_key_submit = 'cedar-submitter'
+        log.info(f"Starting connection to {cluster_key_submit}")
 
-        if clusteracct is not None:
-            acct_str = f"--account={clusteracct}"
-        else:
-            acct_str = ""
+        connect_submit = await self.setup_ssh_connection(cluster_key_submit, **ssh_kwargs)
+        log.info(f"Returned connection for {cluster_key_submit}")
 
-        if split_time is not None:
-            time_str = f"--time={split_time}"
-        else:
-            time_str = ""
+        # arg0
+        chdir_cmd = f"scratch/VLAXL_reduction/{self.track_folder_name}/"
 
-        if split_mem is not None:
-            mem_str = f"--mem={split_mem}"
-        else:
-            mem_str = ""
-
-        submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {mem_str} {job_split_filename}"
-
-        log.info(f"Submitting command: {submit_cmd}")
+        log.info(f"Submitting job file: {job_split_filename}")
 
         try:
+            # Try to avoid needing an extra sacct run in run_job_submission
+
+            result = connect_submit.run(f"{chdir_cmd} {job_split_filename}")
+            split_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
             # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-            split_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                  self.track_name, 'import_and_split')
+            # split_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
+            #                                       self.track_name, 'import_and_split')
         except ValueError as exc:
             split_jobid = None
+
+            connect_submit.close()
+            del connect_submit
+
             raise ValueError(f"Failed to submit split job! See stderr: {exc}")
 
         # Record the job ID so we can check for completion.
@@ -551,11 +556,20 @@ class AutoPipeline(object):
             if (track_scripts_dir / job_continuum_filename).exists():
                 (track_scripts_dir / job_continuum_filename).unlink()
 
+
+            slurm_continuum_kwargs = {}
+
+            if continuum_time is not None:
+                slurm_continuum_kwargs['job_time'] = continuum_time
+
+            if continuum_mem is not None:
+                slurm_continuum_kwargs['mem'] = continuum_mem
+
             print(JOB_CREATION_FUNCTIONS[clustername]['CONTINUUM_PIPE'](
                     target_name=self.track_folder_name.split('_')[0],
                     config=self.track_folder_name.split('_')[1],
                     trackname=self.track_folder_name.split('_')[2],
-                    slurm_kwargs={},
+                    slurm_kwargs=slurm_continuum_kwargs,
                     setup_kwargs={},
                     conditional_on_jobnum=self.importsplit_jobid,
                     casa_version=casa_version),
@@ -566,24 +580,15 @@ class AutoPipeline(object):
             result = connect.put(track_scripts_dir / job_continuum_filename,
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
-            if continuum_time is not None:
-                time_str = f"--time={continuum_time}"
-            else:
-                time_str = ""
-
-            if continuum_mem is not None:
-                mem_str = f"--mem={continuum_mem}"
-            else:
-                mem_str = ""
-
-            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {mem_str} {job_continuum_filename}"
-
-            log.info(f"Submitting command: {submit_cmd}")
+            log.info(f"Submitting job file: {job_continuum_filename}")
 
             try:
+                result = connect_submit.run(f"{chdir_cmd} {job_continuum_filename}")
+                continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
                 # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                continuum_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                           self.track_name, 'continuum_pipeline')
+                # continuum_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
+                #                                            self.track_name, 'continuum_pipeline')
             except ValueError as exc:
                 continuum_jobid = None
                 raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
@@ -617,11 +622,18 @@ class AutoPipeline(object):
             if (track_scripts_dir / job_line_filename).exists():
                 (track_scripts_dir / job_line_filename).unlink()
 
+            slurm_line_kwargs = {}
+            if line_time is not None:
+                slurm_line_kwargs['job_time'] = line_time
+
+            if line_mem is not None:
+                slurm_line_kwargs['mem'] = line_mem
+
             print(JOB_CREATION_FUNCTIONS[clustername]['LINE_PIPE'](
                     target_name=self.track_folder_name.split('_')[0],
                     config=self.track_folder_name.split('_')[1],
                     trackname=self.track_folder_name.split('_')[2],
-                    slurm_kwargs={},
+                    slurm_kwargs=slurm_line_kwargs,
                     setup_kwargs={},
                     conditional_on_jobnum=self.importsplit_jobid,
                     casa_version=casa_version),
@@ -632,19 +644,7 @@ class AutoPipeline(object):
             result = connect.put(track_scripts_dir / job_line_filename,
                                 remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
 
-            if line_time is not None:
-                time_str = f"--time={line_time}"
-            else:
-                time_str = ""
-
-            if line_mem is not None:
-                mem_str = f"--mem={line_mem}"
-            else:
-                mem_str = ""
-
-            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {mem_str} {job_line_filename}"
-
-            log.info(f"Submitting command: {submit_cmd}")
+            log.info(f"Submitting job file: {job_line_filename}")
 
             # Lines
             update_track_status(self.ebid,
@@ -653,9 +653,12 @@ class AutoPipeline(object):
                                 status_col=2)
 
             try:
+                result = connect_submit.run(f"{chdir_cmd} {job_line_filename}")
+                line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
+
                 # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                line_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                      self.track_name, 'line_pipeline')
+                # line_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
+                #                                       self.track_name, 'line_pipeline')
             except ValueError as exc:
                 line_jobid = None
                 raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
@@ -677,305 +680,26 @@ class AutoPipeline(object):
             connect.close()
             del connect
 
-    async def get_job_notifications(self,
-                            importsplit_jobid=None,
-                            check_split_job=True,
-                            check_continuum_job=True,
-                            continuum_jobid=None,
-                            check_line_job=True,
-                            line_jobid=None,
-                            sleeptime=1800):
-        """
-        Step 4.
-
-        Check if the pipeline jobs completed correctly.
-
-        If so, and if a manual flagging sheet doesn't exist, produce a new
-        google sheet that the manual flagging txt file will be generated from.
-        """
-
-        # if IDs are not available, try getting from the gsheet.
-        # otherwise, skip checking for those jobs to finish.
-
-        log.info(f"Checking for job notifications on {self.ebid} or {self.track_folder_name}")
-
-        if importsplit_jobid is None and check_split_job:
-            importsplit_jobid = self.importsplit_jobid
-
-            # If still None, pull from the spreadsheet
-            if importsplit_jobid is None:
-                importsplit_jobid = return_cell(self.ebid, # column=20,
-                                                name_col="Split Job ID",
-                                                sheetname=self.sheetname).split(":")[-1]
-
-        if continuum_jobid is None and check_continuum_job:
-            continuum_jobid = self.continuum_jobid
-
-            # If still None, pull from the spreadsheet
-            if continuum_jobid is None:
-                continuum_jobid = return_cell(self.ebid, # column=22,
-                                              name_col='Continuum job ID',
-                                              sheetname=self.sheetname).split(":")[-1]
-
-        if line_jobid is None and check_line_job:
-            line_jobid = self.line_jobid
-
-            # If still None, pull from the spreadsheet
-            if line_jobid is None:
-                line_jobid = return_cell(self.ebid, # column=24,
-                                         name_col='Line job ID',
-                                         sheetname=self.sheetname).split(":")[-1]
-
-        # If the split job ID is still not defined, something has gone wrong.
-        if check_split_job:
-            if importsplit_jobid is None or importsplit_jobid == "":
-                raise ValueError(f"Unable to identify split job ID for EB: {self.ebid}")
-
-        log.info(f"Waiting for job notifications on {self.ebid} or {self.track_folder_name}")
-
-        while True:
-            if not check_split_job:
-                is_done_split = True
-                break
-
-            # Check for a job completion email and check the final status
-            job_check = check_for_job_notification(importsplit_jobid)
-            # If None, it isn't done yet!
-            if job_check is None:
-                await asyncio.sleep(sleeptime)
-                continue
-
-            job_status_split, job_runtime =  job_check
-            is_done_split = True
-
-            log.info(f"Found import/split notification for {importsplit_jobid} with status {job_status_split}")
-
-            update_cell(self.ebid, job_status_split,
-                        # num_col=19,
-                        name_col="Line/continuum split",
-                        sheetname=self.sheetname)
-            update_cell(self.ebid, job_runtime,
-                        # num_col=25,
-                        name_col="Split job wall time",
-                        sheetname=self.sheetname)
-
-            break
-
-        # Continuum check
-        while True:
-            if not check_continuum_job:
-                is_done_continuum = True
-                break
-
-            job_check = check_for_job_notification(continuum_jobid)
-
-            is_done_continuum = False
-            if job_check is None:
-                await asyncio.sleep(sleeptime)
-                continue
-
-            is_done_continuum = True
-
-            job_status_continuum, job_runtime =  job_check
-
-            log.info(f"Found continuum notification for {continuum_jobid} with status {job_status_continuum}")
-
-            update_cell(self.ebid, job_status_continuum,
-                        # num_col=21,
-                        name_col='Continuum reduction',
-                        sheetname=self.sheetname)
-            update_cell(self.ebid, job_runtime,
-                        # num_col=26,
-                        name_col="Continuum job wall time",
-                        sheetname=self.sheetname)
-
-            break
-
-        # Line check
-        while True:
-            if not check_line_job:
-                is_done_line = True
-                break
-
-            job_check = check_for_job_notification(line_jobid)
-            if job_check is None:
-                await asyncio.sleep(sleeptime)
-                continue
-
-            is_done_line = True
-
-            job_status_line, job_runtime = job_check
-
-            log.info(f"Found line notification for {line_jobid} with status {job_status_line}")
-
-            update_cell(self.ebid, job_status_line,
-                        # num_col=23,
-                        name_col="Line reduction",
-                        sheetname=self.sheetname)
-            update_cell(self.ebid, job_runtime,
-                        # num_col=27,
-                        name_col="Line job wall time",
-                        sheetname=self.sheetname)
-
-            break
-
-        # Make dictionary for restarting jobs.
-        self.restarts = {'IMPORT_SPLIT': False,
-                         'CONTINUUM_PIPE': False,
-                         'LINE_PIPE': False,}
-
-        if all([is_done_split, is_done_continuum, is_done_line]):
-
-            # Check if these were successful runs:
-            # Expected types of job status:
-            # COMPLETED - probably a successful pipeline reduction
-            # TIMEOUT - ran out of time; trigger resubmitting the job
-            # CANCELLED - something happened to the job. Assumed this was for a good reason and don't resubmit
-
-            # TODO: handle timeout and restart jobs to get the total wall time
-
-            job_statuses = []
-
-            if check_split_job:
-                job_statuses.append(job_status_split)
-
-            if check_continuum_job:
-                job_statuses.append(job_status_continuum)
-
-            if check_line_job:
-                job_statuses.append(job_status_line)
-
-            # Good! It worked! Move on to QA.
-            if all([job_status == 'COMPLETED' for job_status in job_statuses]):
-
-                log.info(f"Processing complete for {self.ebid}! Ready for QA.")
-
-                if check_continuum_job:
-                    update_track_status(self.ebid, message=f"Ready for QA",
-                                        sheetname=self.sheetname,
-                                        status_col=1)
-
-                if check_line_job:
-                    update_track_status(self.ebid, message=f"Ready for QA",
-                                        sheetname=self.sheetname,
-                                        status_col=2)
-
-            # If the split failed, the other two will not have completed.
-            # Trigger resubmitting all three:
-            if check_split_job:
-                if job_status_split == 'TIMEOUT':
-                    # Re-add all to submission queue
-                    log.info(f"Timeout for split. Needs resubmitting of all jobs")
-
-                    self.restarts['IMPORT_SPLIT'] = True
-
-                    if check_continuum_job:
-                        update_track_status(self.ebid,
-                                            message=f"ISSUE: job timed out",
-                                            sheetname=self.sheetname,
-                                            status_col=1)
-                        self.restarts['CONTINUUM_PIPE'] = True
-
-                    if check_line_job:
-                        update_track_status(self.ebid,
-                                            message=f"ISSUE: job timed out",
-                                            sheetname=self.sheetname,
-                                            status_col=2)
-                        self.restarts['LINE_PIPE'] = True
-
-                if job_status_split in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
-
-                    self.restarts['IMPORT_SPLIT'] = True
-
-                    if check_continuum_job:
-                        update_track_status(self.ebid,
-                                            message=f"ISSUE: Needs manual check of job status",
-                                            sheetname=self.sheetname,
-                                            status_col=1)
-                        self.restarts['CONTINUUM_PIPE'] = True
-
-                    if check_line_job:
-                        update_track_status(self.ebid,
-                                            message=f"ISSUE: Needs manual check of job status",
-                                            sheetname=self.sheetname,
-                                            status_col=2)
-                        self.restarts['LINE_PIPE'] = True
-
-            # Trigger resubmitting the continuum
-            if check_continuum_job:
-                if job_status_continuum == 'TIMEOUT':
-                    # Add to resubmission queue
-                    log.info(f"Timeout for continuum pipeline. Needs resubmitting of continuum job.")
-                    self.restarts['CONTINUUM_PIPE'] = True
-
-                    update_track_status(self.ebid,
-                                        message=f"ISSUE: job timed out",
-                                        sheetname=self.sheetname,
-                                        status_col=1)
-
-                if job_status_continuum in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
-
-                    self.restarts['CONTINUUM_PIPE'] = True
-
-                    update_track_status(self.ebid,
-                                        message=f"ISSUE: Needs manual check of job status",
-                                        sheetname=self.sheetname,
-                                        status_col=1)
-
-                if job_status_continuum == "COMPLETED":
-                    self.completions['continuum'] = True
-
-                    update_track_status(self.ebid, message=f"Ready for QA",
-                                        sheetname=self.sheetname,
-                                        status_col=1)
-
-
-
-            # Trigger resubmitting the lines
-            if check_line_job:
-                if job_status_line == 'TIMEOUT':
-                    # Add to resubmission queue
-                    log.info(f"Timeout for line pipeline. Needs resubmitting of line job.")
-                    self.restarts['LINE_PIPE'] = True
-
-                    update_track_status(self.ebid,
-                                        message=f"ISSUE: job timed out",
-                                        sheetname=self.sheetname,
-                                        status_col=2)
-
-                if job_status_line in ["FAILED", " OUT_OF_MEMORY", "CANCELLED"]:
-
-                    self.restarts['LINE_PIPE'] = True
-
-                    update_track_status(self.ebid,
-                                        message=f"ISSUE: Needs manual check of job status",
-                                        sheetname=self.sheetname,
-                                        status_col=2)
-
-                if job_status_line == "COMPLETED":
-                    self.completions['speclines'] = True
-
-                    update_track_status(self.ebid, message=f"Ready for QA",
-                                        sheetname=self.sheetname,
-                                        status_col=2)
-
-
-        else:
-            log.info(f"Not all jobs were run. Needs manual review for {self.ebid}")
-
-            if check_continuum_job:
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
-                                    sheetname=self.sheetname,
-                                    status_col=1)
-
-            if check_line_job:
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Not all parts of the reduction were run. Needs manual review.",
-                                    sheetname=self.sheetname,
-                                    status_col=2)
+        if connect_submit.is_connected:
+            connect_submit.close()
+            del connect_submit
+
+        log.info(f"Finished submitting pipeline for {self.ebid} on {clustername}")
 
     def set_job_status(self, data_type, job_status):
+        """
+        Function to set the status of a job based on data type and job status.
+
+        Parameters:
+            data_type (str): The type of data being processed.
+            job_status (str): The status of the job.
+
+        Raises:
+            ValueError: If an unknown data_type is passed.
+
+        Returns:
+            None
+        """
 
         if data_type == 'continuum':
             status_col = 1
@@ -1040,199 +764,6 @@ class AutoPipeline(object):
         else:
             log.error(f"Unable to interpret job_type {job_type}")
 
-
-    async def restart_job_submission(self, max_resubmission=1, clustername='cc-cedar',
-                                     scripts_dir=Path('reduction_job_scripts/'),
-                                     split_type='all',
-                                     clusteracct=None,
-                                     split_time=None,
-                                     continuum_time=None,
-                                     line_time=None,
-                                     scheduler_cmd="",
-                                     **ssh_kwargs):
-
-        """
-        Step 3b.
-
-        Resubmit incomplete jobs.
-        """
-
-        # Check that the restart dictionary is defined
-        if not hasattr(self, 'restarts'):
-            raise ValueError("restarts is not defined. get_job_notifications must be run first.")
-
-        if clusteracct is not None:
-            acct_str = f"--account={clusteracct}"
-        else:
-            acct_str = ""
-
-        chdir_cmd = f"cd scratch/VLAXL_reduction/{self.track_folder_name}/"
-
-        # Setup connection:
-        log.info(f"Starting connection to {clustername} for {self.track_folder_name}")
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-        connect.open()
-        log.info(f"Opened connection to {clustername}")
-
-        # Restart split submission
-        if self.restarts['IMPORT_SPLIT']:
-            log.info(f"Attempting to restart the import/split job for {self.track_folder_name}")
-
-            self._restart_split_count += 1
-
-            if self._restart_split_count > max_resubmission:
-                log.info("Reached maximum resubmission attempts for split jobs.")
-                log.info(f"Manual review of failure is required for {self.ebid}")
-
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
-                                    sheetname=self.sheetname,
-                                    status_col=1)
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
-                                    sheetname=self.sheetname,
-                                    status_col=2)
-
-                return
-
-            # All files should already exist for restarts.
-
-            job_split_filename = f"{self.track_folder_name}_{split_type}_job_import_and_split.sh"
-
-            if split_time is not None:
-                time_str = f"--time={split_time}"
-            else:
-                time_str = ""
-
-            submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_split_filename}"
-
-            log.info(f"Submitting command: {submit_cmd}")
-
-            try:
-                # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                import_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                self.track_name, 'import_and_split')
-            except ValueError as exc:
-                import_jobid = None
-                raise ValueError(f"Failed to submit split job! See stderr: {exc}")
-
-            # Record the job ID so we can check for completion.
-            self.importsplit_jobid = import_jobid
-
-            log.info(f"Re-submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
-
-            update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}",
-                        name_col="Split Job ID",
-                        sheetname=self.sheetname)
-
-        # Restart continuum submission
-        if self.restarts['CONTINUUM_PIPE']:
-            log.info(f"Attempting to restart the continuum pipeline job for {self.track_folder_name}")
-
-            self._restart_continuum_count += 1
-
-            if self._restart_continuum_count > max_resubmission:
-                log.info("Reached maximum resubmission attempts for continuum jobs.")
-                log.info(f"Manual review of failure is required for {self.ebid}")
-
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
-                                    sheetname=self.sheetname,
-                                    status_col=1)
-
-            else:
-                job_continuum_filename = f"{self.track_folder_name}_job_continuum.sh"
-
-                if continuum_time is not None:
-                    time_str = f"--time={continuum_time}"
-                else:
-                    time_str = ""
-
-                submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_continuum_filename}"
-
-                log.info(f"Submitting command: {submit_cmd}")
-
-                try:
-                    # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                    continuum_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                               self.track_name, 'continuum_pipeline')
-                except ValueError as exc:
-                    continuum_jobid = None
-                    raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
-
-                # Record the job ID so we can check for completion.
-                self.continuum_jobid = continuum_jobid
-
-                log.info(f"Resubmitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
-
-                update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}",
-                            name_col="Continuum job ID",
-                            sheetname=self.sheetname)
-
-                # Continuum
-                update_track_status(self.ebid,
-                                    message=f"Reduction running on {clustername}",
-                                    sheetname=self.sheetname,
-                                    status_col=1)
-
-        # Restart lines submission
-        if self.restarts['LINE_PIPE']:
-            log.info(f"Attempting to restart the line pipeline job for {self.track_folder_name}")
-
-            self._restart_line_count += 1
-
-            if self._restart_line_count > max_resubmission:
-                log.info("Reached maximum resubmission attempts for line jobs.")
-                log.info(f"Manual review of failure is required for {self.ebid}")
-
-                update_track_status(self.ebid,
-                                    message=f"ISSUE: Reached resubmission max. Manual check needed.",
-                                    sheetname=self.sheetname,
-                                    status_col=2)
-
-            else:
-
-                job_line_filename = f"{self.track_folder_name}_job_line.sh"
-
-                if line_time is not None:
-                    time_str = f"--time={line_time}"
-                else:
-                    time_str = ""
-
-                submit_cmd = f"{scheduler_cmd} {acct_str} {time_str} {job_line_filename}"
-
-                log.info(f"Submitting command: {submit_cmd}")
-
-                try:
-                    # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                    line_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                                                    self.track_name, 'line_pipeline')
-                except ValueError as exc:
-                    line_jobid = None
-                    raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
-
-                # Record the job ID so we can check for completion.
-                self.line_jobid = line_jobid
-
-                log.info(f"Resubmitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
-
-                update_cell(self.ebid, f"{clustername}:{self.line_jobid}",
-                            # num_col=24,
-                            name_col='Line job ID',
-                            sheetname=self.sheetname)
-
-                # Lines
-                update_track_status(self.ebid,
-                                    message=f"Reduction running on {clustername}",
-                                    sheetname=self.sheetname,
-                                    status_col=2)
-
-        if connect.is_connected:
-            connect.close()
-            del connect
-
-        log.info("Completed job resubmission")
 
     async def transfer_pipeline_products(self, data_type='speclines',
                                          startnode='cc-cedar',
@@ -1347,7 +878,7 @@ class AutoPipeline(object):
 
         if not os.path.exists(product_file):
             log.warning(f"Unable to find products file at {product_file}")
-            return
+            return False
 
         # Make a temp folder to extract into:
         temp_path = product_file.with_suffix("")
@@ -1441,9 +972,6 @@ class AutoPipeline(object):
 
         log.info(task_qaplot_make.stdout)
 
-        # qaplotter.make_all_plots(flagging_sheet_link=flagging_sheet_link,
-        #                          show_target_linesonly=True)
-
         # Clean up the original txt files and images. These are kept in
         # the tar files and do not need to be duplicated on the webserver.
         task_command = ['rm', '-r', "quicklook_images"]
@@ -1505,6 +1033,8 @@ class AutoPipeline(object):
                                 sheetname=self.sheetname,
                                 status_col=1 if data_type == 'continuum' else 2)
 
+        return True
+
 
     @property
     def qa_track_path(self):
@@ -1535,11 +1065,6 @@ class AutoPipeline(object):
                                  scripts_dir=Path('reduction_job_scripts/'),
                                  **ssh_kwargs,
                                  ):
-        '''
-        1. Download the flagging file
-        TODO:
-        2. Copy to git repo, make commit, push to gihub
-        '''
 
         if not data_type in ['continuum', 'speclines']:
             raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
@@ -1575,15 +1100,14 @@ class AutoPipeline(object):
 
             task_copy = subprocess.run(task_command, capture_output=True)
 
-            log.info(f"Starting connection to {clustername}")
+            cluster_key = 'cedar-robot-generic'
+            log.info(f"Starting connection to {cluster_key}")
 
-            connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-            log.info(f"Returned connection for {clustername}")
-            connect.open()
-            log.info(f"Opened connection to {clustername}")
+            connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+            log.info(f"Returned connection for {cluster_key}")
 
             result = connect.put(newfilename,
-                                remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
+                                 remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
 
             connect.close()
             del connect
@@ -1627,12 +1151,12 @@ class AutoPipeline(object):
 
             task_copy = subprocess.run(task_command, capture_output=True)
 
-            log.info(f"Starting connection to {clustername}")
+            cluster_key = 'cedar-robot-generic'
 
-            connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-            log.info(f"Returned connection for {clustername}")
-            connect.open()
-            log.info(f"Opened connection to {clustername}")
+            log.info(f"Starting connection to {cluster_key}")
+
+            connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+            log.info(f"Returned connection for {cluster_key}")
 
             result = connect.put(newfilename,
                                 remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
@@ -1699,7 +1223,7 @@ class AutoPipeline(object):
                                         reindex=reindex,
                                         submit_continuum_pipeline=True if data_type == 'continuum' else False,
                                         submit_line_pipeline=True if data_type == 'speclines' else False,
-                                        clusteracct=clusteracct,
+                                        # clusteracct=clusteracct,
                                         split_time=split_time,
                                         continuum_time=continuum_time,
                                         line_time=line_time,
@@ -1730,40 +1254,39 @@ class AutoPipeline(object):
 
         log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
 
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-        connect.open()
-        log.info(f"Opened connection to {clustername}")
+        cluster_key = 'cedar-robot-generic'
+
+        connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+        log.info(f"Returned connection for {cluster_key}")
 
         if not do_remove_whole_track:
             # Change to the track directory, then delete the request data type folder
             # (continuum or speclines)
 
-            cd_command = f'cd scratch/VLAXL_reduction/{self.track_folder_name}/'
+            path_to_track = f"scratch/VLAXL_reduction/{self.track_folder_name}/"
 
-            log.info(f"Cleaning up {data_type} on {clustername} at {cd_command}")
+            log.info(f"Cleaning up {data_type} on {clustername} at {path_to_track}")
 
             # A successful job will end with a .ms.tar file.
             if do_only_remove_ms:
-                rm_command = f"rm -rf {self.track_folder_name}_{data_type}/*.ms*.tar"
+                rm_command = f"rm -rf {path_to_track}/{self.track_folder_name}_{data_type}/*.ms*.tar"
             else:
-                rm_command = f"rm -rf {self.track_folder_name}_{data_type}"
+                rm_command = f"rm -rf {path_to_track}/{self.track_folder_name}_{data_type}"
 
         else:
 
-            cd_command = f'cd scratch/VLAXL_reduction/'
+            path_to_scratch = f'cd scratch/VLAXL_reduction/'
 
-            log.info(f"Final clean up on {clustername} for track {cd_command}")
+            log.info(f"Final clean up on {clustername} for track {path_to_scratch}")
 
-            rm_command = f"rm -rf {self.track_folder_name}"
+            rm_command = f"rm -rf {path_to_scratch}/{self.track_folder_name}"
 
-        full_command = f'{cd_command} && {rm_command}'
-        result = run_command(connect, full_command, allow_failure=True)
+        result = run_command(connect, rm_command, allow_failure=True)
 
-        log.info(f"Finished clean up on {clustername} for track {cd_command}")
+        log.info(f"Finished clean up on {clustername} with {rm_command}")
 
         if do_cleanup_tempstorage:
-            log.info(f"Cleaning up temp project space on {clustername} for track {cd_command}")
+            log.info(f"Cleaning up temp project space on {clustername} for track {self.ebid}")
 
             rm_command = f"rm -r {temp_project_dir}/{self.track_folder_name}.{data_type}.ms*.tar"
 
@@ -1771,7 +1294,7 @@ class AutoPipeline(object):
 
             result = run_command(connect, rm_command, allow_failure=True)
 
-            log.info(f"Finished temp project clean up on {clustername} for track {cd_command}")
+            log.info(f"Finished temp project clean up on {clustername} for track {rm_command}")
 
         connect.close()
         del connect
@@ -1808,8 +1331,17 @@ class AutoPipeline(object):
                                            use_rootname=True)
 
         if transfer_taskid is None:
-            log.debug(f"No transfer task ID returned. Check existence of {filename}."
+            log.info(f"No transfer task ID returned. Check existence of {filename}."
                   " Exiting completion process.")
+
+            update_track_status(self.ebid,
+                    message=f"ISSUE: globus transfer failed.",
+                    sheetname=self.sheetname,
+                    status_col=1 if data_type == 'continuum' else 2)
+
+            raise ValueError(f"No transfer task ID returned. Check existence of {filename}."
+                  " Exiting completion process.")
+
             return
 
         self.transfer_taskid = transfer_taskid
@@ -1835,6 +1367,15 @@ class AutoPipeline(object):
         if transfer_taskid_cals is None:
             log.debug(f"No transfer task ID returned. Check existence of {filename_cals}."
                   " Exiting completion process.")
+
+            update_track_status(self.ebid,
+                    message=f"ISSUE: globus transfer failed.",
+                    sheetname=self.sheetname,
+                    status_col=1 if data_type == 'continuum' else 2)
+
+            raise ValueError(f"No transfer task ID returned. Check existence of {filename_cals}."
+                  " Exiting completion process.")
+
             return
 
         log.info(f"The globus transfer ID for cals is: {transfer_taskid_cals}")
@@ -1966,10 +1507,10 @@ class AutoPipeline(object):
 
         # Clean up temp ms.tar file on project space.
         log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
-        connect = await self.setup_ssh_connection(clustername, **ssh_kwargs)
-        log.info(f"Returned connection for {clustername}")
-        connect.open()
-        log.info(f"Opened connection to {clustername}")
+
+        cluster_key = 'cedar-robot-generic'
+        connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
+        log.info(f"Returned connection for {cluster_key}")
 
         # NOTE: Keep the original delete here for now, since failures are allowed.
         # Remove after transition to the split data products.
@@ -1977,12 +1518,10 @@ class AutoPipeline(object):
                              f"{self.track_folder_name}.ms.split.tar",
                              f"{self.track_folder_name}.ms.split_calibrators.tar"]:
 
-            cd_command = f"cd {staging_dir}"
-            rm_command = f"rm -rf {product_name}"
-            full_command = f'{cd_command} && {rm_command}'
+            rm_command = f"rm -rf {staging_dir}/{product_name}"
 
-            result = run_command(connect, full_command, allow_failure=True)
-            log.info(f"Finished cleaning up temp ms file up on {clustername} for track {cd_command}")
+            result = run_command(connect, rm_command, allow_failure=True)
+            log.info(f"Finished cleaning up temp ms file up on {clustername} with: {rm_command}")
 
         connect.close()
         del connect

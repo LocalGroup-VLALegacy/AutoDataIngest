@@ -5,6 +5,7 @@ Must be run in python3
 
 
 def cedar_slurm_setup(job_time="72:00:00", mem="20000M",
+                      ncpus=4,
                       job_name="M31_C_20A-346.sb38098105.eb38158028.58985.68987263889",
                       job_type="import_and_split",
                       sendto="ekoch@ualberta.ca",
@@ -31,12 +32,15 @@ def cedar_slurm_setup(job_time="72:00:00", mem="20000M",
         f'''#!/bin/bash
 #SBATCH --time={job_time}
 #SBATCH --mem={mem}
+#SBATCH --cpus-per-task={ncpus}
 #SBATCH --job-name={job_name}.vla_pipeline.{job_type}-%J
 #SBATCH --output={job_name}_{job_type}-%J.out
 #SBATCH --mail-user={sendto}
 {mail_on_complete}
 {mail_on_fail}
 {dependency_str}
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
         '''
 
     return slurm_setup

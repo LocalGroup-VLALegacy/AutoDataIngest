@@ -30,6 +30,12 @@ def cedar_submission_script(target_name="M31", config="C",
 
     casa_path = path_to_casa(version=casa_version)
 
+    # Append removing any existing split directory for individual parts.
+    if split_type != "all":
+        remove_old_string = f'[[ -d $TRACK_FOLDER"_{split_type}" ]] || rm -rf $TRACK_FOLDER"_{split_type}"'
+    else:
+        remove_old_string = ""
+
     job_str = \
         f'''{slurm_str}\n{setup_str}
 
@@ -45,6 +51,9 @@ cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 if [[ -f {trackname}.tar ]]; then
     rm {trackname}.tar
 fi
+
+# Remove an existing split directory
+{remove_old_string}
 
 # Copy the rcdir here and append the pipeline path
 cp -r ~/.casa .

@@ -142,24 +142,25 @@ def setup_ssh_connection(clustername, user='ekoch',
     retry_times = 0
     while True:
         try:
-            with time_limit(connection_timeout):
-                connect = fabric.Connection(CLUSTERADDRS[clustername],
-                                            user=user,
-                                            connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""},
-                                            connect_timeout=20)
-                # I'm getting intermittent DNS issues on the CC cloud.
-                # This is to handle waiting until the DNS problem goes away
-                # connect.open()
+            # with time_limit(connection_timeout):
+            connect = fabric.Connection(CLUSTERADDRS[clustername],
+                                        user=user,
+                                        connect_timeout=20)
+            # connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""},
 
-                connect.open()
-                log.info(f"Opened connection to {clustername}")
+            # I'm getting intermittent DNS issues on the CC cloud.
+            # This is to handle waiting until the DNS problem goes away
+            # connect.open()
+
+            # connect.open()
+            log.info(f"Opened connection to {clustername}")
 
             break
 
         # except (socket.gaierror, TimeoutException) as e:
         except Exception as e:
             log.info(f"SSH connection reached exception {e}")
-            log.info("Waiting {reconnect_waittime} sec before trying again")
+            log.info(f"Waiting {reconnect_waittime} sec before trying again")
 
         retry_times += 1
 
