@@ -201,8 +201,8 @@ cp $TRACK_FOLDER"_continuum_products.tar" $outfolder/$name.tar
 # Tar the MS file.
 
 # As of 10/25/21 we split the calibrated column into a target and calibrator part.
-tar -cf "{target_name}_{config}_{trackname}.continuum.ms.split.tar" "{trackname}.continuum.ms.split"
-tar -cf "{target_name}_{config}_{trackname}.continuum.ms.split_calibrators.tar" "{trackname}.continuum.ms.split_calibrators"
+tar -cf $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{target_name}_{config}_{trackname}.continuum.ms.split.tar" "{trackname}.continuum.ms.split"
+tar -cf $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{target_name}_{config}_{trackname}.continuum.ms.split_calibrators.tar" "{trackname}.continuum.ms.split_calibrators"
 
 # Move the tar files back to the scratch folder
 mv "*.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/
