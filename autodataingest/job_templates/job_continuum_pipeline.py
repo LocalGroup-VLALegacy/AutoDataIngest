@@ -48,7 +48,6 @@ cp -r ~/.casa .
 echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/{startup_filename}
 
 # Move into the continuum pipeline
-
 cd $TRACK_FOLDER"_continuum"
 
 echo 'Start casa default continuum pipeline'
@@ -133,13 +132,25 @@ export TRACK_FOLDER="{target_name}_{config}_{trackname}"
 
 cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
-# Copy the rcdir here and append the pipeline path
-cp -r ~/.casa .
-echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/{startup_filename}
+# Move the track folder to the SSD node drive
+
+export SCRATCH_FOLDER=`pwd`
+
+# Work directory on fast local disk
+export WORK_FOLDER="$SLURM_TMPDIR/$TRACK_FOLDER"
+mkdir -P $WORK_FOLDER
+
+# Move data to local disk
+cp -a $TRACK_FOLDER"_continuum" $WORK_FOLDER
+cp -a VLA_antcorr_tables $WORK_FOLDER
 
 # Move into the continuum pipeline
 
-cd $TRACK_FOLDER"_continuum"
+cd $WORK_FOLDER/$TRACK_FOLDER"_continuum"
+
+# Copy the rcdir here and append the pipeline path
+cp -r ~/.casa .
+echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/{startup_filename}
 
 # Copy the offline ant correction tables to here.
 cp -r ../VLA_antcorr_tables .
@@ -192,6 +203,9 @@ cp $TRACK_FOLDER"_continuum_products.tar" $outfolder/$name.tar
 # As of 10/25/21 we split the calibrated column into a target and calibrator part.
 tar -cf "{target_name}_{config}_{trackname}.continuum.ms.split.tar" "{trackname}.continuum.ms.split"
 tar -cf "{target_name}_{config}_{trackname}.continuum.ms.split_calibrators.tar" "{trackname}.continuum.ms.split_calibrators"
+
+# Move the tar files back to the scratch folder
+mv "*.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/
 
 # Remove the original tar file to save space
 rm -r "{trackname}.continuum.ms"
