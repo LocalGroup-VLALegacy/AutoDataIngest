@@ -138,7 +138,7 @@ export SCRATCH_FOLDER=`pwd`
 
 # Work directory on fast local disk
 export WORK_FOLDER="$SLURM_TMPDIR/$TRACK_FOLDER"
-mkdir -P $WORK_FOLDER
+mkdir -p $WORK_FOLDER
 
 # Move data to local disk
 cp -a $TRACK_FOLDER"_continuum" $WORK_FOLDER
@@ -149,19 +149,20 @@ cp -a VLA_antcorr_tables $WORK_FOLDER
 cd $WORK_FOLDER/$TRACK_FOLDER"_continuum"
 
 # Copy the rcdir here and append the pipeline path
+export CODE_PATH="/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/"
 cp -r ~/.casa .
-echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/{startup_filename}
+echo "sys.path.append('$CODE_PATH/ReductionPipeline/')" >> .casa/{startup_filename}
 
 # Copy the offline ant correction tables to here.
 cp -r ../VLA_antcorr_tables .
 
 echo 'Start casa default continuum pipeline'
 
-xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c $CODE_PATH/ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
 
 # Trigger an immediate re-run attempt: This will skip completed parts and QA txt files.
 # It's here because repeated plotms calls seem to stop working after awhile.
-xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c $CODE_PATH/ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
