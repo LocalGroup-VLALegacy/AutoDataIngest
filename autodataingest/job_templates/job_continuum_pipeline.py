@@ -134,7 +134,7 @@ cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
 # Move the track folder to the SSD node drive
 
-export SCRATCH_FOLDER=`pwd`
+export SCRATCH_FOLDER=/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
 # Work directory on fast local disk
 export WORK_FOLDER="$SLURM_TMPDIR/$TRACK_FOLDER"
@@ -146,12 +146,14 @@ cp -a VLA_antcorr_tables $WORK_FOLDER
 
 # Move into the continuum pipeline
 
-cd $WORK_FOLDER/$TRACK_FOLDER"_continuum"
+cd $WORK_FOLDER
 
 # Copy the rcdir here and append the pipeline path
 export CODE_PATH="/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/"
 cp -r ~/.casa .
 echo "sys.path.append('$CODE_PATH/ReductionPipeline/')" >> .casa/{startup_filename}
+
+cd $TRACK_FOLDER"_continuum"
 
 # Copy the offline ant correction tables to here.
 cp -r ../VLA_antcorr_tables .
