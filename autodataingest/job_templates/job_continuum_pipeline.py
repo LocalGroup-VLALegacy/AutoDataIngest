@@ -217,6 +217,9 @@ rm -r calibrators.ms finalcalibrators.ms
 rm -r "{trackname}.continuum.ms.split"
 rm -r "{trackname}.continuum.ms.split_calibrators"
 
+# And clear the copy in scratch
+rm -r $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{trackname}.continuum.ms"
+
 echo "casa default continuum pipeline finished."
 
         '''
