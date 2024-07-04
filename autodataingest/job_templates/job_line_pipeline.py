@@ -54,12 +54,13 @@ cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 cp -r ~/.casa .
 echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/{startup_filename}
 
-# Move into the continuum pipeline
+# Move into the speclines pipeline
 
 cd $TRACK_FOLDER"_speclines"
 
 # Copy the offline ant correction tables to here.
 cp -r ../VLA_antcorr_tables .
+cp ../manual_flagging_speclines.txt manual_flagging.txt
 
 echo 'Start casa default speclines pipeline'
 

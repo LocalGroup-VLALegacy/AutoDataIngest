@@ -157,6 +157,7 @@ cd $TRACK_FOLDER"_continuum"
 
 # Copy the offline ant correction tables to here.
 cp -r ../VLA_antcorr_tables .
+cp ../manual_flagging_continuum.txt manual_flagging.txt
 
 echo 'Start casa default continuum pipeline'
 
@@ -168,7 +169,7 @@ xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2ter
 
 # Clean up temp files
 rm *.last *.log *.txt
-rm -rf pdiff*.tbl iono.*.im flux*gain*.g
+rm -rf pdiff*.tbl iono.*.im flux*gain*.g rq_temp*.tbl
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
