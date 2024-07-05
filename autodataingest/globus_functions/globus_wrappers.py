@@ -292,7 +292,7 @@ def transfer_general(filename, output_destination,
         output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{output_destination}/{output_filename}"
 
     # Check if the input file/folder exists:
-    task_command = ['globus', 'ls', "/".join(input_cmd.split("/")[:-1])]
+    task_command = ['globus', 'ls', "/".join(input_cmd.split("/")[:-1]), '--filter', input_cmd.split("/")[-1]]
 
     log.info(f"Full globus command is: {task_command}")
     task_check = subprocess.run(task_command, capture_output=True)
@@ -307,7 +307,7 @@ def transfer_general(filename, output_destination,
         raise ValueError(f"The file {base_filename} does not exist at {input_cmd}.")
 
     # Check if the output file/folder already exists:
-    task_command = ['globus', 'ls', "/".join(output_cmd.split("/")[:-1])]
+    task_command = ['globus', 'ls', "/".join(output_cmd.split("/")[:-1]), '--filter', output_cmd.split("/")[-1]]
     task_check = subprocess.run(task_command, capture_output=True)
 
     if base_filename in task_check.stdout.decode('utf-8'):

@@ -72,7 +72,7 @@ xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2ter
 
 # Clean up temp files
 rm *.last *.log *.txt
-rm -rf pdiff*.tbl iono.*.im flux*gain*.g
+rm -rf pdiff*.tbl iono.*.im flux*gain*.g rq_temp*.tbl
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
