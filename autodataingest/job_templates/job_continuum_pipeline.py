@@ -95,6 +95,7 @@ rm -rf pdiff*.tbl iono.*.im flux*gain*.g rq_temp*.tbl
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
     tar -cvf $TRACK_FOLDER"_continuum_products_failure.tar" products
+    mv $TRACK_FOLDER"_continuum_products_failure.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/
     echo "Non-zero exit code from CASA. Exiting"
     exit 1
 fi
@@ -104,6 +105,7 @@ fi
 
 # Tar the products folder for export off cedar
 tar -cvf $TRACK_FOLDER"_continuum_products.tar" products
+mv $TRACK_FOLDER"_continuum_products.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/
 
 # Copy to long term storage
 # Account for previous runs and label numerically
