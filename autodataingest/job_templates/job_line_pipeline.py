@@ -70,9 +70,6 @@ xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2ter
 # It's here because repeated plotms calls seem to stop working after awhile.
 xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
 
-# Copy the split files directly into scratch space
-xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/run_final_split.py {trackname}.speclines.ms "."
-
 # Clean up temp files
 rm *.last *.log *.txt
 rm -rf pdiff*.tbl iono.*.im flux*gain*.g rq_temp*.tbl
@@ -83,6 +80,9 @@ if [ $exitcode -ge 1 ]; then
     echo "Non-zero exit code from CASA. Exiting"
     exit 1
 fi
+
+# Copy the split files directly into scratch space
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/run_final_split.py {trackname}.speclines.ms "."
 
 # Make the QA plots
 {plots_str}\n
