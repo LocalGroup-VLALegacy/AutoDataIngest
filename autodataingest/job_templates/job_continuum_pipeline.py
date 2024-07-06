@@ -60,6 +60,12 @@ mkdir -p $WORK_FOLDER
 
 # Move data to local disk
 cp -a $TRACK_FOLDER"_continuum" $WORK_FOLDER
+export exitcode=$?
+if [ $exitcode -ge 1 ]; then
+    echo "Non-zero exit code copying data. Exiting"
+    exit 1
+fi
+
 cp -a VLA_antcorr_tables $WORK_FOLDER
 
 # Move into the continuum pipeline
