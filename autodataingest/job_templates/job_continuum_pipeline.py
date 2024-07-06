@@ -105,7 +105,7 @@ fi
 
 # Tar the products folder for export off cedar
 tar -cvf $TRACK_FOLDER"_continuum_products.tar" products
-mv $TRACK_FOLDER"_continuum_products.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/
+cp $TRACK_FOLDER"_continuum_products.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/
 
 # Copy to long term storage
 # Account for previous runs and label numerically
@@ -134,9 +134,6 @@ cp $TRACK_FOLDER"_continuum_products.tar" $outfolder/$name.tar
 # As of 10/25/21 we split the calibrated column into a target and calibrator part.
 tar -cf $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{target_name}_{config}_{trackname}.continuum.ms.split.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{trackname}.continuum.ms.split"
 tar -cf $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{target_name}_{config}_{trackname}.continuum.ms.split_calibrators.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{trackname}.continuum.ms.split_calibrators"
-
-# Move the tar files back to the scratch folder
-mv "*.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/
 
 # Remove the original tar file to save space
 rm -r "{trackname}.continuum.ms"
