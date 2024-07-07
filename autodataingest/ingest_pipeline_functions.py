@@ -970,7 +970,15 @@ class AutoPipeline(object):
 
         task_qaplot_make = subprocess.run(task_command, capture_output=True)
 
-        log.info(task_qaplot_make.stdout)
+        if task_qaplot_make.returncode != 0:
+            log.info(task_qaplot_make.stdout)
+            log.info("qaplotter failure. Check products.")
+
+            if do_update_track_status:
+                update_track_status(self.ebid, message="ISSUE: qaplotter failure",
+                                    sheetname=self.sheetname,
+                                    status_col=1 if data_type == 'continuum' else 2)
+
 
         # Clean up the original txt files and images. These are kept in
         # the tar files and do not need to be duplicated on the webserver.
