@@ -2,6 +2,8 @@
 import ezgmail
 from datetime import datetime
 
+import os
+
 from ..logging import setup_logging
 log = setup_logging()
 
@@ -21,7 +23,10 @@ def do_authentication_gmail(emailaddress=f"{USERNAME}@{EMAILADDR}"):
         Email to check login for.
     """
 
-    if ezgmail.init() == emailaddress:
+    token_file = os.path.expanduser('~/token.json')
+    credentials_file = os.path.expanduser('~/credentials.json')
+
+    if ezgmail.init(tokenFile=token_file, credentialsFile=credentials_file) == emailaddress:
         return True
     else:
         return False
