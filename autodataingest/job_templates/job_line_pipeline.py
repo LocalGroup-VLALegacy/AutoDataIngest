@@ -81,9 +81,6 @@ if [ $exitcode -ge 1 ]; then
     exit 1
 fi
 
-# Copy the split files directly into scratch space
-xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/run_final_split.py {trackname}.speclines.ms "."
-
 # Make the QA plots
 {plots_str}\n
 

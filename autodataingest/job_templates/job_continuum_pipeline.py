@@ -50,32 +50,11 @@ export TRACK_FOLDER="{target_name}_{config}_{trackname}"
 
 cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
-# Move the track folder to the SSD node drive
-
-export SCRATCH_FOLDER=/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
-
-# Work directory on fast local disk
-export WORK_FOLDER="$SLURM_TMPDIR/$TRACK_FOLDER"
-mkdir -p $WORK_FOLDER
-
-# Move data to local disk
-cp -a $TRACK_FOLDER"_continuum" $WORK_FOLDER
-export exitcode=$?
-if [ $exitcode -ge 1 ]; then
-    echo "Non-zero exit code copying data. Exiting"
-    exit 1
-fi
-
-cp -a VLA_antcorr_tables $WORK_FOLDER
-
-# Move into the continuum pipeline
-
-cd $WORK_FOLDER
-
 # Copy the rcdir here and append the pipeline path
-export CODE_PATH="/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/"
 cp -r ~/.casa .
 echo "sys.path.append('$CODE_PATH/ReductionPipeline/')" >> .casa/{startup_filename}
+
+# Move into the continuum pipeline
 
 cd $TRACK_FOLDER"_continuum"
 
@@ -85,11 +64,11 @@ cp ../manual_flagging_continuum.txt manual_flagging.txt
 
 echo 'Start casa default continuum pipeline'
 
-xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c $CODE_PATH/ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
 
 # Trigger an immediate re-run attempt: This will skip completed parts and QA txt files.
 # It's here because repeated plotms calls seem to stop working after awhile.
-xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c $CODE_PATH/ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/continuum_pipeline.py {trackname}.continuum.ms
 
 # Clean up temp files
 rm *.last *.log *.txt
@@ -103,15 +82,11 @@ if [ $exitcode -ge 1 ]; then
     exit 1
 fi
 
-# Copy the split files directly into scratch space
-xvfb-run -a ~/{casa_path}/bin/casa --rcdir ../.casa --nologger --nogui --log2term --nocrashreport --pipeline -c  $CODE_PATH/ReductionPipeline/lband_pipeline/run_final_split.py {trackname}.continuum.ms $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"
-
 # Make the QA plots
 {plots_str}\n
 
 # Tar the products folder for export off cedar
 tar -cvf $TRACK_FOLDER"_continuum_products.tar" products
-cp $TRACK_FOLDER"_continuum_products.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/
 
 # Copy to long term storage
 # Account for previous runs and label numerically
@@ -138,8 +113,8 @@ cp $TRACK_FOLDER"_continuum_products.tar" $outfolder/$name.tar
 # Tar the MS file.
 
 # As of 10/25/21 we split the calibrated column into a target and calibrator part.
-tar -cf $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{target_name}_{config}_{trackname}.continuum.ms.split.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{trackname}.continuum.ms.split"
-tar -cf $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{target_name}_{config}_{trackname}.continuum.ms.split_calibrators.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{trackname}.continuum.ms.split_calibrators"
+tar -cf "{target_name}_{config}_{trackname}.continuum.ms.split.tar" "{trackname}.continuum.ms.split"
+tar -cf "{target_name}_{config}_{trackname}.continuum.ms.split_calibrators.tar" "{trackname}.continuum.ms.split_calibrators"
 
 # Remove the original tar file to save space
 rm -r "{trackname}.continuum.ms"
@@ -147,9 +122,6 @@ rm -r "{trackname}.continuum.ms.flagversions"
 rm -r calibrators.ms finalcalibrators.ms
 rm -r "{trackname}.continuum.ms.split"
 rm -r "{trackname}.continuum.ms.split_calibrators"
-
-# And clear the copy in scratch
-rm -r $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/"{trackname}.continuum.ms"
 
 echo "casa default continuum pipeline finished."
 
