@@ -392,7 +392,7 @@ if __name__ == "__main__":
     REINDEX = False
 
     # Number of jobs to run simultaneously
-    NUM_CONSUMERS = 1
+    NUM_CONSUMERS = 3
 
     # Set limits allowed for new jobs to be started.
     MIN_STORAGE = 3 * u.TB
