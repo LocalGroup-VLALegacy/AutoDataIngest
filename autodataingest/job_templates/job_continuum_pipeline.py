@@ -52,7 +52,7 @@ cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
 
 # Copy the rcdir here and append the pipeline path
 cp -r ~/.casa .
-echo "sys.path.append('$CODE_PATH/ReductionPipeline/')" >> .casa/{startup_filename}
+echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/ReductionPipeline/')" >> .casa/{startup_filename}
 
 # Move into the continuum pipeline
 
