@@ -60,11 +60,11 @@ cp ../manual_flagging_speclines.txt manual_flagging.txt
 
 echo 'Start casa default speclines pipeline'
 
-xvfb-run -a ~/{casa_path}/bin/casa --rcdir ~/.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ~/.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ~/ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
 
 # Trigger an immediate re-run attempt: This will skip completed parts and QA txt files.
 # It's here because repeated plotms calls seem to stop working after awhile.
-xvfb-run -a ~/{casa_path}/bin/casa --rcdir ~/.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ../ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
+xvfb-run -a ~/{casa_path}/bin/casa --rcdir ~/.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ~/ReductionPipeline/lband_pipeline/line_pipeline.py {trackname}.speclines.ms
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
