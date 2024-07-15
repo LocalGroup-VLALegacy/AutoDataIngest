@@ -345,6 +345,7 @@ class AutoPipeline(object):
 
     async def setup_for_reduction_pipeline(self,
                                            clustername='cc-cedar',
+                                           clone_new_pipeline_repo=False,
                                            pipeline_branch='main',
                                            **ssh_kwargs):
 
@@ -373,23 +374,24 @@ class AutoPipeline(object):
             try:
                 with time_limit(self._ssh_max_connect_time):
 
-                    cluster_key = "cedar-robot-jobsetup"
-                    log.info(f"Starting connection to {cluster_key} on try {ssh_retry_times}")
+                    if clone_new_pipeline_repo:
+                        cluster_key = "cedar-robot-jobsetup"
+                        log.info(f"Starting connection to {cluster_key} on try {ssh_retry_times}")
 
-                    connect = await self.setup_ssh_connection(cluster_key,
-                                                              **ssh_kwargs)
+                        connect = await self.setup_ssh_connection(cluster_key,
+                                                                **ssh_kwargs)
 
-                    log.info(f"Returned connection for {cluster_key}")
+                        log.info(f"Returned connection for {cluster_key}")
 
-                    # Grab the repo; this is where we can also specify a version number, too
-                    cd_location = f'scratch/VLAXL_reduction/{self.track_folder_name}/'
+                        # Grab the repo; this is where we can also specify a version number, too
+                        cd_location = f'scratch/VLAXL_reduction/{self.track_folder_name}/'
 
-                    log.info(f"Cloning ReductionPipeline to {cluster_key} at {cd_location}")
+                        log.info(f"Cloning ReductionPipeline to {cluster_key} at {cd_location}")
 
-                    full_command = f'{cd_location} {pipeline_branch}'
-                    result = run_command(connect, full_command)
+                        full_command = f'{cd_location} {pipeline_branch}'
+                        result = run_command(connect, full_command)
 
-                    connect.close()
+                        connect.close()
 
                     # Move the antenna correction folder over:
                     cluster_key = "cedar-robot-generic"
