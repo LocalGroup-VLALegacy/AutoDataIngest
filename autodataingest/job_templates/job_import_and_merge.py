@@ -55,13 +55,9 @@ fi
 # Remove an existing split directory
 {remove_old_string}
 
-# Copy the rcdir here and append the pipeline path
-cp -r ~/.casa .
-echo "sys.path.append('/home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER/ReductionPipeline/')" >> .casa/{startup_filename}
-
 echo 'Start casa'
 
-~/{casa_path}/bin/casa --rcdir .casa --nologger --nogui --log2term --nocrashreport --pipeline -c ReductionPipeline/lband_pipeline/ms_split.py {trackname} {split_type} {reindex}
+~/{casa_path}/bin/casa --rcdir ~/.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ~/ReductionPipeline/lband_pipeline/ms_split.py {trackname} {split_type} {reindex}
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
