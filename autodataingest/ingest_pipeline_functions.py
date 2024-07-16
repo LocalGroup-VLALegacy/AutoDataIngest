@@ -374,6 +374,9 @@ class AutoPipeline(object):
             try:
                 with time_limit(self._ssh_max_connect_time):
 
+                    # Grab the repo; this is where we can also specify a version number, too
+                    cd_location = f'scratch/VLAXL_reduction/{self.track_folder_name}/'
+
                     if clone_new_pipeline_repo:
                         cluster_key = "cedar-robot-jobsetup"
                         log.info(f"Starting connection to {cluster_key} on try {ssh_retry_times}")
@@ -383,8 +386,6 @@ class AutoPipeline(object):
 
                         log.info(f"Returned connection for {cluster_key}")
 
-                        # Grab the repo; this is where we can also specify a version number, too
-                        cd_location = f'scratch/VLAXL_reduction/{self.track_folder_name}/'
 
                         log.info(f"Cloning ReductionPipeline to {cluster_key} at {cd_location}")
 
