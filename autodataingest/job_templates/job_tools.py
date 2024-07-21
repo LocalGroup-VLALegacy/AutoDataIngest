@@ -54,7 +54,8 @@ module load nixpkgs/16.09 # NOTE: outdated but still needed for imagemagick
 module load imagemagick/7.0.8-53
 module load StdEnv
 
-module load qt/4.8.7
+# module load qt/4.8.7
+module load qt
 
 source /home/ekoch/.bashrc
 
@@ -72,7 +73,7 @@ export CASALD_LIBRARY_PATH=$LD_LIBRARY_PATH
 #ln -s $NIXDIR/libXcursor.so.1 $HOME/usr/
 #ln -s $NIXDIR/libXinerama.so.1 $HOME/usr/
 # As of 06/2024 with cedar's upgrade to RHEL8:
-#ln -s $NIXDIR/libnsl.so.1 $HOME/usr/
+# ln -s $NIXDIR/libnsl.so.1 $HOME/usr/
 
 #Xvfb :1 &
 #export DISPLAY=:1
