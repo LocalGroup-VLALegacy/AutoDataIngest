@@ -18,7 +18,7 @@ def cedar_submission_script(target_name="M31",
                             conditional_on_jobnum=None,
                             run_casa6=True,
                             run_qaplotter=False,
-                            casa_version='6.4'):
+                            casa_version='6.5'):
     '''
     Runs the default VLA pipeline.
 
