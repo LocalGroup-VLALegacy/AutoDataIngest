@@ -9,6 +9,7 @@ from .job_tools import (cedar_slurm_setup, cedar_job_setup,
                         cedar_qa_plots, cedar_casa_startupfile,
                         path_to_casa)
 
+from ..cluster_configs import ENDPOINT_INFO
 
 def cedar_submission_script(target_name="M31",
                             config="C",
@@ -43,12 +44,15 @@ def cedar_submission_script(target_name="M31",
     else:
         plots_str = ""
 
+    data_path = ENDPOINT_INFO['cc-cedar']['data_path']
+
+
     job_str = \
         f'''{slurm_str}\n{setup_str}
 
 export TRACK_FOLDER="{target_name}_{config}_{trackname}"
 
-cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
+cd /home/ekoch/{data_path}/$TRACK_FOLDER
 
 # Move into the continuum pipeline
 
@@ -69,7 +73,6 @@ xvfb-run -a ~/{casa_path}/bin/casa --rcdir ~/.casa --nologger --nogui --log2term
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then
     tar -cvf $TRACK_FOLDER"_continuum_products_failure.tar" products
-    mv $TRACK_FOLDER"_continuum_products_failure.tar" $SCRATCH_FOLDER/$TRACK_FOLDER"_continuum"/
     echo "Non-zero exit code from CASA. Exiting"
     exit 1
 fi

@@ -9,6 +9,8 @@ from .job_tools import (cedar_slurm_setup, cedar_job_setup,
                         cedar_casa_startupfile,
                         path_to_casa)
 
+from ..cluster_configs import ENDPOINT_INFO
+
 
 def cedar_submission_script(target_name="M31", config="C",
                             trackname="20A-346.sb38098105.eb38158028.58985.68987263889",
@@ -36,12 +38,14 @@ def cedar_submission_script(target_name="M31", config="C",
     else:
         remove_old_string = ""
 
+    data_path = ENDPOINT_INFO['cc-cedar']['data_path']
+
     job_str = \
         f'''{slurm_str}\n{setup_str}
 
 export TRACK_FOLDER="{target_name}_{config}_{trackname}"
 
-cd /home/ekoch/scratch/VLAXL_reduction/$TRACK_FOLDER
+cd /home/ekoch/{data_path}/$TRACK_FOLDER
 
 # If untarred directory does not exist, untar
 
