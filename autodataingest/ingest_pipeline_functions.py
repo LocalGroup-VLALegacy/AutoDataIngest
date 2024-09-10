@@ -375,7 +375,7 @@ class AutoPipeline(object):
                 with time_limit(self._ssh_max_connect_time):
 
                     # Grab the repo; this is where we can also specify a version number, too
-                    cd_location = f'scratch/VLAXL_reduction/{self.track_folder_name}/'
+                    cd_location = f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/'
 
                     if clone_new_pipeline_repo:
                         cluster_key = "cedar-robot-jobsetup"
@@ -504,7 +504,7 @@ class AutoPipeline(object):
         # Move the job script to the cluster:
         log.info(f"Moving import/split job file for {self.ebid} to {cluster_key}")
         result = connect.put(track_scripts_dir / job_split_filename,
-                             remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
+                             remote=f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/')
 
         # Setup connection:
         cluster_key_submit = 'cedar-submitter'
@@ -514,7 +514,7 @@ class AutoPipeline(object):
         log.info(f"Returned connection for {cluster_key_submit}")
 
         # arg0
-        chdir_cmd = f"scratch/VLAXL_reduction/{self.track_folder_name}/"
+        chdir_cmd = f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/'
 
         log.info(f"Submitting job file: {job_split_filename}")
 
@@ -581,7 +581,7 @@ class AutoPipeline(object):
             # Move the job script to the cluster:
             log.info(f"Moving continuum pipeline job file for {self.ebid} to {clustername}")
             result = connect.put(track_scripts_dir / job_continuum_filename,
-                                remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
+                                remote=f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/')
 
             log.info(f"Submitting job file: {job_continuum_filename}")
 
@@ -645,7 +645,7 @@ class AutoPipeline(object):
             # Move the job script to the cluster:
             log.info(f"Moving line pipeline job file for {self.ebid} to {clustername}")
             result = connect.put(track_scripts_dir / job_line_filename,
-                                remote=f'scratch/VLAXL_reduction/{self.track_folder_name}/')
+                                remote=f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/')
 
             log.info(f"Submitting job file: {job_line_filename}")
 
@@ -1118,7 +1118,7 @@ class AutoPipeline(object):
             log.info(f"Returned connection for {cluster_key}")
 
             result = connect.put(newfilename,
-                                 remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
+                                 remote=f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/')
 
             connect.close()
             del connect
@@ -1170,7 +1170,7 @@ class AutoPipeline(object):
             log.info(f"Returned connection for {cluster_key}")
 
             result = connect.put(newfilename,
-                                remote=f"scratch/VLAXL_reduction/{self.track_folder_name}/")
+                                remote=f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/')
 
             connect.close()
             del connect
@@ -1274,7 +1274,7 @@ class AutoPipeline(object):
             # Change to the track directory, then delete the request data type folder
             # (continuum or speclines)
 
-            path_to_track = f"scratch/VLAXL_reduction/{self.track_folder_name}/"
+            path_to_track = f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/'
 
             log.info(f"Cleaning up {data_type} on {clustername} at {path_to_track}")
 
@@ -1286,7 +1286,7 @@ class AutoPipeline(object):
 
         else:
 
-            path_to_scratch = f'cd scratch/VLAXL_reduction/'
+            path_to_scratch = f'cd {ENDPOINT_INFO[clustername]["data_path"]}/'
 
             log.info(f"Final clean up on {clustername} for track {path_to_scratch}")
 
