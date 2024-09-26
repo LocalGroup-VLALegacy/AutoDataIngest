@@ -124,6 +124,10 @@ async def consume(queue):
                                                      pipeline_branch=PIPELINE_BRANCHNAME)
 
         log.info("Create the flagging sheets in the google sheet (if they exist)")
+        # Create the flagging sheets in the google sheet
+        await auto_pipe.make_flagging_sheet(data_type='continuum')
+        await auto_pipe.make_flagging_sheet(data_type='speclines')
+
         await auto_pipe.get_flagging_files(data_type='continuum')
         await auto_pipe.get_flagging_files(data_type='speclines')
 
@@ -223,8 +227,8 @@ if __name__ == "__main__":
     CLUSTER_SCHEDCMD = "sbatch"
 
     CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '96:00:00'
-    CLUSTER_LINE_JOBTIME = '96:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '72:00:00'
+    CLUSTER_LINE_JOBTIME = '72:00:00'
 
     CLUSTER_SPLIT_MEM = '32000M'
     CLUSTER_CONTINUUM_MEM = '32000M'
