@@ -44,8 +44,8 @@ def cedar_submission_script(target_name="M31",
     else:
         plots_str = ""
 
-    # data_path = ENDPOINT_INFO['cc-cedar']['data_path']
-    data_path = "projects/rrg-eros-ab/ekoch/VLAXL/VLAXL_reduction/"
+    data_path = ENDPOINT_INFO['cc-cedar']['data_path']
+    # data_path = "projects/rrg-eros-ab/ekoch/VLAXL/VLAXL_reduction/"
 
 
     job_str = \

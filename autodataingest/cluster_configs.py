@@ -11,7 +11,7 @@ import autodataingest.job_templates.job_line_pipeline as jobs_line
 
 # Add new locations here so we can refer to each location by 1 name:
 ENDPOINT_INFO = {'cc-cedar': {'endpoint_id': "8dec4129-9ab4-451d-a45f-5b4b8471f7a3",
-                           'data_path': "projects/rrg-eros-ab/ekoch/VLAXL/VLAXL_reduction/"},
+                           'data_path': "scratch/rrg-eros-ab/ekoch/VLAXL/VLAXL_reduction/"},
                  'nrao-aoc': {'endpoint_id': "62708910-8e89-11e8-9641-0a6d4e044368",
                               'data_path': '/lustre/aoc/projects/20A-346/data_staged_new/'},
                  'msu-hpcc': {'endpoint_id': "a640bafc-6d04-11e5-ba46-22000b92c6ec",
