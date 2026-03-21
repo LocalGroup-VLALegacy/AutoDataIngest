@@ -10,7 +10,7 @@ log = setup_logging()
 
 
 def get_slurm_job_monitor(connect, time_range_days=7, timeout=600,
-                          raise_jobname_error=False):
+                          raise_jobname_error=False, verbose=False):
     '''
     Return job statuses on clusters running slurm.
     '''
@@ -52,7 +52,15 @@ def get_slurm_job_monitor(connect, time_range_days=7, timeout=600,
                 raise ValueError(f"Unsure of input line format: {this_line}")
 
         # Job num is int
-        this_line[0] = int(this_line[0])
+        try:
+            this_line[0] = int(this_line[0])
+        except ValueError as e:
+            if raise_jobname_error:
+                raise e
+            else:
+                if verbose:
+                    log.warn(f"Unable to parse job with name: {name_info}")
+                continue
 
         # Strip out track info from the job name
         this_name = this_line[1]
@@ -61,7 +69,8 @@ def get_slurm_job_monitor(connect, time_range_days=7, timeout=600,
             if raise_jobname_error:
                 raise ValueError(f"Check job name: {name_info}")
             else:
-                log.warn(f"Unable to parse job with name: {name_info}")
+                if verbose:
+                    log.warn(f"Unable to parse job with name: {name_info}")
                 continue
 
         track_name, job_type = name_info
@@ -69,7 +78,8 @@ def get_slurm_job_monitor(connect, time_range_days=7, timeout=600,
         try:
             ebid = int(track_name.split(".")[2].split('eb')[1])
         except IndexError:
-            log.warn(f"Unable to parse job with name: {name_info}")
+            if verbose:
+                log.warn(f"Unable to parse job with name: {name_info}")
             continue
 
         this_line.extend([track_name, ebid, job_type])

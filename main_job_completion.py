@@ -26,7 +26,7 @@ def return_job_type(row):
 
 
 async def produce(queue, sleeptime=60, longsleeptime=3600,
-                  clustername='cc-cedar',
+                  clustername='dra-fir',
                   sheetnames=['20A - OpLog Summary']):
     '''
     Check for new tracks from the google sheet.
@@ -125,7 +125,7 @@ async def consume(queue, sleeptime=60):
 
         if DO_DATA_TRANSFER:
             await auto_pipe.transfer_calibrated_data(data_type=data_type,
-                                                    clustername='cc-cedar')
+                                                    clustername='dra-fir')
             # continue
 
         # Move pipeline products to QA webserver
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
 
     # Configuration parameters:
-    CLUSTERNAME = 'cc-cedar'
+    CLUSTERNAME = 'dra-fir'
 
     uname = 'ekoch'
 

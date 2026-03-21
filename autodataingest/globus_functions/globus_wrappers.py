@@ -97,7 +97,9 @@ async def globus_wait_for_completion(task_id, sleeptime=900,
                 await asyncio.sleep(sleeptime)
 
 
-def globus_ebid_check_exists(ebid, nodename='nrao-aoc',
+def globus_ebid_check_exists(ebid,
+                             nodename='nrao-aoc',
+                             nodename_key='data_path',
                              use_startnode_datapath=True,
                              raise_error=False,
                              print_output=False):
@@ -115,7 +117,7 @@ def globus_ebid_check_exists(ebid, nodename='nrao-aoc',
 
     # Want to return the task_id in the command line output.
     if use_startnode_datapath:
-        input_cmd = f"{ENDPOINT_INFO[nodename]['endpoint_id']}:{ENDPOINT_INFO[nodename]['data_path']}/"
+        input_cmd = f"{ENDPOINT_INFO[nodename]['endpoint_id']}:{ENDPOINT_INFO[nodename][nodename_key]}/"
     else:
         input_cmd = f"{ENDPOINT_INFO[nodename]['endpoint_id']}:"
 
@@ -147,8 +149,9 @@ def globus_ebid_check_exists(ebid, nodename='nrao-aoc',
     return trackname
 
 
-def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
-                  endnode='cc-cedar',
+def transfer_file(track_name, track_folder_name,
+                  startnode='nrao-aoc', startnode_key='data_path',
+                  endnode='cc-cedar', endnode_key='data_path',
                   wait_for_completion=False,
                   request_manual_login=False):
     """
@@ -167,15 +170,15 @@ def transfer_file(track_name, track_folder_name, startnode='nrao-aoc',
 
     # Make a new folder on `endnode` for the data to go to:
     mkdir_command = ["globus", "mkdir",
-                     f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{track_folder_name}"]
+                     f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode][endnode_key]}/{track_folder_name}"]
 
     log.info(f"Making data directory on {endnode}: {mkdir_command}")
 
     out = subprocess.run(mkdir_command, capture_output=True)
 
     # Want to return the task_id in the command line output.
-    input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode]['data_path']}/{track_name}.tar"
-    output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode]['data_path']}/{track_folder_name}/{track_name}.tar"
+    input_cmd = f"{ENDPOINT_INFO[startnode]['endpoint_id']}:{ENDPOINT_INFO[startnode][startnode_key]}/{track_name}.tar"
+    output_cmd = f"{ENDPOINT_INFO[endnode]['endpoint_id']}:{ENDPOINT_INFO[endnode][endnode_key]}/{track_folder_name}/{track_name}.tar"
 
     # task_command = f"$(globus transfer {input_cmd} {output_cmd} --jmes path 'task_id' --format=UNIX)"
     task_command = ['globus', 'transfer', input_cmd, output_cmd]
@@ -235,7 +238,7 @@ def transfer_pipeline(track_name, track_folder_name, endnode='cc-cedar'):
     return True
 
 
-def cleanup_source(track_name, node='nrao-aoc'):
+def cleanup_source(track_name, node='nrao-aoc', node_key='data_path'):
     """
     Run after a transfer finishes to remove the track from the initial location.
     This is needed to not overwhelm our project storage limit on AOC.
@@ -243,7 +246,7 @@ def cleanup_source(track_name, node='nrao-aoc'):
 
     do_manual_login(node)
 
-    input_cmd = f"{ENDPOINT_INFO[node]['endpoint_id']}:{ENDPOINT_INFO[node]['data_path']}/{track_name}.tar"
+    input_cmd = f"{ENDPOINT_INFO[node]['endpoint_id']}:{ENDPOINT_INFO[node][node_key]}/{track_name}.tar"
 
     out = subprocess.run(['globus', 'rm', input_cmd], capture_output=True)
 

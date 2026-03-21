@@ -145,7 +145,7 @@ def setup_ssh_connection(clustername, user='ekoch',
             # with time_limit(connection_timeout):
             connect = fabric.Connection(CLUSTERADDRS[clustername],
                                         user=user,
-                                        connect_timeout=20)
+                                        connect_timeout=connection_timeout)
             # connect_kwargs={'passphrase': globals()['password'] if 'password' in globals() else ""},
 
             # I'm getting intermittent DNS issues on the CC cloud.

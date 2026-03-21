@@ -19,7 +19,8 @@ def cedar_submission_script(target_name="M31", config="C",
                             slurm_kwargs={},
                             setup_kwargs={},
                             run_casa6=True,
-                            casa_version='6.5'):
+                            casa_version='6.5',
+                            incl_rrl=False):
 
     # Add in default info to set the log file, job name, etc
     slurm_kwargs['job_name'] = f"{target_name}_{config}_{trackname}"
@@ -38,8 +39,9 @@ def cedar_submission_script(target_name="M31", config="C",
     else:
         remove_old_string = ""
 
-    data_path = ENDPOINT_INFO['cc-cedar']['data_path']
+    # data_path = ENDPOINT_INFO['cc-cedar']['data_path']
     # data_path = "projects/rrg-eros-ab/ekoch/VLAXL/VLAXL_reduction/"
+    data_path = "scratch/VLAXL_reduction/"
 
     job_str = \
         f'''{slurm_str}\n{setup_str}
@@ -62,7 +64,7 @@ fi
 
 echo 'Start casa'
 
-~/{casa_path}/bin/casa --rcdir ~/.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ~/ReductionPipeline/lband_pipeline/ms_split.py {trackname} {split_type} {reindex}
+~/{casa_path}/bin/casa --rcdir ~/.casa --nologger --nogui --log2term --nocrashreport --pipeline -c ~/ReductionPipeline/lband_pipeline/ms_split.py {trackname} {split_type} {reindex} {incl_rrl}
 
 export exitcode=$?
 if [ $exitcode -ge 1 ]; then

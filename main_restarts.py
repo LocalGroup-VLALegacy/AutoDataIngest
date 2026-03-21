@@ -132,8 +132,8 @@ async def produce(queue, sleeptime=600, start_with_newest=False,
             log.info(f"Jobs running on {CLUSTERNAME}: {num_jobs_active}")
             allow_newjobs = allow_newjobs_check(free_space, free_filenum, num_jobs_active)
 
-            if not allow_newjobs:
-                log.info("At job/storage limit. Will wait before starting new jobs.")
+            # if not allow_newjobs:
+            #     log.info("At job/storage limit. Will wait before starting new jobs.")
 
         except Exception as err:
             log.error(f"Encountered an error checking job/storage usage on {CLUSTERNAME}")
@@ -144,6 +144,7 @@ async def produce(queue, sleeptime=600, start_with_newest=False,
 
 
         await asyncio.sleep(sleeptime)
+
         # Gather all rerun jobs statuses from the google sheet.
         # If we get an API error for too many requests, just wait a bit and try again:
         all_rerun_statuses = []
@@ -188,6 +189,7 @@ async def produce(queue, sleeptime=600, start_with_newest=False,
                 log.info(f'Found new track with ID {ebid} {this_data_type} {this_job_type}')
 
                 # Block new restarts if not allowing new jobs yet
+                allow_newjobs = True
                 if not allow_newjobs and this_job_type == "RESTART":
                     log.info(f"At job/storage limit. Will wait before starting new job.")
 
@@ -206,10 +208,10 @@ async def produce(queue, sleeptime=600, start_with_newest=False,
             await asyncio.sleep(sleeptime)
 
             # If we've exceeded our allow jobs limit, break this loop.
-            if not allow_newjobs_check(free_space, free_filenum, num_jobs_active):
-                log.info("Queue in the spreadsheet exceeded our job limits."
-                         " Holding further job starts.")
-                break
+            # if not allow_newjobs_check(free_space, free_filenum, num_jobs_active):
+            #     log.info("Queue in the spreadsheet exceeded our job limits."
+            #              " Holding further job starts.")
+            #     break
 
         if test_case_run_newest:
             break
@@ -369,18 +371,18 @@ if __name__ == "__main__":
     CASA_VERSION = "6.5"
 
     # Configuration parameters:
-    CLUSTERNAME = 'cc-cedar'
+    CLUSTERNAME = 'dra-fir'
     CLUSTERACCOUNT = 'rrg-eros-ab'
 
     CLUSTER_SCHEDCMD = "sbatch"
 
-    CLUSTER_SPLIT_JOBTIME = '8:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '72:00:00'
-    CLUSTER_LINE_JOBTIME = '72:00:00'
+    CLUSTER_SPLIT_JOBTIME = '20:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '48:00:00'
+    CLUSTER_LINE_JOBTIME = '48:00:00'
 
-    CLUSTER_SPLIT_MEM = '20000M'
-    CLUSTER_CONTINUUM_MEM = '32000M'
-    CLUSTER_LINE_MEM = '32000M'
+    CLUSTER_SPLIT_MEM = '32000M'
+    CLUSTER_CONTINUUM_MEM = '32G'
+    CLUSTER_LINE_MEM = '32G'
 
     JOB_TYPE = "ALL"
 

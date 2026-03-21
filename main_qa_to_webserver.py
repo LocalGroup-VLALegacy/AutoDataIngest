@@ -79,7 +79,7 @@ async def consume(queue, sleeptime=60):
 
                 if DO_DATA_TRANSFER:
                     await auto_pipe.transfer_calibrated_data(data_type=data_type,
-                                                            clustername='cc-cedar')
+                                                            clustername='dra-fir')
 
                 if DO_PIPELINE_PRODS:
                     # Move pipeline products to QA webserver
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     log.info(f'Starting new execution at {datetime.now().strftime("%Y_%m_%d_%H_%M")}')
 
     # Configuration parameters:
-    CLUSTERNAME = 'cc-cedar'
+    CLUSTERNAME = 'dra-fir'
 
     uname = 'ekoch'
 
@@ -169,11 +169,10 @@ if __name__ == "__main__":
 
     # ebid, continuum, lines
 
-    MANUAL_EBID_LIST.append([43817526, True, False])
-
-    # MANUAL_EBID_LIST.append([43933810, False, True])
-
-    # MANUAL_EBID_LIST.append([43161764, True, True])
+    MANUAL_EBID_LIST.append([48343638, True, False])
+    # MANUAL_EBID_LIST.append([48343201, False, True])
+    # MANUAL_EBID_LIST.append([48371034, False, True])
+    # MANUAL_EBID_LIST.append([48392242, True, True])
 
 
     start_with_newest = False

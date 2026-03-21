@@ -69,7 +69,10 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
             # produce an item
             log.info(f'Found new track with ID {ebid} on sheet {sheetname}')
 
-            track_name = globus_ebid_check_exists(ebid)
+            track_name = globus_ebid_check_exists(ebid,
+                                                  nodename='dra-fir',
+                                                  nodename_key='data_path_staging',
+                                                  )
             if track_name is None:
                 log.info(f"EBID {ebid} is still staging. Skipping.")
                 continue
@@ -221,18 +224,18 @@ if __name__ == "__main__":
     CASA_VERSION = "6.5"
 
     # Configuration parameters:
-    CLUSTERNAME = 'cc-cedar'
+    CLUSTERNAME = 'dra-fir'
     CLUSTERACCOUNT = 'rrg-eros-ab'
 
     CLUSTER_SCHEDCMD = "sbatch"
 
-    CLUSTER_SPLIT_JOBTIME = '12:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '72:00:00'
-    CLUSTER_LINE_JOBTIME = '72:00:00'
+    CLUSTER_SPLIT_JOBTIME = '24:00:00'
+    CLUSTER_CONTINUUM_JOBTIME = '48:00:00'
+    CLUSTER_LINE_JOBTIME = '48:00:00'
 
     CLUSTER_SPLIT_MEM = '32000M'
-    CLUSTER_CONTINUUM_MEM = '32000M'
-    CLUSTER_LINE_MEM = '40000M'
+    CLUSTER_CONTINUUM_MEM = '32G'
+    CLUSTER_LINE_MEM = '32G'
 
     RUN_CONTINUUM = True
     RUN_LINES = True
@@ -246,6 +249,7 @@ if __name__ == "__main__":
     NRAODATAPATH = "/lustre/aoc/projects/20A-346/data_staged/"
 
     SHEETNAMES = ['20A - OpLog Summary', 'Archival Track Summary']
+    # SHEETNAMES = ['Archival Track Summary']
 
     # Ask for password that will be used for ssh connections where the key connection
     # is not working.

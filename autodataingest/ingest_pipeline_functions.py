@@ -97,6 +97,12 @@ class AutoPipeline(object):
                                  name_col='Trackname',
                                  sheetname=self.sheetname)
 
+        incl_rrl = return_cell(self.ebid,
+                                #  column=3,
+                                 name_col='INCL_RRLS',
+                                 sheetname=self.sheetname)
+
+
         if target is not "None":
             self.target = target
         else:
@@ -111,6 +117,11 @@ class AutoPipeline(object):
             self.track_name = track_name
         else:
             self.track_name = None
+
+        if incl_rrl == "TRUE":
+            self.incl_rrl = True
+        else:
+            self.incl_rrl = False
 
     def _qa_review_input(self, data_type='continuum'):
         '''
@@ -197,7 +208,7 @@ class AutoPipeline(object):
                                            archive_kwargs={},
                                            timewindow=48 * 3600.,
                                            sleeptime=600,
-                                           clustername='cc-cedar',
+                                           clustername='dra-fir',
                                            do_cleanup=True,
                                            default_project_code='20A-346',
                                            targets_to_check=['M31', 'M33', 'NGC6822', 'IC10', 'IC1613', 'WLM',
@@ -309,7 +320,8 @@ class AutoPipeline(object):
 
         log.info(f"Transferring {self.track_folder_name} to {clustername}.")
         transfer_taskid = transfer_file(self.track_name, self.track_folder_name,
-                                        startnode='nrao-aoc',
+                                        # startnode='nrao-aoc',  # As of 06/2025, AOC does not have a globus node.
+                                        startnode='dra-fir', startnode_key='data_path_staging',
                                         endnode=clustername,
                                         wait_for_completion=False)
 
@@ -339,12 +351,18 @@ class AutoPipeline(object):
 
         # Remove the data staged at NRAO to avoid exceeding our storage quota
         if do_cleanup:
-            log.info(f"Cleaning up {ebid} on nrao-aoc")
-            cleanup_source(self.track_name, node='nrao-aoc')
+            # start_node = 'nrao-aoc'
+            # start_node_key = 'data_path_staging'  # on nrao-aoc
+            start_node = 'dra-fir'
+            start_node_key = 'data_path_staging'  # on dra-fir
+            log.info(f"Cleaning up {ebid} on {start_node}")
+            cleanup_source(self.track_name,
+                           node=start_node,
+                           node_key=start_node_key)
 
 
     async def setup_for_reduction_pipeline(self,
-                                           clustername='cc-cedar',
+                                           clustername='dra-fir',
                                            clone_new_pipeline_repo=False,
                                            pipeline_branch='main',
                                            **ssh_kwargs):
@@ -425,7 +443,7 @@ class AutoPipeline(object):
 
 
     async def initial_job_submission(self,
-                                    clustername='cc-cedar',
+                                    clustername='dra-fir',
                                     scripts_dir=Path('reduction_job_scripts/'),
                                     split_type='all',
                                     reindex=False,
@@ -498,7 +516,8 @@ class AutoPipeline(object):
                 reindex=reindex,
                 slurm_kwargs=slurm_split_kwargs,
                 setup_kwargs={},
-                casa_version=casa_version),
+                casa_version=casa_version,
+                incl_rrl=self.incl_rrl),
             file=open(track_scripts_dir / job_split_filename, 'a'))
 
         # Move the job script to the cluster:
@@ -769,7 +788,7 @@ class AutoPipeline(object):
 
 
     async def transfer_pipeline_products(self, data_type='speclines',
-                                         startnode='cc-cedar',
+                                         startnode='dra-fir',
                                          endnode='ingester'):
         """
         Step 5.
@@ -1070,7 +1089,7 @@ class AutoPipeline(object):
         (self.qa_track_path / 'speclines').mkdir(parents=True, exist_ok=True)
 
     async def get_flagging_files(self,
-                                 clustername='cc-cedar',
+                                 clustername='dra-fir',
                                  data_type='continuum',
                                  output_folder=os.path.expanduser('FlagRepository'),
                                  scripts_dir=Path('reduction_job_scripts/'),
@@ -1125,7 +1144,7 @@ class AutoPipeline(object):
 
 
     async def get_refantignore_files(self,
-                                     clustername='cc-cedar',
+                                     clustername='dra-fir',
                                      data_type='continuum',
                                      output_folder=os.path.expanduser('FlagRepository'),
                                      scripts_dir=Path('reduction_job_scripts/'),
@@ -1177,7 +1196,7 @@ class AutoPipeline(object):
 
 
     async def rerun_job_submission(self,
-                                   clustername='cc-cedar',
+                                   clustername='dra-fir',
                                    data_type='continuum',
                                    clusteracct=None,
                                    split_time=None,
@@ -1249,7 +1268,7 @@ class AutoPipeline(object):
                             sheetname=self.sheetname,
                             status_col=1 if data_type == 'continuum' else 2)
 
-    async def cleanup_on_cluster(self, clustername='cc-cedar', data_type='continuum',
+    async def cleanup_on_cluster(self, clustername='dra-fir', data_type='continuum',
                                  do_remove_whole_track=False,
                                  do_only_remove_ms=False,
                                  do_cleanup_tempstorage=False,
@@ -1311,7 +1330,7 @@ class AutoPipeline(object):
         del connect
 
     async def transfer_calibrated_data(self,
-                                       clustername='cc-cedar',
+                                       clustername='dra-fir',
                                        data_type='continuum',
                                        project_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/"):
         """
@@ -1405,7 +1424,7 @@ class AutoPipeline(object):
                                       do_cleanup_tempstorage=False)
 
     async def export_track_for_imaging(self,
-                                       clustername='cc-cedar',
+                                       clustername='dra-fir',
                                        data_type='continuum',
                                        staging_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/",
                                        project_dir="/project/rrg-eros-ab/ekoch/VLAXL/calibrated/",
@@ -1538,7 +1557,7 @@ class AutoPipeline(object):
         del connect
 
         # Last, make sure we have cleaned up the SDM on AOC:
-        cleanup_source(self.track_name, node='nrao-aoc')
+        # cleanup_source(self.track_name, node='nrao-aoc')
 
         # Remove completion flag to avoid re-runs
         update_cell(self.ebid, "",
@@ -1583,7 +1602,7 @@ class AutoPipeline(object):
 
 
     async def transfer_qa_failures(self, data_type='continuum',
-                                   startnode='cc-cedar',
+                                   startnode='dra-fir',
                                    endnode='ingester',
                                    set_status=True):
 

@@ -5,7 +5,7 @@ Must be run in python3
 
 
 def cedar_slurm_setup(job_time="72:00:00", mem="20000M",
-                      ncpus=1,
+                      ncpus=8,
                       job_name="M31_C_20A-346.sb38098105.eb38158028.58985.68987263889",
                       job_type="import_and_split",
                       sendto="ekoch@ualberta.ca",
@@ -50,33 +50,18 @@ def cedar_job_setup():
     setup_script = \
         '''
 
-module load nixpkgs/16.09 # NOTE: outdated but still needed for imagemagick
-module load imagemagick/7.0.8-53
 module load StdEnv
 
-# module load qt/4.8.7
 module load qt
 
 source /home/ekoch/.bashrc
 
 # This is what I had in preload.bash
-export NIXDIR=/cvmfs/soft.computecanada.ca/nix/var/nix/profiles/16.09/lib/
+# export NIXDIR=/cvmfs/soft.computecanada.ca/nix/var/nix/profiles/16.09/lib/
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/usr/
 
 export CASALD_LIBRARY_PATH=$LD_LIBRARY_PATH
-
-# These don't get linked properly in casaplotms.
-# Force to be in known position.
-#ln -s $NIXDIR/libXi.so.6 $HOME/usr/
-#ln -s $NIXDIR/libXrandr.so.2 $HOME/usr/
-#ln -s $NIXDIR/libXcursor.so.1 $HOME/usr/
-#ln -s $NIXDIR/libXinerama.so.1 $HOME/usr/
-# As of 06/2024 with cedar's upgrade to RHEL8:
-# ln -s $NIXDIR/libnsl.so.1 $HOME/usr/
-
-#Xvfb :1 &
-#export DISPLAY=:1
 
         '''
 
