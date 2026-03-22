@@ -53,7 +53,7 @@ class ScriptPanel(Static):
     ScriptPanel {
         width: 1fr;
         height: 11;
-        border: round $text-muted;
+        border: round;
         padding: 1 2;
         margin: 0 1;
         content-align: left top;
@@ -93,7 +93,7 @@ class ScriptPanel(Static):
         }
 
     def on_mount(self) -> None:
-        self.update(self._render())
+        self.update(self._build_content())
 
     def set_data(self, data: dict) -> None:
         self._data.update(data)
@@ -101,9 +101,9 @@ class ScriptPanel(Static):
         for cls in ("running", "crashed", "waiting", "stopping", "stopped"):
             self.remove_class(cls)
         self.add_class(state_cls)
-        self.update(self._render())
+        self.update(self._build_content())
 
-    def _render(self) -> str:
+    def _build_content(self) -> str:
         state = self._data.get("state", "STOPPED")
         color = self._STATE_COLOR.get(state, "white")
         icon = self._STATE_ICON.get(state, "?")
