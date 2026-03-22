@@ -20,6 +20,13 @@ from autodataingest.ingest_pipeline_functions import AutoPipeline
 from autodataingest.logging import setup_logging
 log = setup_logging()
 
+# ---------------------------------------------------------------------------
+# Dry-run flag — set True to exercise the full asyncio queue / pipeline flow
+# without touching real infrastructure (Google Sheets, Globus, SSH/SLURM).
+# All stubs log what they would do and sleep briefly so scheduling is realistic.
+# ---------------------------------------------------------------------------
+DRY_RUN = True
+
 
 async def produce(queue, sleeptime=600, test_case_run_newest=False,
                   run_newest_first=False,
@@ -39,7 +46,7 @@ async def produce(queue, sleeptime=600, test_case_run_newest=False,
 
         for sheetname in sheetnames:
             try:
-                sheet_new_ebids = find_new_tracks(sheetname=sheetname)
+                sheet_new_ebids = await find_new_tracks(sheetname=sheetname)
             except:
                 await asyncio.sleep(sleeptime * 10)
                 sheet_new_ebids = []
@@ -126,33 +133,21 @@ async def consume(queue):
         await auto_pipe.setup_for_reduction_pipeline(clustername=CLUSTERNAME,
                                                      pipeline_branch=PIPELINE_BRANCHNAME)
 
-        log.info("Create the flagging sheets in the google sheet (if they exist)")
-        # Create the flagging sheets in the google sheet
-        await auto_pipe.make_flagging_sheet(data_type='continuum')
-        await auto_pipe.make_flagging_sheet(data_type='speclines')
+        log.info("Create the flagging sheet in the google sheet (if it doesn't exist)")
+        await auto_pipe.make_flagging_sheet()
 
-        await auto_pipe.get_flagging_files(data_type='continuum')
-        await auto_pipe.get_flagging_files(data_type='speclines')
+        await auto_pipe.get_flagging_files()
 
         # Grab any refantignore files as specified in the summary sheet
-        await auto_pipe.get_refantignore_files(data_type='continuum')
-        await auto_pipe.get_refantignore_files(data_type='speclines')
+        await auto_pipe.get_refantignore_files()
 
-        log.info(f"Submitting pipeline jobs to {CLUSTERNAME}")
+        log.info(f"Submitting unified pipeline job to {CLUSTERNAME}")
         await auto_pipe.initial_job_submission(
                                 clustername=CLUSTERNAME,
                                 scripts_dir=Path('reduction_job_scripts/'),
-                                submit_continuum_pipeline=RUN_CONTINUUM,
-                                submit_line_pipeline=RUN_LINES,
-                                # clusteracct=CLUSTERACCOUNT,
-                                split_time=CLUSTER_SPLIT_JOBTIME,
-                                continuum_time=CLUSTER_CONTINUUM_JOBTIME,
-                                line_time=CLUSTER_LINE_JOBTIME,
-                                split_mem=CLUSTER_SPLIT_MEM,
-                                continuum_mem=CLUSTER_CONTINUUM_MEM,
-                                line_mem=CLUSTER_LINE_MEM,
+                                pipeline_time=CLUSTER_PIPELINE_JOBTIME,
+                                pipeline_mem=CLUSTER_PIPELINE_MEM,
                                 scheduler_cmd=CLUSTER_SCHEDCMD,
-                                reindex=False,
                                 casa_version=CASA_VERSION,)
 
         log.info("Checking and waiting for job completion")
@@ -221,7 +216,7 @@ if __name__ == "__main__":
 
     # Name of branch or tag to use for the reduction pipeline
     PIPELINE_BRANCHNAME = 'main'
-    CASA_VERSION = "6.5"
+    CASA_VERSION = "6.6"
 
     # Configuration parameters:
     CLUSTERNAME = 'dra-fir'
@@ -229,16 +224,8 @@ if __name__ == "__main__":
 
     CLUSTER_SCHEDCMD = "sbatch"
 
-    CLUSTER_SPLIT_JOBTIME = '24:00:00'
-    CLUSTER_CONTINUUM_JOBTIME = '48:00:00'
-    CLUSTER_LINE_JOBTIME = '48:00:00'
-
-    CLUSTER_SPLIT_MEM = '32000M'
-    CLUSTER_CONTINUUM_MEM = '32G'
-    CLUSTER_LINE_MEM = '32G'
-
-    RUN_CONTINUUM = True
-    RUN_LINES = True
+    CLUSTER_PIPELINE_JOBTIME = '48:00:00'
+    CLUSTER_PIPELINE_MEM = '32G'
 
     NUM_CONSUMERS = 1
 
@@ -261,21 +248,23 @@ if __name__ == "__main__":
 
     run_newest_first = False
 
+    DRY_RUN = True   # set True to run without real infrastructure
+
+    if DRY_RUN:
+        log.info("=== DRY RUN MODE — no real sheets, Globus, or SSH calls ===")
+        from autodataingest.dry_run_stubs import (
+            DryRunPipeline as AutoPipeline,            # noqa: F811
+            fake_find_new_tracks as find_new_tracks,   # noqa: F811
+            fake_globus_ebid_check_exists as globus_ebid_check_exists,  # noqa: F811
+        )
+
     global EBID_QUEUE_LIST
     EBID_QUEUE_LIST = []
 
     print("Starting new event loop")
 
-    loop = asyncio.new_event_loop()
-
-    loop.set_debug(False)
-    loop.slow_callback_duration = 0.001
-
-    loop.run_until_complete(run(num_consume=NUM_CONSUMERS,
-                                sheetnames=SHEETNAMES))
-    loop.close()
-
-    del loop
+    asyncio.run(run(num_consume=NUM_CONSUMERS,
+                    sheetnames=SHEETNAMES))
 
     # Run purely a test
     # ebid = 39992361

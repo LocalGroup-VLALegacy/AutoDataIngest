@@ -7,7 +7,6 @@ import os
 import subprocess
 import time
 import asyncio
-import async_timeout
 
 from ..logging import setup_logging
 log = setup_logging()
@@ -79,7 +78,7 @@ async def globus_wait_for_completion(task_id, sleeptime=900,
 
     do_authenticate_globus()
 
-    async with async_timeout.timeout(timeout):
+    async with asyncio.timeout(timeout):
 
         while True:
             # Will not return until the task is completed.

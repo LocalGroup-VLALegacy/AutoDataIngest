@@ -16,6 +16,12 @@ from autodataingest.job_monitor import get_slurm_job_monitor, identify_completio
 from autodataingest.logging import setup_logging
 log = setup_logging()
 
+# ---------------------------------------------------------------------------
+# Dry-run flag — set True to exercise the full asyncio queue / pipeline flow
+# without touching real infrastructure (Google Sheets, Globus, SSH/SLURM).
+# ---------------------------------------------------------------------------
+DRY_RUN = False
+
 def return_job_type(row):
     if row['JobType'] == "continuum_pipeline_default":
         return "continuum"
@@ -40,7 +46,7 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
 
         for sheetname in sheetnames:
 
-            sheet_running_tracks = find_running_tracks(sheetname=sheetname)
+            sheet_running_tracks = await find_running_tracks(sheetname=sheetname)
 
             running_tracks[sheetname] = sheet_running_tracks
 
@@ -70,8 +76,8 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                     data_type = return_job_type(row)
 
                     auto_pipe = AutoPipeline(ebid, sheetname=sheetname)
-                    auto_pipe.set_qa_queued_status(data_type=data_type)
-                    auto_pipe.set_job_stats(job_id, data_type)
+                    await auto_pipe.set_qa_queued_status(data_type=data_type)
+                    await auto_pipe.set_job_stats(job_id, data_type)
 
                     log.info(f"Adding to queue {ebid}:{data_type} for completed job {job_id}")
                     await queue.put([auto_pipe, data_type])
@@ -95,14 +101,13 @@ async def produce(queue, sleeptime=60, longsleeptime=3600,
                     auto_pipe = AutoPipeline(ebid, sheetname=sheetname)
 
                     if row['JobType'] == "import_and_split":
-                        auto_pipe.set_job_status('continuum', job_status)
-                        auto_pipe.set_job_status('speclines', job_status)
-                        auto_pipe.set_job_stats(job_id, "import_and_split")
+                        await auto_pipe.set_job_status(job_status)
+                        await auto_pipe.set_job_stats(job_id, "import_and_split")
 
                     else:
                         data_type = return_job_type(row)
-                        auto_pipe.set_job_status(data_type, job_status)
-                        auto_pipe.set_job_stats(job_id, data_type)
+                        await auto_pipe.set_job_status(job_status)
+                        await auto_pipe.set_job_stats(job_id, data_type)
 
                     await asyncio.sleep(sleeptime)
             else:
@@ -138,14 +143,14 @@ async def consume(queue, sleeptime=60):
         log.info(f"Creating flagging sheet for {data_type} (if needed)")
 
         # Create the flagging sheets in the google sheet
-        await auto_pipe.make_flagging_sheet(data_type=data_type)
+        await auto_pipe.make_flagging_sheet()
 
         # Create the final QA products and move to the webserver
         log.info(f"Creating QA products")
-        auto_pipe.make_qa_products(data_type=data_type)
+        await auto_pipe.make_qa_products(data_type=data_type)
 
         log.info(f"Updating track status")
-        auto_pipe.set_job_status(data_type, "COMPLETED")
+        await auto_pipe.set_job_status("COMPLETED")
 
         await asyncio.sleep(sleeptime)
 
@@ -198,20 +203,23 @@ if __name__ == "__main__":
     # Time range to check for job completion
     TIME_RANGE_DAYS = 14
 
+    DRY_RUN = False   # set True to run without real infrastructure
+
+    if DRY_RUN:
+        log.info("=== DRY RUN MODE — no real sheets, Globus, or SSH calls ===")
+        from autodataingest.dry_run_stubs import (
+            DryRunPipeline as AutoPipeline,                        # noqa: F811
+            fake_find_running_tracks as find_running_tracks,       # noqa: F811
+            fake_setup_ssh_connection as setup_ssh_connection,     # noqa: F811
+            fake_get_slurm_job_monitor as get_slurm_job_monitor,   # noqa: F811
+        )
+
     while True:
 
         print("Starting new event loop")
 
-        loop = asyncio.new_event_loop()
-
-        loop.set_debug(False)
-        loop.slow_callback_duration = 0.001
-
-        loop.run_until_complete(run(clustername=CLUSTERNAME,
-                                    sheetnames=SHEETNAMES))
-        loop.close()
-
-        del loop
+        asyncio.run(run(clustername=CLUSTERNAME,
+                        sheetnames=SHEETNAMES))
 
         break
         # In production, comment out "break" and uncomment the sleep

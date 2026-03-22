@@ -17,18 +17,15 @@ from autodataingest.logging import setup_logging
 log = setup_logging()
 
 
-from autodataingest.email_notifications.receive_gmail_notifications import (check_for_archive_notification, check_for_job_notification, add_jobtimes)
-
 from autodataingest.gsheet_tracker.gsheet_functions import (find_new_tracks, update_track_status,
                                              update_cell, return_cell, download_refant_summsheet)
 
-from autodataingest.gsheet_tracker.gsheet_flagging import (download_flagsheet_to_flagtxt)
+from autodataingest.gsheet_tracker.gsheet_flagging import (download_flagsheet_to_flagtxt,
+                                                           check_imaging_trigger)
 
 from autodataingest.globus_functions import (transfer_file, transfer_pipeline,
                                cleanup_source, globus_wait_for_completion,
                                transfer_general)
-
-from autodataingest.get_track_info import match_ebid_to_source
 
 from autodataingest.download_vlaant_corrections import download_vla_antcorr
 
@@ -36,8 +33,6 @@ from autodataingest.ssh_utils import (run_command,
                                       time_limit,
                                       run_job_submission,
                                       setup_ssh_connection)
-
-from autodataingest.archive_request import archive_copy_SDM
 
 # Import dictionary defining the job creation script functions for each
 # cluster.
@@ -69,51 +64,56 @@ class AutoPipeline(object):
         self._ssh_max_connect_time = ssh_max_connect_time
         self._ssh_max_retries = ssh_max_retries
 
-        self._restart_split_count = 0
-        self._restart_lines_count = 0
-        self._restart_continuum_count = 0
+        self._restart_pipeline_count = 0
 
-        self._grab_sheetdata()
+        # Initialize sheet-derived attributes with defaults.
+        # Call await self._grab_sheetdata() in the first async method of the pipeline.
+        self.targets = []
+        self.target = None
+        self.config = None
+        self.track_name = None
+        self.incl_rrl = False
 
-        self._allow_speclines_run = True
+        # Flow-control flags set by the producer in main_restarts.py.
+        # Default True so the consumer processes both paths unless explicitly disabled.
         self._allow_continuum_run = True
+        self._allow_speclines_run = True
 
-    def _grab_sheetdata(self):
+    async def _grab_sheetdata(self):
         '''
         Get info from the google sheet. This is needed to allow for restarting at
         different stages.
         '''
 
-        target = return_cell(self.ebid,
-                            #  column=4,
-                             name_col="Target",
-                             sheetname=self.sheetname)
-        config = return_cell(self.ebid,
-                            #  column=9,
+        targets_raw = await return_cell(self.ebid,
+                                  name_col="Targets",
+                                  sheetname=self.sheetname)
+        config = await return_cell(self.ebid,
                              name_col="Configuration",
                              sheetname=self.sheetname)
-        track_name = return_cell(self.ebid,
-                                #  column=3,
+        track_name = await return_cell(self.ebid,
                                  name_col='Trackname',
                                  sheetname=self.sheetname)
 
-        incl_rrl = return_cell(self.ebid,
-                                #  column=3,
-                                 name_col='INCL_RRLS',
-                                 sheetname=self.sheetname)
+        incl_rrl = await return_cell(self.ebid,
+                               name_col='INCL_RRLS',
+                               sheetname=self.sheetname)
 
-
-        if target is not "None":
-            self.target = target
+        if targets_raw not in (None, "None", ""):
+            # Targets is a comma-separated list; keep self.target as the first
+            # for any downstream code that expects a single string
+            self.targets = [t.strip() for t in targets_raw.split(',')]
+            self.target = self.targets[0]
         else:
+            self.targets = []
             self.target = None
 
-        if config is not "None":
+        if config not in (None, "None", ""):
             self.config = config
         else:
             self.config = None
 
-        if track_name is not "None":
+        if track_name not in (None, "None", ""):
             self.track_name = track_name
         else:
             self.track_name = None
@@ -123,23 +123,16 @@ class AutoPipeline(object):
         else:
             self.incl_rrl = False
 
-    def _qa_review_input(self, data_type='continuum'):
+    async def _qa_review_input(self):
         '''
-        Request a restart on the jobs.
+        Read the re-run trigger cell for the pipeline job.
         '''
 
-        if data_type == 'continuum' or data_type == 'speclines':
-            pass
-        else:
-            raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}.")
-
-        name_col=f"Re-run\n{data_type}"
-
-        return return_cell(self.ebid, name_col=name_col, sheetname=self.sheetname)
+        return await return_cell(self.ebid, name_col="Re-run pipeline", sheetname=self.sheetname)
 
     @property
     def track_folder_name(self):
-        return f"{self.target}_{self.config}_{self.track_name}"
+        return f"{self.config}_{self.track_name}"
 
     @property
     def project_code(self):
@@ -171,18 +164,15 @@ class AutoPipeline(object):
         '''
         ebid = self.ebid
 
+        await self._grab_sheetdata()
+
         log.info(f"Adding start status for {ebid}.")
 
-        # Continuum
-        update_track_status(ebid, message="Queued",
-                            sheetname=self.sheetname,
-                            status_col=1)
-        # Lines
-        update_track_status(ebid, message="Queued",
-                            sheetname=self.sheetname,
-                            status_col=2)
+        await update_track_status(ebid, message="Queued",
+                                  sheetname=self.sheetname,
+                                  status_col=1)
 
-    def set_qa_queued_status(self, data_type='continuum'):
+    async def set_qa_queued_status(self, data_type='continuum'):
         '''
         Set a status to stop new tracks being re-added to the new track queue.
         '''
@@ -190,18 +180,9 @@ class AutoPipeline(object):
 
         log.info(f"Adding start status for {ebid}.")
 
-        # Continuum
-        if data_type == "continuum":
-            update_track_status(ebid, message="Queued for QA/product transfer",
-                                sheetname=self.sheetname,
-                                status_col=1)
-        # Lines
-        elif data_type == "speclines":
-            update_track_status(ebid, message="Queued for QA/product transfer",
-                                sheetname=self.sheetname,
-                                status_col=2)
-        else:
-            log.error(f"Unable to set QA queued status for {data_type} with EBID: {self.ebid}")
+        await update_track_status(ebid, message="Queued for QA/product transfer",
+                                  sheetname=self.sheetname,
+                                  status_col=1)
 
     async def archive_request_and_transfer(self,
                                            do_archiverequest=False,
@@ -227,64 +208,15 @@ class AutoPipeline(object):
             # Otherwise default to the XL code
             project_code = default_project_code
 
-        if do_archiverequest:
-
-            # First check for an archive notification within the last
-            # 48 hr. If one is found, don't re-request the track.
-            out = check_for_archive_notification(ebid, timewindow=timewindow,
-                                                project_id=project_code)
-
-            if out is None:
-
-                log.info(f'Sending archive request for {ebid}')
-
-                if not 'project_code' in archive_kwargs:
-                    archive_kwargs['project_code'] = project_code
-
-                archive_copy_SDM(ebid, **archive_kwargs)
-
-            else:
-                log.info(f"Found recent archive request for {ebid}.")
-
-            # Continuum
-            update_track_status(ebid, message="Archive download staged",
-                                sheetname=self.sheetname,
-                                status_col=1)
-            # Lines
-            update_track_status(ebid, message="Archive download staged",
-                                sheetname=self.sheetname,
-                                status_col=2)
-
-            # Wait for the notification email that the data is ready for transfer
-            while out is None:
-                out = check_for_archive_notification(ebid, timewindow=timewindow,
-                                                    project_id=project_code)
-
-                await asyncio.sleep(sleeptime)
-
-            # We should have the path on AOC and the full MS name
-            # from the email.
-            path_to_data, track_name = out
-
-            self.track_name = track_name
-
-        else:
-            # This should now be wrapped into a prior check on the file existence.
-            assert self.track_name is not None
+        # This should now be wrapped into a prior check on the file existence.
+        assert self.track_name is not None
 
 
         # Update track name in sheet:
-        update_cell(ebid, self.track_name,
-                    # num_col=3,
-                    name_col="Trackname",
-                    sheetname=self.sheetname)
-
-        # Scrap the VLA archive for target and config w/ astroquery
-        # This will query the archive for the list of targets until the output has a matching EBID.
-        # target, datasize = match_ebid_to_source(ebid,
-        #                                         targets=targets_to_check,
-        #                                         project_code=self.project_code,
-        #                                         verbose=False)
+        await update_cell(ebid, self.track_name,
+                          # num_col=3,
+                          name_col="Trackname",
+                          sheetname=self.sheetname)
 
         assert self.target is not None
         # self.target = target
@@ -307,11 +239,10 @@ class AutoPipeline(object):
         # We want to easily track (1) target, (2) config, and (3) track name
         # We'll combine these for our folder names where the data will get placed
         # after transfer from the archive.
-        config = return_cell(self.ebid,
-                            #  column=9,
-                             name_col="Configuration",
-                             sheetname=self.sheetname)
-        self.config = config
+        self.config = await return_cell(self.ebid,
+                                        #  column=9,
+                                        name_col="Configuration",
+                                        sheetname=self.sheetname)
 
         log.info(f"This track was taken in {config} configuration.")
         log.info(f"This track can be found in the folder with name {self.track_folder_name}")
@@ -329,25 +260,19 @@ class AutoPipeline(object):
 
         log.info(f"The globus transfer ID is: {transfer_taskid}")
 
-        # Continuum
-        update_track_status(ebid,
-                            message=f"Data transferred to {clustername}",
-                            sheetname=self.sheetname,
-                            status_col=1)
-        # Lines
-        update_track_status(ebid,
-                            message=f"Data transferred to {clustername}",
-                            sheetname=self.sheetname,
-                            status_col=2)
+        await update_track_status(ebid,
+                                  message=f"Data transferred to {clustername}",
+                                  sheetname=self.sheetname,
+                                  status_col=1)
 
         log.info(f"Waiting for globus transfer to {clustername} to complete.")
         await globus_wait_for_completion(transfer_taskid)
         log.info(f"Globus transfer {transfer_taskid} completed!")
 
-        update_cell(ebid, "TRUE",
-                    # num_col=18,
-                    name_col='Transferred data',
-                    sheetname=self.sheetname)
+        await update_cell(ebid, "TRUE",
+                          # num_col=18,
+                          name_col='Transferred data',
+                          sheetname=self.sheetname)
 
         # Remove the data staged at NRAO to avoid exceeding our storage quota
         if do_cleanup:
@@ -371,7 +296,6 @@ class AutoPipeline(object):
         Step 2.
 
         Create products and setup on the cluster running the reduction.
-        This should be the destination requested in `archive_request_and_transfer`.
 
         1. Tests connection to cluster.
         2. Clones the ReductionPipeline repo
@@ -445,42 +369,25 @@ class AutoPipeline(object):
     async def initial_job_submission(self,
                                     clustername='dra-fir',
                                     scripts_dir=Path('reduction_job_scripts/'),
-                                    split_type='all',
-                                    reindex=False,
-                                    casa_version="6.2",
-                                    submit_continuum_pipeline=True,
-                                    submit_line_pipeline=True,
-                                    split_time=None,
-                                    continuum_time=None,
-                                    line_time=None,
-                                    split_mem=None,
-                                    continuum_mem=None,
-                                    line_mem=None,
+                                    casa_version="6.6",
+                                    pipeline_time=None,
+                                    pipeline_mem=None,
                                     scheduler_cmd="",
                                     **ssh_kwargs):
         """
         Step 3.
 
-        Submit jobs or start the reduction pipeline.
-
-        This has three steps:
-        1. Import to MS and continuum/line split
-        2. Continuum reduction pipeline
-        3. Line reduction pipeline.
-
-        2 and 3 can run concurrently but require 1 to finish first.
-
-        Parameters
-        -----------
-
+        Submit the unified VLA calibration pipeline job.  The new pipeline
+        (lband_reduction_pipeline.py, CASA 6.6+) handles import and
+        calibration of all data types in a single pass — no separate
+        import/split step is required.
         """
 
         cluster_key = "cedar-robot-generic"
 
         log.info(f"Starting job submission of {self.ebid} on {cluster_key}.")
 
-        # Create local folder where our job submission scripts will be saved to prior to
-        # transfer
+        # Create local folder for job submission scripts prior to transfer
         track_scripts_dir = scripts_dir / self.track_folder_name
 
         if not track_scripts_dir.exists():
@@ -492,211 +399,65 @@ class AutoPipeline(object):
         connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
         log.info(f"Returned connection for {cluster_key}")
 
-        # Create 1. job to import and split.
-        log.info(f"Making import/split job file for {self.ebid} or {self.track_folder_name}")
+        job_pipeline_filename = f"{self.track_folder_name}_job_pipeline.sh"
 
-        job_split_filename = f"{self.track_folder_name}_{split_type}_job_import_and_split.sh"
+        if (track_scripts_dir / job_pipeline_filename).exists():
+            (track_scripts_dir / job_pipeline_filename).unlink()
 
-        if (track_scripts_dir / job_split_filename).exists():
-            (track_scripts_dir / job_split_filename).unlink()
+        slurm_pipeline_kwargs = {}
+        if pipeline_time is not None:
+            slurm_pipeline_kwargs['job_time'] = pipeline_time
+        if pipeline_mem is not None:
+            slurm_pipeline_kwargs['mem'] = pipeline_mem
 
-        slurm_split_kwargs = {}
+        log.info(f"Making unified pipeline job file for {self.ebid}")
 
-        if split_time is not None:
-            slurm_split_kwargs['job_time'] = split_time
-        if split_mem is not None:
-            slurm_split_kwargs['mem'] = split_mem
-
-        # Create the job script.
-        print(JOB_CREATION_FUNCTIONS[clustername]['IMPORT_SPLIT'](
-                target_name=self.track_folder_name.split('_')[0],
-                config=self.track_folder_name.split('_')[1],
-                trackname=self.track_folder_name.split('_')[2],
-                split_type=split_type,
-                reindex=reindex,
-                slurm_kwargs=slurm_split_kwargs,
+        print(JOB_CREATION_FUNCTIONS[clustername]['UNIFIED_PIPE'](
+                config=self.config,
+                trackname=self.track_name,
+                slurm_kwargs=slurm_pipeline_kwargs,
                 setup_kwargs={},
-                casa_version=casa_version,
-                incl_rrl=self.incl_rrl),
-            file=open(track_scripts_dir / job_split_filename, 'a'))
+                casa_version=casa_version),
+            file=open(track_scripts_dir / job_pipeline_filename, 'a'))
 
         # Move the job script to the cluster:
-        log.info(f"Moving import/split job file for {self.ebid} to {cluster_key}")
-        result = connect.put(track_scripts_dir / job_split_filename,
+        log.info(f"Moving pipeline job file for {self.ebid} to {cluster_key}")
+        result = connect.put(track_scripts_dir / job_pipeline_filename,
                              remote=f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/')
 
-        # Setup connection:
         cluster_key_submit = 'cedar-submitter'
         log.info(f"Starting connection to {cluster_key_submit}")
 
         connect_submit = await self.setup_ssh_connection(cluster_key_submit, **ssh_kwargs)
         log.info(f"Returned connection for {cluster_key_submit}")
 
-        # arg0
         chdir_cmd = f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/'
 
-        log.info(f"Submitting job file: {job_split_filename}")
+        log.info(f"Submitting job file: {job_pipeline_filename}")
 
         try:
-            # Try to avoid needing an extra sacct run in run_job_submission
-
-            result = connect_submit.run(f"{chdir_cmd} {job_split_filename}")
-            split_jobid = result.stdout.replace("\n", '').split(" ")[-1]
-
-            # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-            # split_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-            #                                       self.track_name, 'import_and_split')
+            result = connect_submit.run(f"{chdir_cmd} {job_pipeline_filename}")
+            pipeline_jobid = result.stdout.replace("\n", '').split(" ")[-1]
         except ValueError as exc:
-            split_jobid = None
+            pipeline_jobid = None
 
             connect_submit.close()
             del connect_submit
 
-            raise ValueError(f"Failed to submit split job! See stderr: {exc}")
+            raise ValueError(f"Failed to submit unified pipeline job! See stderr: {exc}")
 
-        # Record the job ID so we can check for completion.
-        self.importsplit_jobid = split_jobid
+        self.pipeline_jobid = pipeline_jobid
 
-        log.info(f"Submitted import/split job file for {self.ebid} on {clustername} as job {self.importsplit_jobid}")
+        log.info(f"Submitted pipeline job for {self.ebid} on {clustername} as job {self.pipeline_jobid}")
 
-        update_cell(self.ebid, f"{clustername}:{self.importsplit_jobid}",
-                    # num_col=20,
-                    name_col="Split Job ID",
-                    sheetname=self.sheetname)
+        await update_cell(self.ebid, f"{clustername}:{self.pipeline_jobid}",
+                          name_col="Pipeline job ID",
+                          sheetname=self.sheetname)
 
-
-        # Move on to 2. and 3.
-        # NEED to make these jobs conditional on 1. finishing.
-
-        if submit_continuum_pipeline:
-
-            log.info(f"Making continuum pipeline job file for {self.ebid} or {self.track_folder_name}")
-
-            job_continuum_filename = f"{self.track_folder_name}_job_continuum.sh"
-
-            # Remove existing job file if it exists
-            if (track_scripts_dir / job_continuum_filename).exists():
-                (track_scripts_dir / job_continuum_filename).unlink()
-
-
-            slurm_continuum_kwargs = {}
-
-            if continuum_time is not None:
-                slurm_continuum_kwargs['job_time'] = continuum_time
-
-            if continuum_mem is not None:
-                slurm_continuum_kwargs['mem'] = continuum_mem
-
-            print(JOB_CREATION_FUNCTIONS[clustername]['CONTINUUM_PIPE'](
-                    target_name=self.track_folder_name.split('_')[0],
-                    config=self.track_folder_name.split('_')[1],
-                    trackname=self.track_folder_name.split('_')[2],
-                    slurm_kwargs=slurm_continuum_kwargs,
-                    setup_kwargs={},
-                    conditional_on_jobnum=self.importsplit_jobid,
-                    casa_version=casa_version),
-                file=open(track_scripts_dir / job_continuum_filename, 'a'))
-
-            # Move the job script to the cluster:
-            log.info(f"Moving continuum pipeline job file for {self.ebid} to {clustername}")
-            result = connect.put(track_scripts_dir / job_continuum_filename,
-                                remote=f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/')
-
-            log.info(f"Submitting job file: {job_continuum_filename}")
-
-            try:
-                result = connect_submit.run(f"{chdir_cmd} {job_continuum_filename}")
-                continuum_jobid = result.stdout.replace("\n", '').split(" ")[-1]
-
-                # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                # continuum_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                #                                            self.track_name, 'continuum_pipeline')
-            except ValueError as exc:
-                continuum_jobid = None
-                raise ValueError(f"Failed to submit continuum pipeline job! See stderr: {exc}")
-
-            # Record the job ID so we can check for completion.
-            self.continuum_jobid = continuum_jobid
-
-            log.info(f"Submitted continuum pipeline job file for {self.ebid} on {clustername} as job {self.continuum_jobid}")
-
-            update_cell(self.ebid, f"{clustername}:{self.continuum_jobid}",
-                        # num_col=22,
-                        name_col="Continuum job ID",
-                        sheetname=self.sheetname)
-
-            # Continuum
-            update_track_status(self.ebid,
-                                message=f"Reduction running on {clustername}",
-                                sheetname=self.sheetname,
-                                status_col=1)
-
-        else:
-            self.continuum_jobid = None
-
-        if submit_line_pipeline:
-
-            log.info(f"Making line pipeline job file for {self.ebid} or {self.track_folder_name}")
-
-            job_line_filename = f"{self.track_folder_name}_job_line.sh"
-
-            # Remove existing job file if it exists
-            if (track_scripts_dir / job_line_filename).exists():
-                (track_scripts_dir / job_line_filename).unlink()
-
-            slurm_line_kwargs = {}
-            if line_time is not None:
-                slurm_line_kwargs['job_time'] = line_time
-
-            if line_mem is not None:
-                slurm_line_kwargs['mem'] = line_mem
-
-            print(JOB_CREATION_FUNCTIONS[clustername]['LINE_PIPE'](
-                    target_name=self.track_folder_name.split('_')[0],
-                    config=self.track_folder_name.split('_')[1],
-                    trackname=self.track_folder_name.split('_')[2],
-                    slurm_kwargs=slurm_line_kwargs,
-                    setup_kwargs={},
-                    conditional_on_jobnum=self.importsplit_jobid,
-                    casa_version=casa_version),
-                file=open(track_scripts_dir / job_line_filename, 'a'))
-
-            # Move the job script to the cluster:
-            log.info(f"Moving line pipeline job file for {self.ebid} to {clustername}")
-            result = connect.put(track_scripts_dir / job_line_filename,
-                                remote=f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/')
-
-            log.info(f"Submitting job file: {job_line_filename}")
-
-            # Lines
-            update_track_status(self.ebid,
-                                message=f"Reduction running on {clustername}",
-                                sheetname=self.sheetname,
-                                status_col=2)
-
-            try:
-                result = connect_submit.run(f"{chdir_cmd} {job_line_filename}")
-                line_jobid = result.stdout.replace("\n", '').split(" ")[-1]
-
-                # result = run_command(connect, f"{chdir_cmd} && {submit_cmd}")
-                # line_jobid = await run_job_submission(connect, f"{chdir_cmd} && {submit_cmd}",
-                #                                       self.track_name, 'line_pipeline')
-            except ValueError as exc:
-                line_jobid = None
-                raise ValueError(f"Failed to submit line pipeline job! See stderr: {exc}")
-
-            # Record the job ID so we can check for completion.
-            self.line_jobid = line_jobid
-
-            log.info(f"Submitted line pipeline job file for {self.ebid} on {clustername} as job {self.line_jobid}")
-
-            update_cell(self.ebid, f"{clustername}:{self.line_jobid}",
-                        # num_col=24,
-                        name_col='Line job ID',
-                        sheetname=self.sheetname)
-
-        else:
-            self.line_jobid = None
+        await update_track_status(self.ebid,
+                                  message=f"Reduction running on {clustername}",
+                                  sheetname=self.sheetname,
+                                  status_col=1)
 
         if connect.is_connected:
             connect.close()
@@ -708,49 +469,32 @@ class AutoPipeline(object):
 
         log.info(f"Finished submitting pipeline for {self.ebid} on {clustername}")
 
-    def set_job_status(self, data_type, job_status):
+    async def set_job_status(self, job_status):
         """
-        Function to set the status of a job based on data type and job status.
+        Update the sheet status based on the SLURM job outcome.
 
         Parameters:
-            data_type (str): The type of data being processed.
-            job_status (str): The status of the job.
-
-        Raises:
-            ValueError: If an unknown data_type is passed.
-
-        Returns:
-            None
+            job_status (str): SLURM job state string.
         """
 
-        if data_type == 'continuum':
-            status_col = 1
-        elif data_type == 'speclines':
-            status_col = 2
-        else:
-            raise ValueError(f"Unknown data_type passed: {data_type}")
-
         if job_status == 'TIMEOUT':
+            await update_track_status(self.ebid,
+                                      message=f"ISSUE: job timed out",
+                                      sheetname=self.sheetname,
+                                      status_col=1)
 
-            update_track_status(self.ebid,
-                                message=f"ISSUE: job timed out",
-                                sheetname=self.sheetname,
-                                status_col=status_col)
+        elif job_status in ["FAILED", "OUT_OF_MEMORY", "CANCELLED", "NODE_FAIL"]:
+            await update_track_status(self.ebid,
+                                      message=f"ISSUE: Failure with state {job_status}",
+                                      sheetname=self.sheetname,
+                                      status_col=1)
 
-        if job_status in ["FAILED", "OUT_OF_MEMORY", "CANCELLED", "NODE_FAIL"]:
+        elif job_status == "COMPLETED":
+            await update_track_status(self.ebid, message=f"Ready for QA",
+                                      sheetname=self.sheetname,
+                                      status_col=1)
 
-            update_track_status(self.ebid,
-                                message=f"ISSUE: Failure with state {job_status}",
-                                sheetname=self.sheetname,
-                                status_col=status_col)
-
-        if job_status == "COMPLETED":
-
-            update_track_status(self.ebid, message=f"Ready for QA",
-                                sheetname=self.sheetname,
-                                status_col=status_col)
-
-    def set_job_stats(self, job_id, job_type):
+    async def set_job_stats(self, job_id, job_type):
 
         job_check = check_for_job_notification(job_id)
 
@@ -762,32 +506,18 @@ class AutoPipeline(object):
 
         log.info(f"Found notification for {job_id}:{job_type} with status {job_status}")
 
-        if job_type == "continuum":
-            update_cell(self.ebid, job_status,
-                        name_col='Continuum reduction',
-                        sheetname=self.sheetname)
-            update_cell(self.ebid, job_runtime,
-                        name_col="Continuum job wall time",
-                        sheetname=self.sheetname)
-        elif job_type == "speclines":
-            update_cell(self.ebid, job_status,
-                        name_col='Line reduction',
-                        sheetname=self.sheetname)
-            update_cell(self.ebid, job_runtime,
-                        name_col="Line job wall time",
-                        sheetname=self.sheetname)
-        elif job_type == "import_and_split":
-            update_cell(self.ebid, job_status,
-                        name_col='Line/continuum split',
-                        sheetname=self.sheetname)
-            update_cell(self.ebid, job_runtime,
-                        name_col="Split Job ID",
-                        sheetname=self.sheetname)
+        if job_type == "pipeline":
+            await update_cell(self.ebid, job_status,
+                              name_col='Pipeline reduction',
+                              sheetname=self.sheetname)
+            await update_cell(self.ebid, job_runtime,
+                              name_col="Pipeline job wall time",
+                              sheetname=self.sheetname)
         else:
             log.error(f"Unable to interpret job_type {job_type}")
 
 
-    async def transfer_pipeline_products(self, data_type='speclines',
+    async def transfer_pipeline_products(self,
                                          startnode='dra-fir',
                                          endnode='ingester'):
         """
@@ -796,21 +526,14 @@ class AutoPipeline(object):
         Transfer pipeline outputs to a storage system the webserver can access to host.
         """
 
-        # Get info from the spreadsheet.
+        await self._grab_sheetdata()
 
-        if not data_type in ['speclines', 'continuum']:
-            raise ValueError(f"Data type must be 'speclines' or 'continuum'. Received {data_type}")
+        if self.track_name is None:
+            raise ValueError(f"Cannot find trackname in {self.ebid}")
 
-        self._grab_sheetdata()
+        log.info(f"Transferring {self.track_folder_name} products from {startnode} to {endnode}.")
 
-        if self.target is None or self.track_name is None:
-            raise ValueError(f"Cannot find target or trackname in {self.ebid}")
-
-        log.info(f"Transferring {self.track_folder_name} {data_type} products from {startnode} to {endnode}.")
-
-        path_to_products = f'{self.track_folder_name}/{self.track_folder_name}_{data_type}/'
-
-        filename = f'{path_to_products}/{self.track_folder_name}_{data_type}_products.tar'
+        filename = f'{self.track_folder_name}/{self.track_folder_name}_pipeline_products.tar'
 
         # Going to the ingester instance. Doesn't need an extra path.
         output_destination = "/"
@@ -832,70 +555,42 @@ class AutoPipeline(object):
         await globus_wait_for_completion(transfer_taskid, sleeptime=180)
         log.info(f"Globus transfer {transfer_taskid} completed!")
 
-    async def make_flagging_sheet(self, data_type='continuum',
-                                  use_flagging_template=True):
+    async def make_flagging_sheet(self, template_name='TEMPLATE'):
         '''
-        Create the flagging sheet and remember the URLs to use as links.
+        Create the flagging sheet (one per track) and store its URL.
         '''
 
         from autodataingest.gsheet_tracker.gsheet_flagging import make_new_flagsheet
 
-        if use_flagging_template:
-            if data_type == "continuum":
-                template_name = "TEMPLATE-CONTINUUM"
-            elif data_type == "speclines":
-                template_name = "TEMPLATE-SPECLINES"
-            else:
-                raise ValueError(f"Unable to interpret data_type: {data_type}")
-        else:
-            # Otherwise use the blank template.
-            template_name = "TEMPLATE"
+        new_flagsheet = await make_new_flagsheet(self.track_name, self.config,
+                                                 template_name=template_name)
 
-        new_flagsheet = make_new_flagsheet(self.track_name, self.target, self.config,
-                                           data_type=data_type,
-                                           template_name=template_name)
-
-        # make_new_flagsheet already checks for continuum vs. speclines
-        # Make the equiv google docs link, not the API version
         prefix = "https://docs.google.com/spreadsheets/d/"
-
         this_sheet_url = new_flagsheet.url.split("spreadsheets/")[1]
-
-        if data_type == "continuum":
-            self._continuum_flagsheet_url = f"{prefix}/{this_sheet_url}"
-        else:
-            self._speclines_flagsheet_url = f"{prefix}/{this_sheet_url}"
+        self._flagsheet_url = f"{prefix}/{this_sheet_url}"
 
     @property
-    def continuum_flagsheet_url(self):
-        return self._continuum_flagsheet_url
+    def flagsheet_url(self):
+        return self._flagsheet_url
 
-    @property
-    def speclines_flagsheet_url(self):
-        return self._speclines_flagsheet_url
-
-    def make_qa_products(self, data_type='speclines',
-                         verbose=False,
-                         do_update_track_status=True):
+    async def make_qa_products(self,
+                               verbose=False,
+                               do_update_track_status=True):
         '''
         Create the QA products for the QA webserver.
         '''
 
-        if not data_type in ['speclines', 'continuum']:
-            raise ValueError(f"Data type must be 'speclines' or 'continuum'. Received {data_type}")
+        await self._grab_sheetdata()
 
-        self._grab_sheetdata()
-
-        if self.target is None or self.track_name is None:
-            raise ValueError(f"Cannot find target or trackname in {self.ebid}")
+        if self.track_name is None:
+            raise ValueError(f"Cannot find trackname in {self.ebid}")
 
         data_path = Path(ENDPOINT_INFO['ingester']['data_path'])
 
-
         self.setup_qa_track_path()
-        qa_path = self.qa_track_path / data_type
+        qa_path = self.qa_track_path / 'pipeline'
 
-        product_tarname = f"{self.track_folder_name}_{data_type}_products.tar"
+        product_tarname = f"{self.track_folder_name}_pipeline_products.tar"
         product_file = data_path / product_tarname
 
         if not os.path.exists(product_file):
@@ -975,12 +670,7 @@ class AutoPipeline(object):
             os.remove('weblog.tgz')
 
         # Generate the QA products:
-        if data_type == 'continuum':
-            flagging_sheet_link = self.continuum_flagsheet_url
-        elif data_type == 'speclines':
-            flagging_sheet_link = self.speclines_flagsheet_url
-        else:
-            raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
+        flagging_sheet_link = self.flagsheet_url
 
         kwarg_strs = f"flagging_sheet_link='{flagging_sheet_link}', show_target_linesonly=True"
 
@@ -997,9 +687,9 @@ class AutoPipeline(object):
             log.info("qaplotter failure. Check products.")
 
             if do_update_track_status:
-                update_track_status(self.ebid, message="ISSUE: qaplotter failure",
-                                    sheetname=self.sheetname,
-                                    status_col=1 if data_type == 'continuum' else 2)
+                await update_track_status(self.ebid, message="ISSUE: qaplotter failure",
+                                          sheetname=self.sheetname,
+                                          status_col=1)
 
 
         # Clean up the original txt files and images. These are kept in
@@ -1059,9 +749,9 @@ class AutoPipeline(object):
 
         # Update track status
         if do_update_track_status:
-            update_track_status(self.ebid, message=f"Ready for QA",
-                                sheetname=self.sheetname,
-                                status_col=1 if data_type == 'continuum' else 2)
+            await update_track_status(self.ebid, message=f"Ready for QA",
+                                      sheetname=self.sheetname,
+                                      status_col=1)
 
         return True
 
@@ -1085,34 +775,24 @@ class AutoPipeline(object):
         '''
 
         self.qa_track_path.mkdir(parents=True, exist_ok=True)
-        (self.qa_track_path / 'continuum').mkdir(parents=True, exist_ok=True)
-        (self.qa_track_path / 'speclines').mkdir(parents=True, exist_ok=True)
+        (self.qa_track_path / 'pipeline').mkdir(parents=True, exist_ok=True)
 
     async def get_flagging_files(self,
                                  clustername='dra-fir',
-                                 data_type='continuum',
                                  output_folder=os.path.expanduser('FlagRepository'),
                                  scripts_dir=Path('reduction_job_scripts/'),
                                  **ssh_kwargs,
                                  ):
 
-        if not data_type in ['continuum', 'speclines']:
-            raise ValueError(f"data_type must be 'continuum' or 'speclines'. Given {data_type}")
-
         flag_repo_path = Path(output_folder) / self.project_code
         flag_repo_path.mkdir(parents=True, exist_ok=True)
 
-        flag_repo_path_type = flag_repo_path / data_type
-        flag_repo_path_type.mkdir(parents=True, exist_ok=True)
-
-        filename = download_flagsheet_to_flagtxt(self.track_name,
-                                                self.target,
-                                                self.config,
-                                                flag_repo_path_type,
-                                                data_type=data_type,
-                                                raise_noflag_error=False,
-                                                debug=False,
-                                                test_against_previous=True)
+        filename = await download_flagsheet_to_flagtxt(self.track_name,
+                                                       self.config,
+                                                       flag_repo_path,
+                                                       raise_noflag_error=False,
+                                                       debug=False,
+                                                       test_against_previous=True)
 
         # Copy to the same folder that job scripts are/will be in
         track_scripts_dir = scripts_dir / self.track_folder_name
@@ -1124,7 +804,7 @@ class AutoPipeline(object):
             log.info(f"Unable to find a manual flagging sheet for {self.track_name}")
         else:
 
-            newfilename = track_scripts_dir / f'manual_flagging_{data_type}.txt'
+            newfilename = track_scripts_dir / 'manual_flagging.txt'
 
             task_command = ['cp', filename, newfilename]
 
@@ -1145,7 +825,6 @@ class AutoPipeline(object):
 
     async def get_refantignore_files(self,
                                      clustername='dra-fir',
-                                     data_type='continuum',
                                      output_folder=os.path.expanduser('FlagRepository'),
                                      scripts_dir=Path('reduction_job_scripts/'),
                                      **ssh_kwargs,
@@ -1154,16 +833,11 @@ class AutoPipeline(object):
         flag_repo_path = Path(output_folder) / self.project_code
         flag_repo_path.mkdir(parents=True, exist_ok=True)
 
-        flag_repo_path_type = flag_repo_path / data_type
-        flag_repo_path_type.mkdir(parents=True, exist_ok=True)
-
         log.info(f"Downloading refant ignore request for: {self.track_name}")
 
-        # Also grab and copy over the refant file:
-        refant_filename = download_refant_summsheet(self.ebid,
-                                                    flag_repo_path_type,
-                                                    data_type=data_type,
-                                                    sheetname=self.sheetname)
+        refant_filename = await download_refant_summsheet(self.ebid,
+                                                          flag_repo_path,
+                                                          sheetname=self.sheetname)
 
         if refant_filename is None:
             log.info(f"Unable to find a refant ignore file for {self.track_name}")
@@ -1175,7 +849,7 @@ class AutoPipeline(object):
             if not track_scripts_dir.exists():
                 track_scripts_dir.mkdir()
 
-            newfilename = track_scripts_dir / f'refantignore_{data_type}.txt'
+            newfilename = track_scripts_dir / 'refant_ignore.txt'
 
             task_command = ['cp', refant_filename, newfilename]
 
@@ -1197,152 +871,133 @@ class AutoPipeline(object):
 
     async def rerun_job_submission(self,
                                    clustername='dra-fir',
-                                   data_type='continuum',
-                                   clusteracct=None,
-                                   split_time=None,
-                                   continuum_time=None,
-                                   line_time=None,
-                                   split_mem=None,
-                                   continuum_mem=None,
-                                   line_mem=None,
+                                   pipeline_time=None,
+                                   pipeline_mem=None,
                                    scheduler_cmd='',
-                                   reindex=False,
-                                   casa_version=6.2,
+                                   casa_version='6.6',
                                    pipeline_branch='main'):
 
         """
         Step 7.
 
-        After QA, supplies an additional manual flagging script to re-run the pipeline
-        calibration.
+        After QA, supplies an updated flagging file and re-submits the unified
+        pipeline.
         """
 
-        status_flag = self._qa_review_input(data_type=data_type)
+        status_flag = await self._qa_review_input()
 
         if status_flag != "RESTART":
             log.debug("No restart requested. Exiting")
             return
 
-        update_track_status(self.ebid, message=f"Restarting pipeline for re-run",
-                            sheetname=self.sheetname,
-                            status_col=1 if data_type == 'continuum' else 2)
+        await update_track_status(self.ebid, message=f"Restarting pipeline for re-run",
+                                  sheetname=self.sheetname,
+                                  status_col=1)
 
-        # Need to reset the "RESTART" in the track spreadsheet to avoid multiple re-runs
-        update_cell(self.ebid, "",
-                    # num_col=28 if data_type == 'continuum' else 29,
-                    name_col=f"Re-run\n{data_type}",
-                    sheetname=self.sheetname)
+        # Clear the re-run trigger to avoid repeated restarts
+        await update_cell(self.ebid, "",
+                          name_col="Re-run pipeline",
+                          sheetname=self.sheetname)
 
-        await self.cleanup_on_cluster(clustername=clustername,
-                                      data_type=data_type)
+        await self.cleanup_on_cluster(clustername=clustername)
 
-        # Download manual flagging files from the google sheet.
-        await self.get_flagging_files(clustername=clustername,
-                                      data_type=data_type)
+        await self.get_flagging_files(clustername=clustername)
 
-        # Download manual flagging files from the google sheet.
-        await self.get_refantignore_files(clustername=clustername,
-                                          data_type=data_type)
+        await self.get_refantignore_files(clustername=clustername)
 
         await self.setup_for_reduction_pipeline(clustername=clustername,
                                                 pipeline_branch=pipeline_branch)
 
         await self.initial_job_submission(clustername=clustername,
-                                        scripts_dir=Path('reduction_job_scripts/'),
-                                        split_type=data_type,
-                                        reindex=reindex,
-                                        submit_continuum_pipeline=True if data_type == 'continuum' else False,
-                                        submit_line_pipeline=True if data_type == 'speclines' else False,
-                                        # clusteracct=clusteracct,
-                                        split_time=split_time,
-                                        continuum_time=continuum_time,
-                                        line_time=line_time,
-                                        split_mem=split_mem,
-                                        continuum_mem=continuum_mem,
-                                        line_mem=line_mem,
-                                        scheduler_cmd=scheduler_cmd,
-                                        casa_version=casa_version)
+                                          scripts_dir=Path('reduction_job_scripts/'),
+                                          pipeline_time=pipeline_time,
+                                          pipeline_mem=pipeline_mem,
+                                          scheduler_cmd=scheduler_cmd,
+                                          casa_version=casa_version)
 
-        update_track_status(self.ebid,
-                            message=f"Reduction running on {clustername} after QA check",
-                            sheetname=self.sheetname,
-                            status_col=1 if data_type == 'continuum' else 2)
+        await update_track_status(self.ebid,
+                                  message=f"Reduction running on {clustername} after QA check",
+                                  sheetname=self.sheetname,
+                                  status_col=1)
 
-    async def cleanup_on_cluster(self, clustername='dra-fir', data_type='continuum',
+    async def cleanup_on_cluster(self, clustername='dra-fir',
                                  do_remove_whole_track=False,
-                                 do_only_remove_ms=False,
-                                 do_cleanup_tempstorage=False,
-                                 temp_project_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/",
+                                 do_only_remove_products=False,
                                  **ssh_kwargs):
         '''
-        Remove a previous run to setup for a new split and new pipeline reduction.
+        Remove pipeline outputs to prepare for a re-run.
 
-        NOTE: `do_remove_whole_track` deletes the whole track from scratch space!
-        Use only when QA is finished.
-
+        NOTE: `do_remove_whole_track` deletes the entire track folder from
+        scratch space. Use only when QA is fully finished.
         '''
 
-        log.info(f"Starting connection to {clustername} for cleanup of {data_type}")
+        log.info(f"Starting connection to {clustername} for cleanup of {self.track_folder_name}")
 
         cluster_key = 'cedar-robot-generic'
 
         connect = await self.setup_ssh_connection(cluster_key, **ssh_kwargs)
         log.info(f"Returned connection for {cluster_key}")
 
-        if not do_remove_whole_track:
-            # Change to the track directory, then delete the request data type folder
-            # (continuum or speclines)
+        path_to_track = f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}'
 
-            path_to_track = f'{ENDPOINT_INFO[clustername]["data_path"]}/{self.track_folder_name}/'
-
-            log.info(f"Cleaning up {data_type} on {clustername} at {path_to_track}")
-
-            # A successful job will end with a .ms.tar file.
-            if do_only_remove_ms:
-                rm_command = f"rm -rf {path_to_track}/{self.track_folder_name}_{data_type}/*.ms*.tar"
-            else:
-                rm_command = f"rm -rf {path_to_track}/{self.track_folder_name}_{data_type}"
-
+        if do_remove_whole_track:
+            log.info(f"Removing entire track folder on {clustername}: {path_to_track}")
+            rm_command = f"rm -rf {path_to_track}"
+        elif do_only_remove_products:
+            # Remove only the pipeline products folder and tar, leaving the SDM intact
+            rm_command = (f"rm -rf {path_to_track}/products "
+                          f"{path_to_track}/{self.track_folder_name}_pipeline_products*.tar")
         else:
-
-            path_to_scratch = f'cd {ENDPOINT_INFO[clustername]["data_path"]}/'
-
-            log.info(f"Final clean up on {clustername} for track {path_to_scratch}")
-
-            rm_command = f"rm -rf {path_to_scratch}/{self.track_folder_name}"
+            # Default rerun cleanup: remove products and CASA temp files but keep the SDM
+            rm_command = (f"rm -rf {path_to_track}/products "
+                          f"{path_to_track}/{self.track_folder_name}_pipeline_products*.tar "
+                          f"{path_to_track}/*.last {path_to_track}/*.log")
 
         result = run_command(connect, rm_command, allow_failure=True)
 
-        log.info(f"Finished clean up on {clustername} with {rm_command}")
-
-        if do_cleanup_tempstorage:
-            log.info(f"Cleaning up temp project space on {clustername} for track {self.ebid}")
-
-            rm_command = f"rm -r {temp_project_dir}/{self.track_folder_name}.{data_type}.ms*.tar"
-
-            log.info(f"Running command on {clustername}: {rm_command}")
-
-            result = run_command(connect, rm_command, allow_failure=True)
-
-            log.info(f"Finished temp project clean up on {clustername} for track {rm_command}")
+        log.info(f"Finished clean up on {clustername}")
 
         connect.close()
         del connect
 
+    async def submit_imaging_jobs(self,
+                                  clustername='dra-fir',
+                                  scripts_dir=Path('reduction_job_scripts/'),
+                                  casa_version='6.6',
+                                  **ssh_kwargs):
+        """
+        Optionally submit imaging jobs after pipeline QA is approved.
+
+        Reads the imaging trigger flags from the flagging sheet and submits
+        continuum and/or speclines imaging jobs if requested.
+
+        NOTE: Imaging job templates are not yet defined. This method will raise
+        NotImplementedError until job_imaging.py is implemented.
+        """
+
+        triggers = await check_imaging_trigger(self.track_name, self.config)
+
+        if not triggers['continuum'] and not triggers['speclines']:
+            log.info(f"No imaging jobs triggered for {self.track_folder_name}. Skipping.")
+            return
+
+        raise NotImplementedError(
+            "Imaging job submission is not yet implemented. "
+            "Define job_imaging.py and update this method."
+        )
+
     async def transfer_calibrated_data(self,
                                        clustername='dra-fir',
-                                       data_type='continuum',
                                        project_dir="/project/rrg-eros-ab/ekoch/VLAXL/temp_calibrated/"):
         """
         Move calibrated MSs to persistent storage location.
         """
 
         # Transfer the MS with globus to its place on project space.
-        log.info(f"Transferring {self.track_folder_name} {data_type} calibrated MS to project space.")
+        # TODO: update filename pattern once the new pipeline's MS output naming is confirmed.
+        log.info(f"Transferring {self.track_folder_name} calibrated MS to project space.")
 
-        path_to_products = f'{self.track_folder_name}/{self.track_folder_name}_{data_type}/'
-
-        filename = f'{path_to_products}/{self.track_folder_name}.{data_type}.ms.split.tar'
+        filename = f'{self.track_folder_name}/{self.track_folder_name}.ms.split.tar'
 
         # Going to the ingester instance. Doesn't need an extra path.
         output_destination = project_dir
@@ -1364,10 +1019,10 @@ class AutoPipeline(object):
             log.info(f"No transfer task ID returned. Check existence of {filename}."
                   " Exiting completion process.")
 
-            update_track_status(self.ebid,
-                    message=f"ISSUE: globus transfer failed.",
-                    sheetname=self.sheetname,
-                    status_col=1 if data_type == 'continuum' else 2)
+            await update_track_status(self.ebid,
+                                      message=f"ISSUE: globus transfer failed.",
+                                      sheetname=self.sheetname,
+                                      status_col=1 if data_type == 'continuum' else 2)
 
             raise ValueError(f"No transfer task ID returned. Check existence of {filename}."
                   " Exiting completion process.")
@@ -1398,10 +1053,10 @@ class AutoPipeline(object):
             log.debug(f"No transfer task ID returned. Check existence of {filename_cals}."
                   " Exiting completion process.")
 
-            update_track_status(self.ebid,
-                    message=f"ISSUE: globus transfer failed.",
-                    sheetname=self.sheetname,
-                    status_col=1 if data_type == 'continuum' else 2)
+            await update_track_status(self.ebid,
+                                      message=f"ISSUE: globus transfer failed.",
+                                      sheetname=self.sheetname,
+                                      status_col=1 if data_type == 'continuum' else 2)
 
             raise ValueError(f"No transfer task ID returned. Check existence of {filename_cals}."
                   " Exiting completion process.")
@@ -1439,7 +1094,7 @@ class AutoPipeline(object):
 
         # Status check.
 
-        status_flag = self._qa_review_input(data_type=data_type)
+        status_flag = await self._qa_review_input()
 
         # Skip if completion is not indicated
         if status_flag != "COMPLETE":
@@ -1509,20 +1164,20 @@ class AutoPipeline(object):
 
         # Update track status. Append both data types if one has already finished
         other_data_type = "speclines" if data_type == 'continuum' else 'continuum'
-        current_status = return_cell(self.ebid,
-                                    #  column=1,
-                                     name_col=f'Status: {other_data_type}',
-                                     sheetname=self.sheetname)
+        current_status = await return_cell(self.ebid,
+                                           #  column=1,
+                                           name_col=f'Status: {other_data_type}',
+                                           sheetname=self.sheetname)
 
         if "Ready for imaging" in current_status:
             other_part_finished = True
         else:
             other_part_finished = False
 
-        update_track_status(self.ebid,
-                            message=f"Ready for imaging",
-                            sheetname=self.sheetname,
-                            status_col=1 if data_type == 'continuum' else 2)
+        await update_track_status(self.ebid,
+                                  message=f"Ready for imaging",
+                                  sheetname=self.sheetname,
+                                  status_col=1 if data_type == 'continuum' else 2)
 
         # Clean up scratch space.
         # Need to check if both components are finished to clean up entire space.
@@ -1560,25 +1215,25 @@ class AutoPipeline(object):
         # cleanup_source(self.track_name, node='nrao-aoc')
 
         # Remove completion flag to avoid re-runs
-        update_cell(self.ebid, "",
-                    # num_col=28 if data_type == 'continuum' else 29,
-                    name_col=f"Re-run\n{data_type}",
-                    sheetname=self.sheetname)
+        await update_cell(self.ebid, "",
+                          # num_col=28 if data_type == 'continuum' else 29,
+                          name_col=f"Re-run\n{data_type}",
+                          sheetname=self.sheetname)
 
 
-    def label_qa_failures(self, data_type='continuum'):
+    async def label_qa_failures(self, data_type='continuum'):
 
         """
         Note failing tracks or those that require manual reduction attempts.
         """
 
-        self._grab_sheetdata()
+        await self._grab_sheetdata()
         if self.target is None or self.track_name is None:
             raise ValueError(f"Cannot find target or trackname in {self.ebid}")
 
         manual_review_states = ["MANUAL REVIEW", "HELP REQUESTED"]
 
-        status_flag = self._qa_review_input(data_type=data_type)
+        status_flag = await self._qa_review_input()
 
         if status_flag not in manual_review_states:
             log.debug("No manual review requested. Exiting")
@@ -1589,16 +1244,16 @@ class AutoPipeline(object):
         else:
             message=f"HELP: QA help requested."
 
-        update_track_status(self.ebid,
-                        message=message,
-                        sheetname=self.sheetname,
-                        status_col=1 if data_type == 'continuum' else 2)
+        await update_track_status(self.ebid,
+                                  message=message,
+                                  sheetname=self.sheetname,
+                                  status_col=1 if data_type == 'continuum' else 2)
 
         # Remove review flag to avoid re-runs
-        update_cell(self.ebid, "",
-                    # num_col=28 if data_type == 'continuum' else 29,
-                    name_col=f"Re-run\n{data_type}",
-                    sheetname=self.sheetname)
+        await update_cell(self.ebid, "",
+                          # num_col=28 if data_type == 'continuum' else 29,
+                          name_col=f"Re-run\n{data_type}",
+                          sheetname=self.sheetname)
 
 
     async def transfer_qa_failures(self, data_type='continuum',
@@ -1606,7 +1261,7 @@ class AutoPipeline(object):
                                    endnode='ingester',
                                    set_status=True):
 
-        self._grab_sheetdata()
+        await self._grab_sheetdata()
         if self.target is None or self.track_name is None:
             raise ValueError(f"Cannot find target or trackname in {self.ebid}")
 
@@ -1614,10 +1269,10 @@ class AutoPipeline(object):
 
             status_col = 1 if data_type == 'continuum' else 2
 
-            update_track_status(self.ebid,
-                                message=f"ISSUE: Needs manual check of job status",
-                                sheetname=self.sheetname,
-                                status_col=status_col)
+            await update_track_status(self.ebid,
+                                      message=f"ISSUE: Needs manual check of job status",
+                                      sheetname=self.sheetname,
+                                      status_col=status_col)
 
         # Attempt to transfer failed data products
 

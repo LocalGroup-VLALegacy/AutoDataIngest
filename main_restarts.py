@@ -26,6 +26,12 @@ from autodataingest.job_monitor import (number_of_active_jobs,
 from autodataingest.logging import setup_logging
 log = setup_logging()
 
+# ---------------------------------------------------------------------------
+# Dry-run flag — set True to exercise the full asyncio queue / pipeline flow
+# without touching real infrastructure (Google Sheets, Globus, SSH/SLURM).
+# ---------------------------------------------------------------------------
+DRY_RUN = False
+
 
 def allow_newjobs_check(free_space, free_filenum, num_jobs_active):
     return (free_space >= MIN_STORAGE) & (free_filenum >= MIN_NUMFILES) & \
@@ -46,12 +52,12 @@ async def produce(queue, sleeptime=600, start_with_newest=False,
 
         for sheetname in sheetnames:
             try:
-                sheet_all_complete_statuses = find_rerun_status_tracks(sheetname=sheetname,
-                                                                       job_type="COMPLETE")
+                sheet_all_complete_statuses = await find_rerun_status_tracks(sheetname=sheetname,
+                                                                             job_type="COMPLETE")
 
                 # Append the failure cases:
                 for fail_state in ["MANUAL REVIEW", "HELP REQUESTED"]:
-                    fail_status = find_rerun_status_tracks(sheetname=sheetname, job_type=fail_state)
+                    fail_status = await find_rerun_status_tracks(sheetname=sheetname, job_type=fail_state)
                     sheet_all_complete_statuses.extend(fail_status)
 
             except Exception as e:
@@ -154,8 +160,8 @@ async def produce(queue, sleeptime=600, start_with_newest=False,
             log.info(f"Job checking in sheet {sheetname}")
 
             try:
-                sheet_all_rerun_statuses = find_rerun_status_tracks(sheetname=sheetname,
-                                                                    job_type="RESTART")
+                sheet_all_rerun_statuses = await find_rerun_status_tracks(sheetname=sheetname,
+                                                                          job_type="RESTART")
             except Exception as e:
                 log.warn(f"Encountered error in find_reruns_status_tracks: {e}")
                 await asyncio.sleep(long_sleep)
@@ -233,12 +239,12 @@ async def consume(queue, sleeptime=1800, sleeptime_finish=600):
         # await asyncio.sleep(1)
 
         if auto_pipe._allow_continuum_run:
-            continuum_status = auto_pipe._qa_review_input(data_type='continuum')
+            continuum_status = await auto_pipe._qa_review_input()
         else:
             continuum_status = ""
 
         if auto_pipe._allow_speclines_run:
-            speclines_status = auto_pipe._qa_review_input(data_type='speclines')
+            speclines_status = await auto_pipe._qa_review_input()
         else:
             speclines_status = ""
 
@@ -415,22 +421,27 @@ if __name__ == "__main__":
 
     start_with_newest = False
 
+    DRY_RUN = False   # set True to run without real infrastructure
+
+    if DRY_RUN:
+        log.info("=== DRY RUN MODE — no real sheets, Globus, or SSH calls ===")
+        from autodataingest.dry_run_stubs import (
+            DryRunPipeline as AutoPipeline,                          # noqa: F811
+            fake_find_rerun_status_tracks as find_rerun_status_tracks,  # noqa: F811
+            fake_setup_ssh_connection as setup_ssh_connection,       # noqa: F811
+            fake_get_slurm_job_monitor as get_slurm_job_monitor,     # noqa: F811
+            fake_number_of_active_jobs as number_of_active_jobs,     # noqa: F811
+            fake_get_lustre_storage_avail as get_lustre_storage_avail,  # noqa: F811
+        )
+
     global EBID_QUEUE_LIST
     EBID_QUEUE_LIST = []
 
     print("Starting new event loop")
 
-    loop = asyncio.new_event_loop()
-
-    loop.set_debug(False)
-    loop.slow_callback_duration = 0.001
-
-    loop.run_until_complete(run(start_with_newest=start_with_newest,
-                                num_consume=NUM_CONSUMERS,
-                                sheetnames=SHEETNAMES))
-    loop.close()
-
-    del loop
+    asyncio.run(run(start_with_newest=start_with_newest,
+                    num_consume=NUM_CONSUMERS,
+                    sheetnames=SHEETNAMES))
 
 
     # Run purely a test

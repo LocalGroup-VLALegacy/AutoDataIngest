@@ -4,9 +4,7 @@ These are dictionaries containing the info required about the clusters
 that are used to do the reduction and to produce job scripts.
 '''
 
-import autodataingest.job_templates.job_import_and_merge as jobs_import
-import autodataingest.job_templates.job_continuum_pipeline as jobs_continuum
-import autodataingest.job_templates.job_line_pipeline as jobs_line
+import autodataingest.job_templates.job_unified_pipeline as jobs_unified
 
 
 # Add new locations here so we can refer to each location by 1 name:
@@ -25,12 +23,8 @@ ENDPOINT_INFO = {'cc-cedar': {'endpoint_id': "8dec4129-9ab4-451d-a45f-5b4b8471f7
                               'qa_path': "/mnt/bigdata/vlaxl/data_staging/"}}
 
 JOB_CREATION_FUNCTIONS = \
-    {'cc-cedar': {'IMPORT_SPLIT': jobs_import.cedar_submission_script,
-                  'CONTINUUM_PIPE': jobs_continuum.cedar_submission_script,
-                  'LINE_PIPE': jobs_line.cedar_submission_script},
-    'dra-fir': {'IMPORT_SPLIT': jobs_import.cedar_submission_script,
-                'CONTINUUM_PIPE': jobs_continuum.cedar_submission_script,
-                'LINE_PIPE': jobs_line.cedar_submission_script},
+    {'cc-cedar': {'UNIFIED_PIPE': jobs_unified.cedar_submission_script},
+     'dra-fir':  {'UNIFIED_PIPE': jobs_unified.cedar_submission_script},
     }
 
 # Note that these are now broken down by job execution type

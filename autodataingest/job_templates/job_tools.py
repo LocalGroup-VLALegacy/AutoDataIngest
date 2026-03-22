@@ -114,5 +114,7 @@ def path_to_casa(version='6.5'):
         return "casa-6.1.2-7-pipeline-2020.1.0.36"
     elif version == "5.6":
         return "casa-pipeline-release-5.6.2-3.el7"
+    elif version == '6.6':
+        return "casa-6.6.1-17-pipeline-2024.1.0.8"
     else:
         raise ValueError(f"No pipeline version corresponding to {version}")

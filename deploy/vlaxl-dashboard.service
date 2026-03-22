@@ -1,0 +1,57 @@
+# systemd service unit for the VLAXL AutoDataIngest dashboard server.
+#
+# SETUP (run as root or with sudo):
+#
+#   1. Edit the three CHANGEME lines below.
+#
+#   2. Copy to systemd:
+#        cp deploy/vlaxl-dashboard.service /etc/systemd/system/
+#        systemctl daemon-reload
+#
+#   3. Enable + start:
+#        systemctl enable --now vlaxl-dashboard
+#
+#   4. Restrict socket to the project group (optional; socket is 0o666 by default):
+#        # Add users to the group:  usermod -aG vlaxl <username>
+#        # Then tighten the socket: edit SOCKET_PATH chmod in dashboard/config.py
+#        #                          and add: ExecStartPost=/bin/chgrp vlaxl /tmp/vlaxl_autodataingest.sock
+#
+#   5. View logs:
+#        journalctl -u vlaxl-dashboard -f
+#        # or:
+#        tail -f /path/to/AutoDataIngest/logs/dashboard_server.log
+#
+# TUI clients (any authorised user, via SSH):
+#   cd /path/to/AutoDataIngest
+#   python -m dashboard.client
+
+[Unit]
+Description=VLAXL AutoDataIngest Dashboard Server
+Documentation=file:docs/pipeline_overview.md
+After=network.target
+
+[Service]
+Type=simple
+
+# --- CHANGEME ---
+User=CHANGEME                        # e.g.  vlaxl  or the account that owns the pipeline
+Group=CHANGEME                       # e.g.  vlaxl  (users in this group can connect)
+WorkingDirectory=CHANGEME            # absolute path to the AutoDataIngest directory
+# ----------------
+
+ExecStart=/usr/bin/python3 run_dashboard_server.py
+
+# Restart on failure; don't restart if it exits cleanly (e.g. SIGTERM from systemctl stop)
+Restart=on-failure
+RestartSec=10
+
+# Give subprocesses a chance to finish cleanly before SIGKILL
+TimeoutStopSec=30
+
+# Log to journal (also captured in logs/dashboard_server.log by the Python logger)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vlaxl-dashboard
+
+[Install]
+WantedBy=multi-user.target

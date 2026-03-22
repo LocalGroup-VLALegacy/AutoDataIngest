@@ -1,500 +1,382 @@
-
 '''
-Functions for reading/writing to the master google sheet tracking the reduction status of VLA tracks.
+Functions for reading/writing to the master Google Sheet tracking the reduction
+status of VLA tracks.
 
-Note that we have a service account attached to the gdrive ("datamanager@vlaxlgdrive.iam.gserviceaccount.com")
-that the authentication is handled through
+Authentication uses a service account JSON credential file at:
+    ~/.config/gspread/service_account.json
+(same location as the old gspread.service_account() default).
 
+All public functions are async and must be called with ``await`` from within
+a running asyncio event loop.
 '''
 
-import time
-import requests
-import gspread
-from gspread_formatting import cellFormat, color, textFormat, format_cell_range
+import asyncio
 import string
 from datetime import datetime
 from pathlib import Path
+
+import gspread                    # kept for exception types only
+import gspread_asyncio
+import requests                   # for ReadTimeout in update_track_status
+from google.oauth2.service_account import Credentials
+from gspread_formatting import cellFormat, color, textFormat, format_cell_range
 
 from ..logging import setup_logging
 log = setup_logging()
 
 
-def do_authentication_gspread():
+# ---------------------------------------------------------------------------
+# Authentication
+# ---------------------------------------------------------------------------
+
+def _make_credentials() -> Credentials:
+    """Load service account credentials from the default gspread file location."""
+    creds_path = Path.home() / '.config' / 'gspread' / 'service_account.json'
+    creds = Credentials.from_service_account_file(str(creds_path))
+    return creds.with_scopes([
+        'https://spreadsheets.google.com/feeds',
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/spreadsheets',
+    ])
+
+
+# Shared client manager — handles token refresh automatically; safe to use
+# concurrently from multiple coroutines.
+_agcm = gspread_asyncio.AsyncioGspreadClientManager(_make_credentials)
+
+
+async def get_agc() -> gspread_asyncio.AsyncioGspreadClient:
+    """Return an authorised async gspread client."""
+    return await _agcm.authorize()
+
+
+# ---------------------------------------------------------------------------
+# Spreadsheet access
+# ---------------------------------------------------------------------------
+
+async def read_tracksheet() -> gspread_asyncio.AsyncioGspreadSpreadsheet:
+    """Open and return the '20A-346 Tracks' spreadsheet."""
+    agc = await get_agc()
+    return await agc.open("20A-346 Tracks")
+
+
+# ---------------------------------------------------------------------------
+# Track discovery
+# ---------------------------------------------------------------------------
+
+async def find_new_tracks(sheetname: str = '20A - OpLog Summary',
+                          status_check: str = '') -> list:
     """
-    This looks for the json credentials file in `~/.config/gspread/service_account.json` and will fail
-    if it doesn't find it.
-
+    Return EBIDs where ``Status: pipeline`` equals ``status_check`` (default: empty).
     """
+    full_sheet = await read_tracksheet()
+    worksheet = await full_sheet.worksheet(sheetname)
+    tracks_info = await worksheet.get_all_records()
 
-    gc = gspread.service_account()
-    return gc
+    return [
+        track['EBID']
+        for track in tracks_info
+        if track['Status: pipeline'] == status_check
+    ]
 
 
-def read_tracksheet():
+async def find_rerun_status_tracks(sheetname: str = '20A - OpLog Summary',
+                                   job_type: str | None = None,
+                                   max_per_exec: int = 10) -> list:
     """
-    Read in the tracksheet.
-
+    Find tracks with a re-run trigger set and timestamp the ``Prev pipeline status``
+    column.  Returns ``[[ebid, [['pipeline', type]]], ...]``.
     """
-
-    gc = do_authentication_gspread()
-
-    tracksheet = gc.open("20A-346 Tracks")
-
-    return tracksheet
-
-
-def find_new_tracks(sheetname='20A - OpLog Summary', status_check=''):
-    """
-    Find new tracks where the sheet has not recorded the data being staged from the archive on AOC.
-    """
-
-    full_sheet = read_tracksheet()
-
-    # Find the right sheet according to sheetname
-
-    worksheet = full_sheet.worksheet(sheetname)
-
-    # Grab the track info.
-    tracks_info = worksheet.get_all_records()
+    full_sheet = await read_tracksheet()
+    worksheet = await full_sheet.worksheet(sheetname)
+    tracks_info = await worksheet.get_all_records()
 
     new_tracks = []
-
-    for track in tracks_info:
-        # Check if the status is equal to `status_check`
-        if track['Status: continuum'] != status_check:
-            continue
-
-        if track['Status: speclines'] != status_check:
-            continue
-
-        new_tracks.append(track['EBID'])
-
-    return new_tracks
-
-
-def find_rerun_status_tracks(sheetname='20A - OpLog Summary',
-                             job_type=None,
-                             max_per_exec=10):
-    """
-    Find new tracks where an updated run status has been indicated. Fill in last given
-    status with a timestamp in the sheet.
-    """
-
-    full_sheet = read_tracksheet()
-
-    # Find the right sheet according to sheetname
-
-    worksheet = full_sheet.worksheet(sheetname)
-
-    # Grab the track info.
-    tracks_info = worksheet.get_all_records()
-
-    new_tracks = []
-
     if job_type is None:
         job_type = 'ALL'
 
     for track in tracks_info:
-        # Check if the status is equal to `status_check`
         run_types = []
 
-        time.sleep(5)
+        await asyncio.sleep(5)   # rate-limit Sheets API writes below
 
-        if len(track['Re-run\ncontinuum']) > 0 or len(track['Re-run\nspeclines']) > 0:
-
+        if len(track['Re-run pipeline']) > 0:
             time_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            this_type = track['Re-run pipeline']
 
-            append_this_track = False
-
-            if len(track['Re-run\ncontinuum']) > 0:
-                this_type_cont = track['Re-run\ncontinuum']
-                if job_type is not 'ALL' and job_type not in this_type_cont:
-                    log.info(f"Skipping continuum job since it is a {this_type_cont} not a  {job_type} job.")
-                else:
-
-                    append_this_track = True
-
-                    continuum_trigger = f"{this_type_cont} at {time_stamp}"
-
-                    update_cell(track['EBID'],
-                                continuum_trigger,
-                                name_col='Prev continuum status',
-                                sheetname=sheetname)
-
-                    run_types.append(['continuum', this_type_cont])
-
-            if len(track['Re-run\nspeclines']) > 0:
-                this_type_line = track['Re-run\nspeclines']
-
-                if job_type is not 'ALL' and job_type not in this_type_line:
-                    log.info(f"Skipping line job since it isn't a {this_type_line} not a {job_type} job.")
-                else:
-
-                    append_this_track = True
-
-                    speclines_trigger = f"{this_type_line} at {time_stamp}"
-
-                    update_cell(track['EBID'],
-                                speclines_trigger,
-                                name_col='Prev speclines status',
-                                sheetname=sheetname)
-
-                    run_types.append(['speclines', this_type_line])
-
-            if append_this_track:
+            if job_type != 'ALL' and job_type not in this_type:
+                log.info(f"Skipping {this_type} — not a {job_type} job.")
+            else:
+                pipeline_trigger = f"{this_type} at {time_stamp}"
+                await update_cell(track['EBID'],
+                                  pipeline_trigger,
+                                  name_col='Prev pipeline status',
+                                  sheetname=sheetname)
+                run_types.append(['pipeline', this_type])
                 new_tracks.append([track['EBID'], run_types])
 
         if len(new_tracks) >= max_per_exec:
-            log.info(f"Hit maximum jobs per execution to submit: {max_per_exec}")
+            log.info(f"Hit maximum jobs per execution: {max_per_exec}")
             break
 
     return new_tracks
 
 
-def find_running_tracks(sheetname='20A - OpLog Summary',
-                        status_check='Reduction running'):
+async def find_running_tracks(sheetname: str = '20A - OpLog Summary',
+                              status_check: str = 'Reduction running') -> list:
     """
-    Return the EBID and job type of tracks that were last actively running.
+    Return ``[ebid, 'pipeline', job_id]`` for every track whose
+    ``Status: pipeline`` contains ``status_check``.
     """
+    full_sheet = await read_tracksheet()
+    worksheet = await full_sheet.worksheet(sheetname)
+    tracks_info = await worksheet.get_all_records()
 
-    full_sheet = read_tracksheet()
-
-    # Find the right sheet according to sheetname
-
-    worksheet = full_sheet.worksheet(sheetname)
-
-    # Grab the track info.
-    tracks_info = worksheet.get_all_records()
-
-    running_tracks = []
-
-    for track in tracks_info:
-        # Check if the status is equal to `status_check`
-        if status_check in track['Status: continuum']:
-            running_tracks.append([track['EBID'], "continuum", track['Continuum job ID']])
-
-        if status_check in track['Status: speclines']:
-            running_tracks.append([track['EBID'], "speclines", track['Line job ID']])
-
-    return running_tracks
+    return [
+        [track['EBID'], "pipeline", track['Pipeline job ID']]
+        for track in tracks_info
+        if status_check in track['Status: pipeline']
+    ]
 
 
-def return_all_ebids(sheetname='20A - OpLog Summary'):
-
-    # Find the right sheet according to sheetname
-    full_sheet = read_tracksheet()
-
-    worksheet = full_sheet.worksheet(sheetname)
-
-    ebids = worksheet.col_values(7)
-
-    # Drop empties and the first (the column name)
-    ebids = [ebid for ebid in ebids if len(ebid) > 0][1:]
-
-    return ebids
+async def return_all_ebids(sheetname: str = '20A - OpLog Summary') -> list:
+    full_sheet = await read_tracksheet()
+    worksheet = await full_sheet.worksheet(sheetname)
+    ebids = await worksheet.col_values(7)
+    # Drop header and empty entries
+    return [ebid for ebid in ebids if ebid][1:]
 
 
-# Existing colors:
-# Light yellow: staged data for transfer
-# Light blue: data transferred finished; ready for reduction pipeline run
+# ---------------------------------------------------------------------------
+# Row / cell updates
+# ---------------------------------------------------------------------------
 
-stage_colors = {'Archive download staged': {'row_color': [0.9254901960784314, 0.8823529411764706, 0.2],
-                                            'text_color': [0., 0., 0.],
-                                            'bold_text': False},
-                'Queued': {'row_color': [0.9254901960784314, 0.8823529411764706, 0.2],
-                                            'text_color': [0., 0., 0.],
-                                            'bold_text': False},
-                'Data transferred to': {'row_color': [0.33725490196078434, 0.7058823529411765, 0.9137254901960784],
-                                        'text_color': [0., 0., 0.],
-                                        'bold_text': False},
-                'Reduction running on': {'row_color': [0.00392156862745098, 0.45098039215686275, 0.6980392156862745],
-                                        'text_color': [1., 1., 1.],
-                                        'bold_text': False},
-                'Ready for QA': {'row_color': [0.8352941176470589, 0.3686274509803922, 0.0],
-                                        'text_color': [1., 1., 1.],
-                                        'bold_text': False},
-                'Ready for imaging': {'row_color': [0.00784313725490196, 0.6196078431372549, 0.45098039215686275],
-                                        'text_color': [1., 1., 1.],
-                                        'bold_text': True},
-                'Restarting pipeline': {'row_color': [0.00392156862745098, 0.45098039215686275, 0.6980392156862745],
-                                        'text_color': [1., 1., 1.],
-                                        'bold_text': False},
-                'ISSUE': {'row_color': [0., 0., 0.],
-                          'text_color': [1., 1., 1.],
-                          'bold_text': False},
-                'FAILED': {'row_color': [0., 0., 0.],
-                           'text_color': [1., 1., 1.],
-                           'bold_text': False},
-                'HELP': {'row_color': [0.8, 0.47058823529411764, 0.7372549019607844],
-                         'text_color': [1., 1., 1.],
-                         'bold_text': False}}
-
-# Future stage colors:
-# Deep blue: initial/revised reduction running
-# [0.00392156862745098, 0.45098039215686275, 0.6980392156862745], [1., 1., 1.]
-# Deep orange: initidual reduction done; awaiting
-# [0.8352941176470589, 0.3686274509803922, 0.0], [1., 1., 1.]
-# Green: READY for imaging
-# [0.00784313725490196, 0.6196078431372549, 0.45098039215686275], [1., 1., 1.]
-# Black: Failed
-# [0., 0., 0.], [1., 1., 1.]
+# Row highlight colours keyed on status message prefix
+stage_colors = {
+    'Archive download staged': {'row_color': [0.9254901960784314, 0.8823529411764706, 0.2],
+                                'text_color': [0., 0., 0.], 'bold_text': False},
+    'Queued':                  {'row_color': [0.9254901960784314, 0.8823529411764706, 0.2],
+                                'text_color': [0., 0., 0.], 'bold_text': False},
+    'Data transferred to':     {'row_color': [0.33725490196078434, 0.7058823529411765, 0.9137254901960784],
+                                'text_color': [0., 0., 0.], 'bold_text': False},
+    'Reduction running on':    {'row_color': [0.00392156862745098, 0.45098039215686275, 0.6980392156862745],
+                                'text_color': [1., 1., 1.], 'bold_text': False},
+    'Ready for QA':            {'row_color': [0.8352941176470589, 0.3686274509803922, 0.0],
+                                'text_color': [1., 1., 1.], 'bold_text': False},
+    'Ready for imaging':       {'row_color': [0.00784313725490196, 0.6196078431372549, 0.45098039215686275],
+                                'text_color': [1., 1., 1.], 'bold_text': True},
+    'Restarting pipeline':     {'row_color': [0.00392156862745098, 0.45098039215686275, 0.6980392156862745],
+                                'text_color': [1., 1., 1.], 'bold_text': False},
+    'ISSUE':                   {'row_color': [0., 0., 0.], 'text_color': [1., 1., 1.], 'bold_text': False},
+    'FAILED':                  {'row_color': [0., 0., 0.], 'text_color': [1., 1., 1.], 'bold_text': False},
+    'HELP':                    {'row_color': [0.8, 0.47058823529411764, 0.7372549019607844],
+                                'text_color': [1., 1., 1.], 'bold_text': False},
+}
 
 
+async def update_track_status(ebid,
+                              message: str = "Archive download staged",
+                              sheetname: str = '20A - OpLog Summary',
+                              status_col: int = 1,
+                              bool_status_colname: str = "Staged data \nfrom archive",
+                              row_color: list = None,
+                              text_color: list = None,
+                              bold_text: bool = False,
+                              max_retry: int = 5) -> None:
+    """Update the processing status of a track and colour the row."""
+    if row_color is None:
+        row_color = [1., 1., 1.]
+    if text_color is None:
+        text_color = [0., 0., 0.]
 
-def update_track_status(ebid, message="Archive download staged",
-                        sheetname='20A - OpLog Summary',
-                        status_col=1,
-                        bool_status_colname="Staged data \nfrom archive",
-                        row_color=[1., 1., 1.],
-                        text_color=[0., 0., 0.],
-                        bold_text=False,
-                        max_retry=5):
-    """
-    Update the processing status of a track running through the pipeline.
-    """
-
-    i = 0
-    while i == 0:
+    worksheet = None
+    for attempt in range(max_retry):
         try:
-            full_sheet = read_tracksheet()
-            worksheet = full_sheet.worksheet(sheetname)
+            full_sheet = await read_tracksheet()
+            worksheet = await full_sheet.worksheet(sheetname)
             break
         except requests.ReadTimeout:
-            time.sleep(10)
-            pass
+            await asyncio.sleep(10)
+    if worksheet is None:
+        raise ValueError("Timed out multiple times reading Google Sheet.")
 
-        i += 1
+    cell = await worksheet.find(str(ebid))
+    await worksheet.update_cell(cell.row, status_col, message)
 
-        if i >= max_retry:
-            raise ValueError("Error: timed out multiple time reading google sheet.")
+    bool_col_cell = await worksheet.find(bool_status_colname)
+    await worksheet.update_cell(cell.row, bool_col_cell.col, "TRUE")
 
-    cell = worksheet.find(str(ebid))
-
-    worksheet.update_cell(cell.row, status_col, message)
-
-    # Update the boolean flags for the different stages.
-    bool_cell_col = worksheet.find(bool_status_colname).col
-    worksheet.update_cell(cell.row, bool_cell_col, "TRUE")
-
-    # Check if we have a color to update for the row at this stage:
-    key_match_status = [key for key in stage_colors if key in message]
-    if len(key_match_status) > 1:
-        log.info("Found multiple matching statuses: {key_match_status}. Going with the first one")
-
-    if len(key_match_status) > 0:
-        key = key_match_status[0]
-        row_color = stage_colors[key]['row_color']
+    # Determine row colour from status message
+    key_match = [key for key in stage_colors if key in message]
+    if len(key_match) > 1:
+        log.info(f"Multiple matching statuses found: {key_match}. Using the first.")
+    if key_match:
+        key = key_match[0]
+        row_color  = stage_colors[key]['row_color']
         text_color = stage_colors[key]['text_color']
-        bold_text = stage_colors[key]['bold_text']
+        bold_text  = stage_colors[key]['bold_text']
 
-    fmt = cellFormat(backgroundColor=color(*row_color),
-                     textFormat=textFormat(bold=bold_text,
-                                           foregroundColor=color(*text_color)))
+    fmt = cellFormat(
+        backgroundColor=color(*row_color),
+        textFormat=textFormat(bold=bold_text, foregroundColor=color(*text_color)),
+    )
+    cell_range = f'{string.ascii_uppercase[status_col - 1]}{cell.row}'
 
-    format_cell_range(worksheet, f'{string.ascii_uppercase[status_col-1]}{cell.row}', fmt)
+    # format_cell_range is synchronous — run in thread pool so we don't block the loop
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, format_cell_range, worksheet.ws, cell_range, fmt)
 
 
-def update_cell(ebid, value,
-                name_col=None,
-                num_col=3,
-                sheetname='20A - OpLog Summary'):
-    '''
-    Update cell given an execution block ID and column for the output.
+async def update_cell(ebid,
+                      value,
+                      name_col: str | None = None,
+                      num_col: int = 3,
+                      sheetname: str = '20A - OpLog Summary') -> None:
+    """
+    Update a single cell for the row identified by ``ebid``.
 
     Parameters
     ----------
-    ebid : str
-        EB ID number of the track.
-    name_col : str, optional
-        Name of column in the google sheet. When given, overrides `num_col`.
-    num_col : int, optional
-        Integer number of the column starting at 1(!).
-    sheetname : str, optional
-        Name of tab sheet name.
-
-    '''
+    name_col:
+        Column header string.  When given, overrides ``num_col``.
+    num_col:
+        1-based column index (used when ``name_col`` is None or not found).
+    """
     if name_col is None and num_col is None:
         raise ValueError("Either name_col or num_col must be provided.")
 
-    full_sheet = read_tracksheet()
-    worksheet = full_sheet.worksheet(sheetname)
+    full_sheet = await read_tracksheet()
+    worksheet = await full_sheet.worksheet(sheetname)
 
     if name_col is not None:
         try:
-            thiscolcell = worksheet.find(name_col)
-            num_col = thiscolcell.col
-        except gspread.CellNotFound:
-            log.exception(f"Unable to find column name {name_col}. Defaulting to `num_col`")
+            col_cell = await worksheet.find(name_col)
+            num_col = col_cell.col
+        except gspread.exceptions.CellNotFound:
+            log.exception(f"Column '{name_col}' not found; falling back to num_col={num_col}.")
 
-    cell = worksheet.find(str(ebid))
+    cell = await worksheet.find(str(ebid))
+    await worksheet.update_cell(cell.row, num_col, value)
 
-    worksheet.update_cell(cell.row, num_col, value)
 
-
-def return_cell(ebid,
-                name_col=None,
-                column=9,
-                sheetname='20A - OpLog Summary'):
-    '''
-    Return cell given an execution block ID and column for the output.
+async def return_cell(ebid,
+                      name_col: str | None = None,
+                      column: int = 9,
+                      sheetname: str = '20A - OpLog Summary'):
+    """
+    Return the value of a cell for the row identified by ``ebid``.
 
     Parameters
     ----------
-    ebid : str
-        EB ID number of the track.
-    name_col : str, optional
-        Name of column in the google sheet. When given, overrides `column`.
-    column : int, optional
-        Integer number of the column starting at 1(!).
-    sheetname : str, optional
-        Name of tab sheet name.
-    '''
-
+    name_col:
+        Column header string.  When given, overrides ``column``.
+    column:
+        1-based column index.
+    """
     if name_col is None and column is None:
         raise ValueError("Either name_col or column must be provided.")
 
-    full_sheet = read_tracksheet()
-    worksheet = full_sheet.worksheet(sheetname)
+    full_sheet = await read_tracksheet()
+    worksheet = await full_sheet.worksheet(sheetname)
 
     if name_col is not None:
         try:
-            thiscolcell = worksheet.find(name_col)
-            column = thiscolcell.col
-        except gspread.CellNotFound:
-            log.exception(f"Unable to find column name {name_col}. Defaulting to `column`")
+            col_cell = await worksheet.find(name_col)
+            column = col_cell.col
+        except gspread.exceptions.CellNotFound:
+            log.exception(f"Column '{name_col}' not found; falling back to column={column}.")
 
-    ebid_cell = worksheet.find(str(ebid))
-
-    cell = worksheet.cell(ebid_cell.row, column)
-
+    ebid_cell = await worksheet.find(str(ebid))
+    cell = await worksheet.cell(ebid_cell.row, column)
     return cell.value
 
 
-def download_refant_summsheet(ebid,
-                              output_folder,
-                              data_type='continuum',
-                              sheetname='20A - OpLog Summary'):
-    '''
-    Does the same thing as gsheet_flagging.download_refant but pulls the refant ignore
-    from the master status sheet, not the flagging sheets.
+async def download_refant_summsheet(ebid,
+                                    output_folder,
+                                    sheetname: str = '20A - OpLog Summary') -> Path | None:
+    """
+    Download the refant-ignore string from the master status sheet and write it
+    to a file.  Returns the output path, or None if no entry exists.
+    """
+    refant_ignore = await return_cell(ebid, name_col="Avoid as refant", sheetname=sheetname)
 
-
-    '''
-
-    refant_ignore_cell = return_cell(ebid,
-                                     name_col="Avoid as refant",
-                                     sheetname=sheetname)
-
-    if refant_ignore_cell is None:
-        log.info(f"No refant ignore found in the flagging sheet for {ebid}")
+    if not refant_ignore:
+        log.info(f"No refant ignore found in the summary sheet for EBID {ebid}.")
         return None
 
-    trackname = return_cell(ebid, name_col="Trackname", sheetname=sheetname)
-
-    outfilename = Path(output_folder) / f"{trackname}_{data_type}_refantignore.txt"
+    trackname = await return_cell(ebid, name_col="Trackname", sheetname=sheetname)
+    outfilename = Path(output_folder) / f"{trackname}_refantignore.txt"
 
     if outfilename.exists():
         outfilename.unlink()
-
-    with open(outfilename, "w") as outfile:
-
-        outfile.write(refant_ignore_cell)
+    outfilename.write_text(refant_ignore)
 
     return outfilename
 
 
-def get_tracknames(source_name,
-                   sheetnames=['20A - OpLog Summary',
-                               'Archival Track Summary'],
-                   config='all',
-                   completed_status=True):
-    """
-    Check which tracks are contained or not in a local directory.
-    """
+# ---------------------------------------------------------------------------
+# Utility queries (not called from the main pipeline loop)
+# ---------------------------------------------------------------------------
 
-    full_sheet = read_tracksheet()
+async def get_tracknames(source_name: str,
+                         sheetnames: list = None,
+                         config: str = 'all',
+                         completed_status: bool = True) -> list:
+    """Return all tracknames that include ``source_name`` as one of their targets."""
+    if sheetnames is None:
+        sheetnames = ['20A - OpLog Summary', 'Archival Track Summary']
 
-    # Find the right sheet according to sheetname
-
+    full_sheet = await read_tracksheet()
     track_names = []
 
     for sheetname in sheetnames:
-
-        worksheet = full_sheet.worksheet(sheetname)
-
-        # Grab the track info.
-        tracks_info = worksheet.get_all_records()
+        worksheet = await full_sheet.worksheet(sheetname)
+        tracks_info = await worksheet.get_all_records()
 
         for track in tracks_info:
-
-            if source_name not in track['Target']:
+            targets = [t.strip() for t in track['Targets'].split(',')]
+            if source_name not in targets:
                 continue
-
-            if config != "all":
-                if track['Configuration'] != config:
-                    continue
-
-            if completed_status:
-                if 'imaging' not in track['Status: continuum']:
-                    continue
-
-                if 'imaging' not in track['Status: speclines']:
-                    continue
-
+            if config != 'all' and track['Configuration'] != config:
+                continue
+            if completed_status and 'imaging' not in track['Status: pipeline']:
+                continue
             track_names.append(track['Trackname'])
 
     return track_names
 
 
-def check_tracks_on_disk(source_name, local_path,
-                         sheetnames=['20A - OpLog Summary',
-                                     'Archival Track Summary'],
-                         config='all',
-                         completed_status=True):
+async def check_tracks_on_disk(source_name: str,
+                               local_path: Path,
+                               sheetnames: list = None,
+                               config: str = 'all',
+                               completed_status: bool = True):
+    """
+    Cross-reference sheet tracknames with MS files on disk.
+    Returns ``(table, unmatched_files)``.
+    """
+    if sheetnames is None:
+        sheetnames = ['20A - OpLog Summary', 'Archival Track Summary']
 
-    track_names = get_tracknames(source_name, sheetnames=sheetnames,
-                                 config=config,
-                                 completed_status=completed_status)
+    track_names = await get_tracknames(source_name, sheetnames=sheetnames,
+                                       config=config, completed_status=completed_status)
 
-    continuum_ondisk = []
-    speclines_ondisk = []
-
-    local_ms_files = list(local_path.glob(f"{source_name}*ms.split.tar"))
-
-    these_files =[]
+    pipeline_ondisk = []
+    local_ms_files = list(local_path.glob("*ms.split.tar"))
 
     for this_track in track_names:
-
-        has_cont = [ii for ii, this_file in enumerate(local_ms_files) if
-                    (this_track in this_file.name) and ("continuum" in this_file.name)]
-
-        if len(has_cont) == 1:
-            local_ms_files.pop(has_cont[0])
-            continuum_ondisk.append(True)
-        elif len(has_cont) > 1:
-            raise ValueError(f"Shouldn't have multiple continuum matches. Check {this_track}")
+        matches = [i for i, f in enumerate(local_ms_files) if this_track in f.name]
+        if len(matches) == 1:
+            local_ms_files.pop(matches[0])
+            pipeline_ondisk.append(True)
+        elif len(matches) > 1:
+            raise ValueError(f"Multiple pipeline MS matches for {this_track} — check files.")
         else:
-            continuum_ondisk.append(False)
-
-
-        has_lines = [ii for ii, this_file in enumerate(local_ms_files) if
-                    (this_track in this_file.name) and ("speclines" in this_file.name)]
-
-        if len(has_lines) == 1:
-            local_ms_files.pop(has_lines[0])
-            speclines_ondisk.append(True)
-        elif len(has_lines) > 1:
-            raise ValueError(f"Shouldn't have multiple line matches. Check {this_track}")
-        else:
-            speclines_ondisk.append(False)
+            pipeline_ondisk.append(False)
 
     from astropy.table import Table
-
     tab = Table()
     tab['tracknames'] = track_names
-    tab['continuum_ondisk'] = continuum_ondisk
-    tab['speclines_ondisk'] = speclines_ondisk
+    tab['pipeline_ondisk'] = pipeline_ondisk
 
-    unmatched_files = local_ms_files
-
-    return tab, unmatched_files
+    return tab, local_ms_files
