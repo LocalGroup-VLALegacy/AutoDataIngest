@@ -8,8 +8,9 @@ through pipeline calibration on the Alliance Canada "fir" cluster, QA product
 generation, and preparing calibrated data for imaging.
 
 A Google Sheet ("20A-346 Tracks") is the single source of truth for status.
-All three main scripts read from it and write back to it. No state is held in
-memory between script invocations — everything is recoverable from the sheet.
+All three main scripts read from it and write back to it using the async
+`gspread-asyncio` library. No state is held in memory between script
+invocations — everything is recoverable from the sheet.
 
 ---
 
@@ -105,18 +106,24 @@ machine. Keys are set up so that no password is required.
 
 ## The three main scripts
 
+All three scripts share the same architecture: a single `asyncio.run()` call
+drives one or more **producer** coroutines and one or more **consumer**
+coroutines over a shared `asyncio.Queue`. The producer loops indefinitely
+(sleeping between cycles with `await asyncio.sleep()`), so the process runs
+continuously until interrupted — no external shell loop or periodic
+re-invocation is needed.
+
 ### `main.py` — Initial ingestion and job submission
 
 **Responsibility**: Detect new tracks in the Google Sheet and drive them
 through steps 1–7 above.
-
-**Architecture**: `asyncio` producer/consumer.
 
 - **Producer** (`produce()`): Polls the sheet on a long interval (default
   6 hr). Calls `find_new_tracks()` which returns EBIDs where
   `Status: pipeline` is empty. For each new EBID, checks that the SDM has
   already been staged at the NRAO end via Globus before queuing it. A short
   sleep (default 10 min) is inserted between queuing items to stagger starts.
+  Loops via `await asyncio.sleep(long_sleep)` at the end of each cycle.
 
 - **Consumer** (`consume()`): Processes one track end-to-end:
   1. `archive_request_and_transfer()` — Globus transfer to fir
@@ -131,15 +138,15 @@ through steps 1–7 above.
 | Variable | Default | Description |
 |---|---|---|
 | `CLUSTERNAME` | `'dra-fir'` | Target cluster |
-| `CASA_VERSION` | `'6.6'` | CASA version (maps to binary path via `path_to_casa()`) |
+| `CASA_VERSION` | `'6.6'` | CASA version passed to the job script |
 | `CLUSTER_PIPELINE_JOBTIME` | `'48:00:00'` | SLURM wall time for pipeline job |
 | `CLUSTER_PIPELINE_MEM` | `'32G'` | SLURM memory request |
 | `SHEETNAMES` | `['20A - OpLog Summary', 'Archival Track Summary']` | Sheet tabs to monitor |
 | `NUM_CONSUMERS` | `1` | Concurrent tracks being processed |
+| `DRY_RUN` | `False` | Set `True` to test without real infrastructure |
 
 **How to run**:
 ```bash
-# From the AutoDataIngest project root:
 mkdir -p logs
 python main.py
 ```
@@ -154,9 +161,6 @@ production, run inside a `screen` or `tmux` session.
 **Responsibility**: Poll SLURM for pipeline jobs that have finished and drive
 the completion sequence (steps 8–12).
 
-**Architecture**: `asyncio` producer/consumer with an outer `while True` loop
-that recreates the event loop each iteration.
-
 - **Producer** (`produce()`): Every `longsleeptime` (default 1 hr):
   1. Calls `find_running_tracks()` to get all EBIDs whose sheet status
      contains `"Reduction running"`, along with their SLURM job IDs.
@@ -166,12 +170,13 @@ that recreates the event loop each iteration.
   3. Calls `identify_completions()` to cross-reference running tracks with
      SLURM output.
   4. Queues completed tracks for the consumer; immediately updates the sheet
-     status to ISSUE for failed/timed-out jobs.
+     status for failed/timed-out jobs.
+  Loops via `await asyncio.sleep(longsleeptime)` at the end of each cycle.
 
 - **Consumer** (`consume()`): For each completed track:
   1. `set_qa_queued_status()` — marks sheet as queued for QA transfer
   2. `set_job_stats()` — records wall time and job outcome in sheet
-  3. `transfer_calibrated_data()` — Globus to project space (if enabled)
+  3. `transfer_calibrated_data()` — Globus to project space (if `DO_DATA_TRANSFER`)
   4. `transfer_pipeline_products()` — Globus products tar to ingester
   5. `make_flagging_sheet()` — creates/confirms flagging tab exists
   6. `make_qa_products()` — extracts weblog, runs qaplotter, moves to webserver
@@ -185,22 +190,14 @@ that recreates the event loop each iteration.
 | `TIME_RANGE_DAYS` | `14` | How far back `sacct` looks |
 | `DO_DATA_TRANSFER` | `True` | Whether to transfer calibrated MS to project space |
 | `SHEETNAMES` | both sheets | Sheet tabs to monitor |
+| `DRY_RUN` | `False` | Set `True` to test without real infrastructure |
 
 **How to run**:
 ```bash
 python main_job_completion.py
 ```
 
-Runs one full cycle (produce + consume until queue drained) then exits. The
-outer `while True` loop with `time.sleep(3600)` at the bottom is commented
-out by default — uncomment `# time.sleep(3600)` and comment out `break` to
-run continuously. Writes to `logs/main_job_completion.log`.
-
-> **Note (`revamp` branch)**: `main_job_completion.py` still references the
-> old per-type job names (`continuum_pipeline_default`, `line_pipeline_default`)
-> in `return_job_type()` and calls `set_job_status(data_type, ...)` with the
-> old two-argument signature. These calls need to be updated to the new
-> `unified_pipeline` job type and single-argument `set_job_status(job_status)`.
+Runs continuously until interrupted. Writes to `logs/main_job_completion.log`.
 
 ---
 
@@ -209,9 +206,6 @@ run continuously. Writes to `logs/main_job_completion.log`.
 **Responsibility**: React to reviewer decisions entered in the Google Sheet
 after QA — restarts, completions, manual reviews, and help requests (steps
 13–17).
-
-**Architecture**: `asyncio` producer/consumer. Runs one event loop then exits
-(no persistent outer loop by default).
 
 - **Producer** (`produce()`): On each cycle:
   1. First pass — COMPLETE / MANUAL REVIEW / HELP REQUESTED: calls
@@ -225,6 +219,7 @@ after QA — restarts, completions, manual reviews, and help requests (steps
      - Free scratch space > `MIN_STORAGE` (default 3 TB)
      - Free file count > `MIN_NUMFILES` (default 100,000)
      New RESTART jobs are gated on these limits.
+  Loops via `await asyncio.sleep(long_sleep)` at the end of each cycle.
 
 - **Consumer** (`consume()`): Reads `Re-run pipeline` cell to determine
   the action:
@@ -242,33 +237,21 @@ after QA — restarts, completions, manual reviews, and help requests (steps
 |---|---|---|
 | `CLUSTERNAME` | `'dra-fir'` | Cluster |
 | `CASA_VERSION` | `'6.5'` | CASA version for resubmitted jobs |
-| `CLUSTER_PIPELINE_JOBTIME` | — | Wall time for restarted pipeline job |
-| `CLUSTER_PIPELINE_MEM` | — | Memory for restarted pipeline job |
+| `PIPELINE_BRANCHNAME` | `'main'` | ReductionPipeline git branch |
 | `MAX_NUMJOBS` | `35` | Maximum concurrent SLURM jobs before blocking new restarts |
 | `MIN_STORAGE` | `3 TB` | Minimum free scratch space |
 | `MIN_NUMFILES` | `100,000` | Minimum free Lustre file count |
 | `NUM_CONSUMERS` | `3` | Concurrent tracks being restarted |
 | `SHEETNAMES` | both sheets | Sheet tabs to monitor |
 | `COMPLETEDDATAPATH` | `/project/.../calibrated/` | Export path for completed tracks |
+| `DRY_RUN` | `False` | Set `True` to test without real infrastructure |
 
 **How to run**:
 ```bash
 python main_restarts.py
 ```
 
-Runs one cycle and exits. To run continuously, wrap in a shell loop or a
-`screen`/`tmux` session and re-invoke periodically:
-```bash
-while true; do python main_restarts.py; sleep 3600; done
-```
-
-Writes to `logs/main_restarts.log`.
-
-> **Note (`revamp` branch)**: `main_restarts.py` still contains references to
-> `_allow_continuum_run` / `_allow_speclines_run` and the old two-type
-> `run_types` list structure. These will be simplified once `main_restarts.py`
-> is updated: the `run_types` list will always be a single `['pipeline', type]`
-> entry, so the "disable the other half" logic is no longer needed.
+Runs continuously until interrupted. Writes to `logs/main_restarts.log`.
 
 ---
 
@@ -284,13 +267,15 @@ mkdir -p logs
 python main.py
 
 # Terminal 2 (or screen/tmux pane 2)
-# Run periodically — re-invoke every hour
-while true; do python main_job_completion.py; sleep 3600; done
+python main_job_completion.py
 
 # Terminal 3 (or screen/tmux pane 3)
-# Run periodically — re-invoke after QA review cycles
-while true; do python main_restarts.py; sleep 3600; done
+python main_restarts.py
 ```
+
+Each script loops indefinitely inside a single `asyncio.run()` call — the
+producer coroutine sleeps between cycles with `await asyncio.sleep()`. No
+external shell loop or periodic re-invocation is needed.
 
 There is no dependency between the processes; each polls the Google Sheet
 independently. The sheet acts as the coordination mechanism: `main.py` sets
@@ -298,6 +283,68 @@ independently. The sheet acts as the coordination mechanism: `main.py` sets
 for that status to detect when to poll SLURM, and `main_restarts.py` watches
 for reviewer-entered values (`RESTART`, `COMPLETE`, etc.) to trigger the
 post-QA actions.
+
+---
+
+## Dry-run mode
+
+All three scripts support a `DRY_RUN` flag (set in the `__main__` block) that
+replaces every call to real infrastructure with a logged stub and a short
+sleep. This exercises the full asyncio producer/consumer flow — queue
+creation, task scheduling, sleep timing, error-handling paths — without
+touching Google Sheets, Globus, or SSH.
+
+To enable:
+
+```python
+# In main.py / main_job_completion.py / main_restarts.py, near the top of
+# the if __name__ == "__main__" block:
+DRY_RUN = True
+```
+
+When `DRY_RUN = True` the script logs `[DRY RUN]` before every simulated
+operation and uses the fake data constants defined in
+`autodataingest/dry_run_stubs.py`:
+
+| Constant | Value |
+|---|---|
+| `FAKE_EBID` | `99999999` |
+| `FAKE_TRACK_NAME` | `"20A-346.sb12345678.eb99999999.60123.456789012"` |
+| `FAKE_CONFIG` | `"B"` |
+| `FAKE_TARGET` | `"NGC6822"` |
+| `FAKE_JOB_ID` | `88888888` |
+| `DRY_RUN_SLEEP` | `1.0` s (controls simulated I/O latency) |
+
+To test a specific QA branch through `main_restarts.py`, set
+`_dry_run_qa_status` on the pipeline object created in `produce()`:
+
+```python
+this_pipe._dry_run_qa_status = "COMPLETE"       # exercises export_track_for_imaging
+this_pipe._dry_run_qa_status = "RESTART"        # exercises rerun_job_submission (default)
+this_pipe._dry_run_qa_status = "MANUAL REVIEW"  # exercises label_qa_failures
+```
+
+---
+
+## Dashboard
+
+An optional TUI dashboard runs on the ingester server and lets any authorised
+user view the live status of all three scripts, tail their log output, and
+send start/stop/restart commands — without SSH access to the machine running
+them.
+
+```bash
+# Start the daemon (runs the scripts as subprocesses, serves a Unix socket)
+python run_dashboard_server.py
+
+# Connect from any terminal on the same machine
+python -m dashboard.client
+```
+
+Key bindings in the TUI: `1`/`2`/`3` select a script panel; `F1` start,
+`F2` stop, `F3` restart; `Q` quit.
+
+The server is designed to run under systemd; see `deploy/vlaxl-dashboard.service`.
 
 ---
 
@@ -334,3 +381,4 @@ by the operator before first run):
 | `main.py` | `logs/main.log` |
 | `main_job_completion.py` | `logs/main_job_completion.log` |
 | `main_restarts.py` | `logs/main_restarts.log` |
+| Dashboard server | `logs/dashboard_server.log` |
