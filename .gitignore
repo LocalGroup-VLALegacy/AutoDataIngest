@@ -5,6 +5,10 @@ __pycache__/
 
 autodataingest/version.py
 
+planning
+logs
+
+
 # C extensions
 *.so
 
